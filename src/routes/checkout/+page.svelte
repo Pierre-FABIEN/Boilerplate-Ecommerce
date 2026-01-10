@@ -212,7 +212,7 @@
 	function computeTotalWeight() {
 		return $cartStore.items.reduce((acc, item) => {
 			const baseWeight = item.quantity * 0.125;
-			const customExtra = item.custom?.length > 0 ? 0.666 : 0;
+			const customExtra = (item.custom?.length ?? 0) > 0 ? 0.666 : 0;
 			return acc + baseWeight + customExtra;
 		}, 0);
 	}
@@ -412,15 +412,18 @@
 
 		// Mise à jour des données du superform
 		$createPaymentData.shippingCost = shippingCost.toString();
-		$createPaymentData.shippingOption = selectedShippingOption;
+		$createPaymentData.shippingOption = selectedShippingOption || undefined;
 
 		// Si tout est OK, on peut procéder au checkout
 		// Le formulaire sera soumis automatiquement par l'action du serveur
 		console.log('✅ Validation OK, soumission du formulaire...');
 	}
 
+	// permet de récupérer l'id de la commande en cours
 	$effect(() => {
-		$createPaymentData.orderId = data.pendingOrder.id;
+		if (data.pendingOrder) {
+			$createPaymentData.orderId = data.pendingOrder.id;
+		}
 		if (selectedAddressId) {
 			$createPaymentData.addressId = selectedAddressId;
 		}

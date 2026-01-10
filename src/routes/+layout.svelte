@@ -29,8 +29,6 @@
 		});
 		setupNavigationEffect();
 
-		//console.log(data);
-
 		setFirstOpen(true);
 		setRessourceToValide(true);
 
