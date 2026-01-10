@@ -86,6 +86,7 @@
 	},
 	"dependencies": {
 		"@babel/runtime": "^7.27.6",
+		"@contentful/rich-text-html-renderer": "^17.1.6",
 		"@dimforge/rapier3d-compat": "^0.17.1",
 		"@easypost/api": "^8.0.1",
 		"@faker-js/faker": "^9.8.0",

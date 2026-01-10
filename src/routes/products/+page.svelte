@@ -1,6 +1,4 @@
 <script lang="ts">
-  import Navigation from '$lib/components/Navigation.svelte';
-  import { mode } from 'mode-watcher';
   import { goto } from '$app/navigation';
   const categories = [
     { title: 'Category 1', slug: 'Category1' },
@@ -9,26 +7,24 @@
   ];
 
   function goToCategory(slug: string) {
-    goto(`/catalogue/${slug}`);
+    goto(`/products/${slug}`);
   }
 </script>
 
 <div class="container">
   <div class="cards-grid">
     {#each categories as category}
-      <article
+      <button
         class="card"
-        on:click={() => goToCategory(category.slug)}
-        role="button"
-        tabindex="0"
-        on:keydown={(e) => e.key === 'Enter' && goToCategory(category.slug)}
+        onclick={() => goToCategory(category.slug)}
+        onkeydown={(e) => e.key === 'Enter' && goToCategory(category.slug)}
       >
         <h2 class="card-title">{category.title}</h2>
-      </article>
+      </button>
     {/each}
   </div>
 </div>
-<Navigation />
+
 <style lang="scss">
   .container {
     position: absolute;

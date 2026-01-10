@@ -36,12 +36,14 @@
 		} else {
 			const items = data.pendingOrder;
 
-			if (!cartInitialized) {
+			if (!cartInitialized && items) {
 				setCart(items.id, items.userId, items.items, items.subtotal, items.tax, items.total);
 				cartInitialized = true;
 			}
 
-			startSync();
+			if (items) {
+				startSync();
+			}
 		}
 
 		return unsubscribe;
@@ -91,7 +93,7 @@
 {#if $isClient}
 	<div class="wappper">
 		<ModeWatcher />
-
+		<Navigation {data} />
 		<div class="container ccc">
 			<div class="wrapperScroll">
 				<SmoothScrollBar>
