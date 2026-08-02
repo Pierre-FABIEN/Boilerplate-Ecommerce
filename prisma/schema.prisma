@@ -19,6 +19,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PromoType {
+  PERCENTAGE
+  FIXED
+}
+
 
 // AUTH __________________________________________________________________________________
 model User {
@@ -127,6 +132,8 @@ model Order {
   tax                     Float   @default(0)
   total                   Float   @default(0)
   status                  OrderStatus @default(PENDING)
+  promoCode               String?
+  discountAmount          Float   @default(0)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @default(now())
   items                   OrderItem[]
@@ -294,6 +301,22 @@ model Category {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @default(now())
   @@map("categories")
+}
+
+model PromoCode {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  code        String    @unique
+  type        PromoType
+  value       Float                 // pourcentage (0-100) ou montant fixe en €
+  minAmount   Float?                // montant TTC produits minimum requis
+  usageLimit  Int?                  // null = illimité
+  usageCount  Int       @default(0)
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("promo_codes")
 }
 
 

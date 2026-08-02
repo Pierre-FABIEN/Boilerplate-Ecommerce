@@ -6,6 +6,10 @@ export const OrderSchema = z.object({
   shippingOption: z.string().optional(),
   shippingCost: z.string().optional(),
 
+  // Code promo appliqué (optionnel)
+  promoCode: z.string().optional(),
+  discountAmount: z.string().optional(),
+
   // Champs plats pour les informations du point relais
   servicePointId: z.string().optional(),
   servicePointPostNumber: z.string().optional(),

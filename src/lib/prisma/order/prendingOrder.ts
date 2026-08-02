@@ -221,10 +221,13 @@ export async function updateOrder(
 	servicePointLongitude?: string,
 	servicePointType?: string | null,
 	servicePointExtraRefCab?: string,
-	servicePointExtraShopRef?: string
+	servicePointExtraShopRef?: string,
+	promoCode?: string | null,
+	discountAmount: number = 0
 ) {
 	// 1. Convert shippingCost to float
 	const shippingCostFloat = parseFloat(shippingCost);
+	const discount = discountAmount > 0 ? parseFloat(discountAmount.toFixed(2)) : 0;
 
 	// 2. Récupère l'ordre existant
 	const existingOrder = await prisma.order.findUnique({
@@ -234,14 +237,13 @@ export async function updateOrder(
 		throw new Error(`Order ${orderId} does not exist`);
 	}
 
-	// 3. Calcule le total final (HT + port HT + TVA si besoin)
+	// 3. Calcule le total final (produits TTC + port - remise)
 	// existingOrder.total = prix des articles + leur TVA
-	// shippingCostFloat = frais de port (HT)
+	// shippingCostFloat = frais de port
 	const orderTotalHTWithoutShipping = existingOrder.total; // par hypothèse
-	// OU (existingOrder.subtotal + existingOrder.tax) – dépend de votre base
 
-	// total final
-	const finalTotal = orderTotalHTWithoutShipping + shippingCostFloat;
+	// total final (jamais négatif)
+	const finalTotal = Math.max(0, orderTotalHTWithoutShipping + shippingCostFloat - discount);
 
 	// 4. Met à jour la commande
 	return await prisma.order.update({
@@ -250,6 +252,8 @@ export async function updateOrder(
 			addressId,
 			shippingOption,
 			shippingCost: shippingCostFloat,
+			promoCode: promoCode || null,
+			discountAmount: discount,
 			total: parseFloat(finalTotal.toFixed(2)), // on arrondit
 			updatedAt: new Date(),
 			servicePointId,

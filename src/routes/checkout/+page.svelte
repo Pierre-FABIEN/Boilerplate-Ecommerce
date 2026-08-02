@@ -10,6 +10,7 @@
 	import ShippingOptions from '$lib/components/checkout/ShippingOptions.svelte';
 	import ServicePointMap from '$lib/components/checkout/ServicePointMap.svelte';
 	import CartSummary from '$lib/components/checkout/CartSummary.svelte';
+	import PromoCodeInput from '$lib/components/checkout/PromoCodeInput.svelte';
 	import {
 		CreditCard
 	} from 'lucide-svelte';
@@ -88,7 +89,26 @@
 	let selectedPoint = $state<any>(null);
 	let showMap = $state(false);
 
-	let totalTTC = $derived($cartStore.subtotal + $cartStore.tax + shippingCost);
+	// Code promo
+	let promoCode = $state('');
+	let discountAmount = $state(0);
+
+	// Total TTC des produits (hors frais de port) — base de calcul de la remise
+	let productTotalTTC = $derived($cartStore.subtotal + $cartStore.tax);
+
+	let totalTTC = $derived(
+		Math.max(0, $cartStore.subtotal + $cartStore.tax + shippingCost - discountAmount)
+	);
+
+	function resetPromo() {
+		promoCode = '';
+		discountAmount = 0;
+	}
+
+	function handlePromoApplied(code: string, discount: number) {
+		promoCode = code;
+		discountAmount = discount;
+	}
 
 	// Détecter si la commande contient des canettes personnalisées
 	let hasCustomItems = $derived($cartStore.items.some(item => item.custom?.length > 0));
@@ -361,6 +381,9 @@
 	function handleRemoveFromCart(productId: string) {
 		removeFromCart(productId);
 
+		// Le montant du panier a changé : on invalide le code promo appliqué
+		resetPromo();
+
 		// Une fois le store mis à jour, on vérifie si le panier n'est pas vide
 		if ($cartStore.items.length === 0) {
 			// Pas de recalcul, on vide juste les infos
@@ -376,7 +399,10 @@
 		console.log('📦 Avant mise à jour - Store:', $cartStore.items);
 		
 		updateCartItemQuantity(productId, quantity, customId);
-		
+
+		// Le montant du panier a changé : on invalide le code promo appliqué
+		resetPromo();
+
 		console.log('📦 Après mise à jour - Store:', $cartStore.items);
 		console.log('💰 Nouveau sous-total:', $cartStore.subtotal);
 		console.log('🧾 Nouvelle TVA:', $cartStore.tax);
@@ -413,6 +439,8 @@
 		// Mise à jour des données du superform
 		$createPaymentData.shippingCost = shippingCost.toString();
 		$createPaymentData.shippingOption = selectedShippingOption || undefined;
+		$createPaymentData.promoCode = promoCode || undefined;
+		$createPaymentData.discountAmount = discountAmount ? discountAmount.toString() : '0';
 
 		// Si tout est OK, on peut procéder au checkout
 		// Le formulaire sera soumis automatiquement par l'action du serveur
@@ -480,9 +508,20 @@
 						{totalNonCustomQuantity}
 						{canAddQuantity}
 						{getCustomCanPrice}
+						{discountAmount}
+						{promoCode}
 						onRemoveFromCart={handleRemoveFromCart}
 						onChangeQuantity={changeQuantity}
 					/>
+					{#if $cartStore.items.length > 0}
+						<PromoCodeInput
+							{productTotalTTC}
+							appliedCode={promoCode}
+							{discountAmount}
+							onApplied={handlePromoApplied}
+							onRemoved={resetPromo}
+						/>
+					{/if}
 					<!-- Formulaire de paiement -->
 					{#if $cartStore.items.length > 0}
 						<Card.Root>
@@ -504,6 +543,13 @@
 										type="hidden"
 										name="shippingCost"
 										bind:value={$createPaymentData.shippingCost}
+									/>
+
+									<input type="hidden" name="promoCode" bind:value={$createPaymentData.promoCode} />
+									<input
+										type="hidden"
+										name="discountAmount"
+										bind:value={$createPaymentData.discountAmount}
 									/>
 
 									<input

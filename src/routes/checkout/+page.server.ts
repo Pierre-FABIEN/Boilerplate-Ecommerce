@@ -9,6 +9,7 @@ import type { PageServerLoad } from './$types';
 import { getOrderById, updateOrder } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
+import { validatePromo, incrementUsage } from '$lib/prisma/promo/promo';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ export const actions: Actions = {
 			addressId,
 			shippingOption,
 			shippingCost,
+			promoCode,
 			servicePointId,
 			servicePointPostNumber,
 			servicePointLatitude,
@@ -77,7 +79,26 @@ export const actions: Actions = {
 
 		const userId = order.userId;
 
-		// 3) Update the order in DB with shipping info
+		// 2bis) Validation du code promo côté serveur (source de vérité).
+		// La remise s'applique sur le total TTC des produits (hors frais de port).
+		const tvaRate = 0.055;
+		const productTotalTTC = parseFloat(
+			order.items
+				.reduce((sum, item) => sum + item.price * (1 + tvaRate) * item.quantity, 0)
+				.toFixed(2)
+		);
+
+		const promoResult = await validatePromo(promoCode, productTotalTTC);
+		const appliedDiscount = promoResult.valid ? promoResult.discountAmount : 0;
+		const appliedPromoCode = promoResult.valid ? promoResult.promo?.code ?? null : null;
+
+		// Facteur de remise proportionnel appliqué aux produits uniquement
+		const discountFactor =
+			appliedDiscount > 0 && productTotalTTC > 0
+				? (productTotalTTC - appliedDiscount) / productTotalTTC
+				: 1;
+
+		// 3) Update the order in DB with shipping info + remise
 		const updatedOrder = await updateOrder(
 			orderId,
 			addressId,
@@ -89,19 +110,22 @@ export const actions: Actions = {
 			servicePointLongitude,
 			servicePointType,
 			servicePointExtraRefCab,
-			servicePointExtraShopRef
+			servicePointExtraShopRef,
+			appliedPromoCode,
+			appliedDiscount
 		);
 
 		const lineItems = order.items.map((item) => {
 			// item.price = 10 => c'est du HT
-			const tvaRate = 0.055;
 			const ttcPrice = item.price * (1 + tvaRate); // 10 * 1.055 = 10.55
+			// On applique la remise proportionnellement sur le prix unitaire TTC
+			const discountedUnitAmount = Math.round(ttcPrice * 100 * discountFactor);
 
 			return {
 				price_data: {
 					currency: 'eur',
 					product_data: { name: item.product.name },
-					unit_amount: Math.round(ttcPrice * 100)
+					unit_amount: discountedUnitAmount
 				},
 				quantity: item.quantity
 			};
@@ -132,7 +156,9 @@ export const actions: Actions = {
 			metadata: {
 				order_id: orderId,
 				shipping_option: finalShippingOption,
-				shipping_cost: (updatedOrder.shippingCost || 0).toString()
+				shipping_cost: (updatedOrder.shippingCost || 0).toString(),
+				promo_code: appliedPromoCode || '',
+				discount_amount: appliedDiscount.toString()
 			},
 			payment_intent_data: {
 				metadata: {
@@ -141,6 +167,15 @@ export const actions: Actions = {
 				}
 			}
 		});
+
+		// 6bis) Incrémenter le compteur d'utilisation du code promo si appliqué
+		if (promoResult.valid && promoResult.promo) {
+			try {
+				await incrementUsage(promoResult.promo.id);
+			} catch (err) {
+				console.error('Erreur incrementUsage code promo:', err);
+			}
+		}
 
 		// 7) Redirect user to Stripe checkout
 		throw redirect(303, session.url || '/');

@@ -16,6 +16,8 @@
 		getCustomCanPrice: (quantity: number) => number;
 		onRemoveFromCart: (productId: string) => void;
 		onChangeQuantity: (productId: string, quantity: number, customId?: string) => void;
+		discountAmount?: number;
+		promoCode?: string;
 	}
 
 	let { 
@@ -31,7 +33,9 @@
 		canAddQuantity,
 		getCustomCanPrice,
 		onRemoveFromCart,
-		onChangeQuantity
+		onChangeQuantity,
+		discountAmount = 0,
+		promoCode = ''
 	} = $props();
 
 	// État local pour forcer le re-rendu
@@ -39,8 +43,10 @@
 	let localSubtotal = $state(subtotal);
 	let localTax = $state(tax);
 
-	// Calculer le total TTC
-	let totalTTC = $derived(localSubtotal + localTax + shippingCost);
+	// Calculer le total TTC (remise déduite)
+	let totalTTC = $derived(
+		Math.max(0, localSubtotal + localTax + shippingCost - discountAmount)
+	);
 
 	// Mettre à jour l'état local quand les props changent
 	$effect(() => {
@@ -173,6 +179,12 @@
 					<span>TVA (5,5%)</span>
 					<span>{localTax.toFixed(2)}€</span>
 				</div>
+				{#if discountAmount > 0}
+					<div class="flex justify-between text-sm text-green-600">
+						<span>Remise {promoCode ? `(${promoCode})` : ''}</span>
+						<span>-{discountAmount.toFixed(2)}€</span>
+					</div>
+				{/if}
 				<div class="flex justify-between text-lg font-semibold pt-2 border-t">
 					<span>Total TTC</span>
 					<span>{totalTTC.toFixed(2)}€</span>
