@@ -1,11 +1,12 @@
 # Tests end-to-end
 
-La suite Playwright couvre deux domaines, exécutés en séquence (un seul worker) :
+La suite Playwright couvre trois domaines, exécutés en séquence (un seul worker) :
 
 - authentification : un parcours unique, `e2e/auth/journey.spec.ts` ;
 - administration : accès (`e2e/admin/security.spec.ts`) et CRUD des comptes
-  (`e2e/admin/users.spec.ts`). Les autres sections du back-office n'ont pas
-  encore de tests fonctionnels.
+  (`e2e/admin/users.spec.ts`) ;
+- catalogue : vitrine (`e2e/products/catalog.spec.ts`) et CRUD admin produits
+  (`e2e/products/admin.spec.ts`).
 
 ## Authentification
 
@@ -92,7 +93,10 @@ et la liste des comptes.
 
 `e2e/admin/users.spec.ts` couvre le CRUD des utilisateurs : liste sans fuite de
 secrets, promotion de rôle, refus d'un rôle hors enum, bascule MFA, suppression.
-Le CRUD produits / blog / promo / ventes / contacts est reporté.
+
+`e2e/products/catalog.spec.ts` et `e2e/products/admin.spec.ts` couvrent la
+vitrine Prisma et le CRUD admin des produits. Le CRUD blog / promo / ventes /
+contacts reste reporté.
 
 ## Architecture des utilitaires
 

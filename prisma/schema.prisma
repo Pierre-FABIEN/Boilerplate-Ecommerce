@@ -215,7 +215,8 @@ model OrderItem {
   updatedAt DateTime @updatedAt
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  // Restrict : un produit déjà commandé ne doit pas pouvoir détruire l'historique de vente.
+  // PRODUCT-PLUGIN / COMMERCE : Restrict — un produit déjà commandé ne doit
+  // pas pouvoir détruire l'historique de vente.
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
@@ -236,6 +237,7 @@ model OrderStatusHistory {
 }
 
 model Product {
+  // PRODUCT-PLUGIN : cœur du catalogue. Les OrderItem du commerce y font référence.
   id           String            @id @default(cuid())
   name         String
   description  String

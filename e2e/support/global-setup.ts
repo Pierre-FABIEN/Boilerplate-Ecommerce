@@ -51,6 +51,21 @@ export default async function globalSetup() {
 		console.log(`[e2e] ${stale.length} compte(s) résiduel(s) purgé(s).`);
 	}
 
+	const staleProducts = await withRetry(() =>
+		db.product.findMany({
+			where: { slug: { startsWith: 'e2e-' } },
+			select: { id: true }
+		})
+	);
+	if (staleProducts.length > 0) {
+		const ids = staleProducts.map((p) => p.id);
+		await db.orderItem.deleteMany({ where: { productId: { in: ids } } });
+		await db.productCategory.deleteMany({ where: { productId: { in: ids } } });
+		await db.product.deleteMany({ where: { id: { in: ids } } });
+		await db.category.deleteMany({ where: { name: { startsWith: 'e2e-cat-' } } });
+		console.log(`[e2e] ${staleProducts.length} produit(s) résiduel(s) purgé(s).`);
+	}
+
 	const smtpPort = Number(process.env.SMTP_PORT ?? 2525);
 	const httpPort = Number(process.env.SMTP_HTTP_PORT ?? 2526);
 	const sink = await startSmtpSink(smtpPort, httpPort);

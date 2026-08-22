@@ -118,6 +118,75 @@ export async function findPromoCode(id: string) {
 	return resilient(() => db.promoCode.findUnique({ where: { id } }));
 }
 
+/** Catalogue : produit de test isolé (image factice, pas d'upload Cloudinary). */
+export async function createCatalogProduct(overrides?: { name?: string; slug?: string }) {
+	const stamp = `${Date.now()}`;
+	const category = await resilient(() =>
+		db.category.create({ data: { name: `e2e-cat-${stamp}` } })
+	);
+	const product = await resilient(() =>
+		db.product.create({
+			data: {
+				name: overrides?.name ?? `e2e-prod-${stamp}`,
+				slug: overrides?.slug ?? `e2e-prod-${stamp}`,
+				description: 'Produit de test e2e pour le catalogue.',
+				price: 12.5,
+				stock: 10,
+				images: ['https://example.test/e2e-product.jpg'],
+				colorProduct: '#112233',
+				categories: { create: { categoryId: category.id } }
+			}
+		})
+	);
+	return { product, category };
+}
+
+export async function getProductBySlug(slug: string) {
+	return resilient(() => db.product.findUnique({ where: { slug } }));
+}
+
+export async function getProductById(id: string) {
+	return resilient(() => db.product.findUnique({ where: { id } }));
+}
+
+/** Relie un produit à une commande, pour vérifier le refus de suppression. */
+export async function linkProductToOrder(userId: string, productId: string) {
+	const order = await resilient(() => db.order.create({ data: { userId } }));
+	const item = await resilient(() =>
+		db.orderItem.create({
+			data: { orderId: order.id, productId, quantity: 1, price: 1 }
+		})
+	);
+	return { order, item };
+}
+
+export async function deleteCatalogProduct(productId: string) {
+	const product = await resilient(() =>
+		db.product.findUnique({
+			where: { id: productId },
+			include: { categories: true }
+		})
+	);
+	if (!product) return;
+
+	await resilient(() => db.orderItem.deleteMany({ where: { productId } }));
+	await resilient(() => db.productCategory.deleteMany({ where: { productId } }));
+	await resilient(() => db.product.deleteMany({ where: { id: productId } }));
+
+	for (const link of product.categories) {
+		const remaining = await resilient(() =>
+			db.productCategory.count({ where: { categoryId: link.categoryId } })
+		);
+		if (remaining === 0) {
+			await resilient(() =>
+				db.category.deleteMany({
+					where: { id: link.categoryId, name: { startsWith: 'e2e-cat-' } }
+				})
+			);
+		}
+	}
+}
+
 /** Nombre de sessions actives, pour vérifier révocations et déconnexions. */
 export async function countSessions(email: string): Promise<number> {
 	const user = await requireUser(email);

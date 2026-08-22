@@ -16,7 +16,7 @@
 					{ title: 'Accueil', url: '/admin' },
 					{ title: 'ventes', url: '/admin/sales' },
 					{ title: 'utilisateurs', url: '/admin/users' },
-					{ title: 'produits', url: '/admin/products' },
+					{ title: 'produits', url: '/admin/products' }, // PRODUCT-PLUGIN
 					{ title: 'blog', url: '/admin/blog' },
 					{ title: 'promo', url: '/admin/promo' },
 					{ title: 'contacts', url: '/admin/contacts' }

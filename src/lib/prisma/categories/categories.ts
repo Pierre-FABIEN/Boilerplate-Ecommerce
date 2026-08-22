@@ -1,5 +1,12 @@
 import { prisma } from '$lib/server';
 
+/**
+ * Accès Prisma aux catégories du catalogue produit (pas les catégories blog).
+ *
+ * PRODUCT-PLUGIN : retirer avec le module catalogue, ou les conserver si le
+ * commerce continue d'afficher des rayons.
+ */
+
 export const getAllcategories = async () => {
 	try {
 		const categories = await prisma.category.findMany();

@@ -16,6 +16,7 @@ export const sitemapConfig = {
 	// Configuration des priorités et fréquences par type de route
 	routeConfig: {
 		'/': { priority: '1.0', changefreq: 'daily' },
+		'/products': { priority: '0.9', changefreq: 'weekly' }, // PRODUCT-PLUGIN
 		'/catalogue': { priority: '0.9', changefreq: 'weekly' },
 		'/blog': { priority: '0.8', changefreq: 'weekly' },
 		'/contact': { priority: '0.7', changefreq: 'monthly' },

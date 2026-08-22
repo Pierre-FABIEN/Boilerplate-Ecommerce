@@ -1,4 +1,9 @@
-// src/routes/+page.server.ts
+/**
+ * Liste des produits, suppression, catégories.
+ *
+ * PRODUCT-PLUGIN : les gardes d'écriture sont celles de l'admin. Un produit
+ * déjà commandé ne peut pas être effacé (`ProductInUseError`).
+ */
 import type { PageServerLoad } from './$types';
 import { type Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';
@@ -10,11 +15,16 @@ import { deleteCategorySchema } from '$lib/schema/categories/deleteCategorySchem
 
 import {
 	deleteCategoryById,
-	deleteProductCategories,
+	deleteProductCategoriesByCategoryId,
 	getAllcategories,
 	getCategoriesById
 } from '$lib/prisma/categories/categories';
-import { deleteProductById, getAllProducts, getProductById } from '$lib/prisma/products/products';
+import {
+	deleteProductById,
+	getAllProducts,
+	getProductById,
+	ProductInUseError
+} from '$lib/prisma/products/products';
 import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
@@ -47,30 +57,23 @@ export const actions: Actions = {
 				return fail(400, { message: 'Product not found' });
 			}
 
-			const images = existingProduct.images;
-			for (const imageUrl of images) {
-				const publicId = getPublicIdFromUrl(imageUrl);
-				if (publicId) {
-					try {
-						const result = await cloudinary.uploader.destroy(`products/${publicId}`);
+			await deleteProductById(id);
 
-						if (result.result !== 'ok' && result.result !== 'not found') {
-							console.error('Error deleting image from Cloudinary:', result);
-							return fail(500, { message: 'Failed to delete image from Cloudinary' });
-						}
-					} catch (error) {
-						console.error('Error deleting image from Cloudinary:', error);
-						return fail(500, { message: 'Failed to delete image from Cloudinary' });
-					}
+			for (const imageUrl of existingProduct.images) {
+				const publicId = getPublicIdFromUrl(imageUrl);
+				if (!publicId || !imageUrl.includes('cloudinary')) continue;
+				try {
+					await cloudinary.uploader.destroy(`products/${publicId}`);
+				} catch (error) {
+					console.error('Error deleting image from Cloudinary:', error);
 				}
 			}
 
-			await deleteProductCategories(id);
-
-			await deleteProductById(id);
-
 			return message(form, 'Product deleted successfully');
 		} catch (error) {
+			if (error instanceof ProductInUseError) {
+				return fail(409, { message: error.message });
+			}
 			console.error('Error deleting product:', error);
 			return fail(500, { message: 'Product deletion failed' });
 		}
@@ -90,7 +93,7 @@ export const actions: Actions = {
 				return fail(400, { message: 'Category not found' });
 			}
 
-			await deleteProductCategories(categoryId);
+			await deleteProductCategoriesByCategoryId(categoryId);
 
 			await deleteCategoryById(categoryId);
 

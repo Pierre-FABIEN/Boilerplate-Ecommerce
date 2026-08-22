@@ -78,16 +78,19 @@ Les listes d'utilisateurs n'exposent jamais `passwordHash`, `totpKey` ni
 ## Ce qui n'est pas l'admin
 
 L'authentification (`/auth`, sessions, 2FA) et le tunnel de commande
-(`/checkout`) sont des modules distincts. Un administrateur qui n'a pas validé
-sa 2FA est d'abord renvoyé vers `/auth/2fa` par `authHandle`, avant même
-d'atteindre `/admin`.
+(`/checkout`) sont des modules distincts. Le catalogue public (`/products`)
+est documenté à part : [docs/products](../products/README.md). Un administrateur
+qui n'a pas validé sa 2FA est d'abord renvoyé vers `/auth/2fa` par `authHandle`,
+avant même d'atteindre `/admin`.
 
 ## Tests
 
 - `e2e/admin/security.spec.ts` : anonyme et CLIENT refusés partout (GET et POST)
 - `e2e/admin/users.spec.ts` : CRUD des comptes, absence de fuites dans le HTML
+- `e2e/products/admin.spec.ts` : CRUD catalogue (voir [docs/products](../products/README.md))
 
-Le CRUD des autres sections n'est pas encore couvert ; voir `e2e/README.md`.
+Le CRUD blog / promo / ventes / contacts n'est pas encore couvert ; voir
+`e2e/README.md`.
 
 ```bash
 npm run test:e2e

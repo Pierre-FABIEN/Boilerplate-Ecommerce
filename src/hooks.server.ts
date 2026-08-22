@@ -95,6 +95,9 @@ const rateLimit: Handle = async ({ event, resolve }) => {
  * AUTH-PLUGIN : dépend de `locals.user`. Sans authentification, il faut soit
  * supprimer ce hook (panier purement client), soit rattacher la commande à un
  * identifiant de visiteur anonyme stocké en cookie.
+ *
+ * Ce n'est pas PRODUCT-PLUGIN : le catalogue n'a pas de hook. `pendingOrder`
+ * appartient au futur module commerce (panier / checkout).
  */
 const pendingOrderHandle: Handle = async ({ event, resolve }) => {
 	const userId = event.locals.user?.id;

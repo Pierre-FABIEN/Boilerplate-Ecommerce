@@ -29,7 +29,7 @@ const ADMIN_EMAIL = 'xplicitdrink.dev@gmail.com'; // ADMIN-PLUGIN : compte de d�
 const ADMIN_PASSWORD_HASH =
 	'$argon2id$v=19$m=19456,t=2,p=1$2h/u9dvpXqr5PiPa19tlBA$ZUYyS8+NjOxTodAaDO1ez5oVToWRfKCQWRabAe8sIgk';
 
-const CATEGORIES = ['Beverages', 'Snacks', 'Desserts'];
+const CATEGORIES = ['Beverages', 'Snacks', 'Desserts']; // PRODUCT-PLUGIN
 
 const PRODUCTS = [
 	{
@@ -137,6 +137,7 @@ async function main() {
 	}
 	console.log(`${categories.size} catégories produit créées.`);
 
+	// PRODUCT-PLUGIN ▼
 	for (const product of PRODUCTS) {
 		await prisma.product.create({
 			data: {
@@ -154,6 +155,7 @@ async function main() {
 		});
 	}
 	console.log(`${PRODUCTS.length} produits créés.`);
+	// PRODUCT-PLUGIN ▲
 
 	const author = await prisma.blogAuthor.create({
 		data: { name: adminUser.name ?? 'Admin User' }

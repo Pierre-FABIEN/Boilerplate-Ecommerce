@@ -1,5 +1,21 @@
 import { prisma } from '$lib/server';
 
+/**
+ * Accès Prisma aux produits.
+ *
+ * PRODUCT-PLUGIN : ces fonctions alimentent la vitrine (`src/lib/products`) et
+ * le CRUD admin. Ne pas les appeler depuis le panier ou le checkout sans
+ * marqueur COMMERCE : le prix affiché ici n'est pas encore revalidé à l'achat.
+ */
+
+/** Un produit déjà commandé ne peut pas être effacé : l'historique de vente reste. */
+export class ProductInUseError extends Error {
+	constructor(public readonly productId: string) {
+		super('Ce produit est lié à des commandes et ne peut pas être supprimé.');
+		this.name = 'ProductInUseError';
+	}
+}
+
 export const createProduct = async (productData: {
 	name: string;
 	description: string;
@@ -21,19 +37,30 @@ export const getProductById = async (productId: string) => {
 	});
 };
 
+export const getProductBySlug = async (slug: string) => {
+	return prisma.product.findUnique({
+		where: { slug },
+		include: {
+			categories: {
+				include: { category: true }
+			}
+		}
+	});
+};
+
 export const deleteProductById = async (productId: string) => {
-	// Supprime d'abord les OrderItems associés au produit
-	await prisma.orderItem.deleteMany({
-		where: { productId: productId }
+	const linkedItems = await prisma.orderItem.count({
+		where: { productId }
 	});
+	if (linkedItems > 0) {
+		throw new ProductInUseError(productId);
+	}
 
-	// Ensuite, supprime les catégories associées si nécessaire
 	await prisma.productCategory.deleteMany({
-		where: { productId: productId }
+		where: { productId }
 	});
 
-	// Finalement, supprime le produit lui-même
-	return await prisma.product.delete({
+	return prisma.product.delete({
 		where: { id: productId }
 	});
 };
@@ -65,9 +92,19 @@ export const getAllProducts = async () => {
 	}
 };
 
-export const updateProductById = async (productId: string, data: any) => {
+export const updateProductById = async (
+	productId: string,
+	data: {
+		name?: string;
+		description?: string;
+		price?: number;
+		stock?: number;
+		images?: string[];
+		colorProduct?: string;
+	}
+) => {
 	return await prisma.product.update({
 		where: { id: productId },
-		data: data
+		data
 	});
 };
