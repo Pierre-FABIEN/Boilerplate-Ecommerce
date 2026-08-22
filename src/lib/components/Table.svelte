@@ -11,10 +11,46 @@
 	import { Label } from '$shadcn/label';
 	import * as Tooltip from '$shadcn/tooltip/index.js';
 
+	import type { Component } from 'svelte';
+	import type { Action } from 'svelte/action';
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import { Plus } from 'lucide-svelte';
 
-	let { data, columns, name, actions = null, addLink = null } = $props();
+	type TableColumn = {
+		key: string;
+		label: string;
+		formatter?: (value: unknown) => unknown;
+	};
+
+	type TableItem = {
+		id: string;
+		[key: string]: unknown;
+	};
+
+	type TableAction =
+		| {
+				type: 'link';
+				name: string;
+				url: (item: TableItem) => string;
+				icon?: Component;
+		  }
+		| {
+				type: 'form';
+				name: string;
+				url: string;
+				enhanceAction: Action<HTMLFormElement>;
+				icon?: Component;
+		  };
+
+	interface Props {
+		data: TableItem[];
+		columns: TableColumn[];
+		name: string;
+		actions?: TableAction[] | null;
+		addLink?: string | null;
+	}
+
+	let { data, columns, name, actions = null, addLink = null }: Props = $props();
 
 	let dialogOpenId = $state<string | null>(null);
 	let searchQuery = $state('');
@@ -28,13 +64,13 @@
 		{ label: '20', value: 20 }
 	]);
 
-	let itemsPerPageString = $state(5);
+	let itemsPerPageString = $state('5');
 	let sortColumn = $state('');
 	let sortDirection = $state('asc');
-	let filteredItems = $state<any[]>([]);
-	let paginatedItems = $state<any[]>([]);
+	let filteredItems = $state<TableItem[]>([]);
+	let paginatedItems = $state<TableItem[]>([]);
 	let columnsVisibility = $state(
-		columns.reduce((acc, col) => {
+		columns.reduce<Record<string, boolean>>((acc, col) => {
 			acc[col.key] = true;
 			return acc;
 		}, {})
@@ -48,23 +84,20 @@
 			sortDirection = 'asc';
 		}
 
-		data = data.sort((a: any, b: any) => {
-			let aValue = a[column];
-			let bValue = b[column];
+		data = [...data].sort((a, b) => {
+			const aValue = a[column];
+			const bValue = b[column];
+			const av = typeof aValue === 'string' ? aValue.toLowerCase() : String(aValue ?? '');
+			const bv = typeof bValue === 'string' ? bValue.toLowerCase() : String(bValue ?? '');
 
-			if (typeof aValue === 'string') {
-				aValue = aValue.toLowerCase();
-				bValue = bValue.toLowerCase();
-			}
-
-			return (aValue < bValue ? -1 : 1) * (sortDirection === 'asc' ? 1 : -1);
+			return av.localeCompare(bv) * (sortDirection === 'asc' ? 1 : -1);
 		});
 
 		updateFilteredAndPaginatedItems();
 	};
 
 	const updateFilteredAndPaginatedItems = () => {
-		filteredItems = data.filter((item: any) =>
+		filteredItems = data.filter((item) =>
 			Object.values(item).some((value) =>
 				String(value).toLowerCase().includes(searchQuery.toLowerCase())
 			)
@@ -91,7 +124,7 @@
 
 	const deleteItem = (id: string) => {
 		setTimeout(() => {
-			data = data.filter((item: any) => item.id !== id);
+			data = data.filter((item) => item.id !== id);
 			updateFilteredAndPaginatedItems();
 			dialogOpenId = null;
 		}, 10);
@@ -193,7 +226,7 @@
 								{#each columns.filter((col) => columnsVisibility[col.key]) as column}
 									<td class="border border-gray-300 p-2">
 										{#if column.key === 'images'}
-											{@html item[column.key]}
+											{@html typeof item[column.key] === 'string' ? item[column.key] : ''}
 										{:else if column.formatter}
 											<!-- Si la colonne a un formatter, appliquez-le -->
 											{column.formatter(item[column.key])}

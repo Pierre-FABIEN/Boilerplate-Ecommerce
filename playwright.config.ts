@@ -11,7 +11,7 @@ dns.setDefaultResultOrder('ipv4first');
 // `e2e` et sur le puits SMTP local, jamais sur les données de développement.
 dotenv.config({ path: '.env.test', override: true });
 
-const PORT = 4173;
+const PORT = 2000;
 
 export default defineConfig({
 	testDir: 'e2e',
@@ -65,6 +65,8 @@ export default defineConfig({
 		// clair sur localhost.
 		command: `npx vite dev --port ${PORT} --strictPort`,
 		port: PORT,
+		// Toujours un Vite neuf avec `.env.test` : réutiliser `npm run dev` enverrait
+		// les emails vers Brevo et écrirait dans le schéma `public`.
 		reuseExistingServer: false,
 		timeout: 180_000,
 		stdout: 'pipe',

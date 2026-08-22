@@ -54,11 +54,14 @@ Prérequis :
 - la base Neon accessible. Les URL contenant `&` **doivent** rester entre
   guillemets dans `.env.test`.
 
-Playwright démarre lui-même le serveur de développement sur le port 4173
-(`PORT` dans `playwright.config.ts`) ; rien n'est à lancer à la main. Le serveur de
-dev compile chaque route à la première visite, ce qui explique la première étape
-particulièrement lente — une cinquantaine de secondes pour neuf pages jamais
-visitées. Ce n'est pas un blocage.
+Playwright démarre Vite sur le **port 2000**, le même que `npm run dev`. Arrêtez
+le serveur de développement avant les tests (`fuser -k 2000/tcp`) : la suite
+doit injecter `.env.test` (schéma `e2e`, SMTP local). Si `npm run dev` reste
+ouvert, le port est pris et les emails partiraient vers Brevo.
+
+Le serveur compile chaque route à la première visite, ce qui explique la
+première étape particulièrement lente — une cinquantaine de secondes pour neuf
+pages jamais visitées. Ce n'est pas un blocage.
 
 ## Ce qui est vérifié, étape par étape
 
@@ -199,7 +202,8 @@ relation `Order → User` est en `Restrict`.
 
 | Symptôme                                          | Cause probable                                                                 |
 | ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `http://localhost:4173 is already used` ou `EADDRINUSE 2525` | Une exécution interrompue a laissé le serveur de dev ou la boîte SMTP en vie. Libérer les ports : `fuser -k 4173/tcp 2525/tcp 2526/tcp`. |
+| `http://localhost:2000 is already used` ou `EADDRINUSE 2525` | `npm run dev` ou une exécution interrompue occupe le port. Libérer : `fuser -k 2000/tcp 2525/tcp 2526/tcp`. |
+| Vite refuse un fichier sous un autre dépôt (`Lezardoises`, `outside of Vite serving allow list`) | Un service worker PWA d'un autre projet est resté accroché à `localhost:2000`. Recharger une fois (le hook client le retire en dev) ou, dans Chrome : Application → Service Workers → Unregister. |
 | `Can't reach database server`                     | Neon en veille ou IPv6 capricieux sous WSL. Les lectures rejouent déjà ; relancer. |
 | Le test attend un code d'email indéfiniment       | La boîte SMTP n'a pas démarré : vérifier que `SMTP_HOST`/`SMTP_PORT` de `.env.test` visent bien le sink local. |
 | « Too many requests » inattendu                   | Une tentative invalide a été ajoutée sans marge. Voir le tableau des limiteurs. |

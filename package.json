@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"clean:vite": "rimraf node_modules/.vite .vite_cache",
-		"dev": "vite dev --port 2000",
+		"dev": "vite dev --port 2000 --strictPort",
 		"cacheclean": "npm cache clean --force",
 		"sync": "svelte-kit sync",
 		"build": "vite build",
