@@ -1,3 +1,15 @@
+// -----------------------------------------------------------------------------
+// Vérification de l'adresse email.
+//
+// Sert deux cas : la confirmation à l'inscription et le changement d'adresse
+// depuis les paramètres. Dans les deux cas c'est l'adresse portée par la demande
+// en cours qui est validée, jamais celle du compte.
+//
+// Les erreurs passent par `message()` et non par `fail()` : Superforms doit
+// pouvoir réarmer le formulaire, sans quoi la page reste bloquée après un code
+// refusé.
+// -----------------------------------------------------------------------------
+
 import { fail, redirect } from '@sveltejs/kit';
 import {
 	createEmailVerificationRequest,
@@ -11,7 +23,7 @@ import {
 
 import { invalidateUserPasswordResetSessions } from '$lib/prisma/passwordResetSession/passwordResetSession';
 import { updateUserEmailAndSetEmailAsVerified } from '$lib/lucia/user';
-import { ExpiringTokenBucket } from '$lib/lucia/rate-limit';
+import { ExpiringTokenBucket } from '$lib/server/rate-limit';
 
 import type { Actions, RequestEvent } from './$types';
 import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';

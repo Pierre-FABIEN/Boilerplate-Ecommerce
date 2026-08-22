@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------------
+// Présentation du code de secours, juste après la configuration de la 2FA.
+//
+// Seul moment où il est lisible : il est déchiffré à l'affichage et n'est plus
+// consultable ensuite. Un nouveau code n'est délivré qu'en reconfigurant la 2FA.
+// -----------------------------------------------------------------------------
+
 import { getUserRecoverCode } from '$lib/lucia/user';
 import { redirect } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';

@@ -1,3 +1,16 @@
+// -----------------------------------------------------------------------------
+// Réinitialisation de mot de passe.
+//
+// Une session de reset matérialise la progression du parcours : code email
+// validé, puis 2FA si le compte l'exige, puis saisie du nouveau mot de passe.
+// Son identifiant vit dans un cookie dédié, distinct du cookie de session, et
+// elle est détruite dès le mot de passe changé.
+//
+// Les deux drapeaux (`emailVerified`, `twoFactorVerified`) doivent être
+// contrôlés à chaque étape : c'est ce qui interdit d'accéder directement à la
+// dernière page du parcours.
+// -----------------------------------------------------------------------------
+
 import { generateRandomOTP } from './utils';
 import { generateSecureToken, isValidId } from './ids';
 import type { RequestEvent } from '@sveltejs/kit';

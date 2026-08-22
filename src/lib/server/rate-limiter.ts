@@ -1,4 +1,4 @@
-import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
+import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 /**

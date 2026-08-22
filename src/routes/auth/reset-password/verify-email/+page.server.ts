@@ -1,6 +1,14 @@
+// -----------------------------------------------------------------------------
+// Réinitialisation, étape 1 : code reçu par email.
+//
+// Le code validé marque la session de réinitialisation comme vérifiée et, au
+// passage, confirme l'adresse du compte si elle correspond — recevoir ce code en
+// est la preuve.
+// -----------------------------------------------------------------------------
+
 import { validatePasswordResetSessionRequest } from '$lib/lucia/passwordReset';
 import { setPasswordResetSessionAsEmailVerified } from '$lib/prisma/passwordResetSession/passwordResetSession';
-import { ExpiringTokenBucket } from '$lib/lucia/rate-limit';
+import { ExpiringTokenBucket } from '$lib/server/rate-limit';
 import { setUserAsEmailVerifiedIfEmailMatches } from '$lib/lucia/user';
 import { redirect } from '@sveltejs/kit';
 

@@ -38,7 +38,9 @@
 		message: createPostMessage
 	} = createPost;
 
-	// On initialise l'auteur et s'assure que tagIds est un tableau
+	// L'auteur de l'article est l'administrateur connecté.
+	// AUTH-PLUGIN : `data.user` vient de `+layout.server.ts` ; sans
+	// authentification, choisir l'auteur dans une liste (`BlogAuthor`).
 	$createPostData.authorId = data.user.id;
 	if (!$createPostData.tagIds) {
 		$createPostData.tagIds = [];

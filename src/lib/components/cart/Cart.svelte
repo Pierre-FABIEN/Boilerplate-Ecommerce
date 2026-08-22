@@ -108,6 +108,13 @@
 		updateCartItemQuantity(id, qte, customId);
 	}
 
+	/**
+	 * Déconnexion depuis le panier.
+	 *
+	 * AUTH-PLUGIN : à supprimer avec le module. `invalidateAll()` force le
+	 * rechargement des données de layout pour que l'interface repasse en état
+	 * anonyme, et le panier local est vidé car il appartenait au compte.
+	 */
 	async function handleSignOut() {
 		const res = await fetch('/auth/signout', { method: 'POST' });
 		if (!res.ok) {
@@ -257,6 +264,11 @@
 						{/if}
 
 						<!-- ---------- ACTIONS UTILISATEUR ------------------------ -->
+						<!--
+							AUTH-PLUGIN ▼ bloc compte : lien paramètres, accès admin, déconnexion,
+							et invitation à se connecter avant paiement.
+							Sans authentification, ne conserver que le bouton « Checkout ».
+						-->
 						{#if user}
 							<div class="ccc">
 								<Button class="w-full m-2" href="/checkout" onclick={() => (sidebarOpen = false)}>
@@ -299,6 +311,7 @@
 								</p>
 							</div>
 						{/if}
+						<!-- AUTH-PLUGIN ▲ -->
 					</div>
 				</SmoothScrollBar>
 			</Sheet.Content>

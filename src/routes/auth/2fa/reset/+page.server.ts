@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Perte de l'application d'authentification : usage du code de secours.
+//
+// Le code accepté retire la clé TOTP, invalide toutes les sessions du compte et
+// délivre un nouveau code de secours. L'utilisateur est renvoyé vers la
+// configuration de la 2FA, toujours exigée sur son compte.
+// -----------------------------------------------------------------------------
+
 import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/lucia/2fa';
 import { redirect } from '@sveltejs/kit';
 

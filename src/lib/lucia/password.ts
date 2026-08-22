@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// Mots de passe : hachage, vérification et contrôle de robustesse.
+//
+// Hachage Argon2id (paramètres alignés sur les recommandations OWASP). La
+// robustesse s'appuie sur la longueur puis sur la base « Have I Been Pwned »,
+// interrogée en k-anonymat : seuls les cinq premiers caractères de l'empreinte
+// SHA-1 sont transmis, jamais le mot de passe.
+// -----------------------------------------------------------------------------
+
 import { hash, verify } from '@node-rs/argon2';
 import { sha1 } from '@oslojs/crypto/sha1';
 import { encodeHexLowerCase } from '@oslojs/encoding';

@@ -1,9 +1,21 @@
+// -----------------------------------------------------------------------------
+// Configuration de la double authentification.
+//
+// Une clé TOTP est tirée à chaque affichage de la page et présentée en QR code ;
+// elle n'est enregistrée qu'une fois un code valide saisi, preuve que
+// l'application de l'utilisateur la partage réellement. La clé effectivement
+// validée voyage donc dans le formulaire, et non en session.
+//
+// L'enregistrement délivre un nouveau code de secours, affiché à l'étape
+// suivante et jamais réaffiché ensuite.
+// -----------------------------------------------------------------------------
+
 import { createTOTPKeyURI, verifyTOTP } from '@oslojs/otp';
 import { fail, redirect } from '@sveltejs/kit';
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { updateUserTOTPKey } from '$lib/lucia/user';
 import { setSessionAs2FAVerified } from '$lib/lucia/session';
-import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
+import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { totpSchema } from '$lib/schema/auth/totpSchema';
 import { renderSVG } from 'uqr';

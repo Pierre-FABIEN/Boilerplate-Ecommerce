@@ -1,3 +1,15 @@
+// -----------------------------------------------------------------------------
+// Dernière étape de la réinitialisation : saisie du nouveau mot de passe.
+//
+// L'entrée exige une session de réinitialisation dont l'email est vérifié, et la
+// 2FA validée si le compte l'exige — d'où les redirections en tête de `load`.
+// La robustesse est contrôlée côté serveur : un envoi direct ne peut pas
+// contourner la validation du navigateur.
+//
+// En sortie : ancien mot de passe remplacé, toutes les sessions du compte
+// invalidées, session de réinitialisation détruite, nouvelle session ouverte.
+// -----------------------------------------------------------------------------
+
 import {
 	deletePasswordResetSessionTokenCookie,
 	validatePasswordResetSessionRequest

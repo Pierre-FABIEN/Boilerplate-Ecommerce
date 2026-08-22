@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Tableau de bord du compte.
+//
+// Point d'arrivée de tous les parcours réussis. Son `load` refuse tout état
+// intermédiaire (adresse non vérifiée, 2FA en attente) et redirige vers l'étape
+// qui manque, ce qui en fait aussi la porte d'entrée naturelle de l'espace compte.
+// -----------------------------------------------------------------------------
+
 import { redirect } from '@sveltejs/kit';
 import { invalidateSession } from '$lib/lucia/session';
 import { auth } from '$lib/lucia';
@@ -24,8 +32,16 @@ export const load = async (event: PageServerLoadEvent) => {
 		}
 	}
 
+	// Projection explicite : `locals.user` porte la clé TOTP chiffrée, qui ne doit
+	// pas partir vers le navigateur.
 	return {
-		user: event.locals.user
+		user: {
+			username: event.locals.user.username,
+			email: event.locals.user.email,
+			role: event.locals.user.role,
+			isMfaEnabled: event.locals.user.isMfaEnabled,
+			registered2FA: event.locals.user.registered2FA
+		}
 	};
 };
 

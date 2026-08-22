@@ -1,3 +1,20 @@
+/**
+ * Compteurs de limitation de débit, en mémoire du processus.
+ *
+ * Ces classes ne dépendent de rien : elles servent au hook global
+ * (`src/hooks.server.ts`), au formulaire de contact et aux routes
+ * d'authentification. Elles vivent donc hors du module d'auth, pour que son
+ * retrait ne prive pas le reste du projet de ses limiteurs.
+ *
+ * Attention en déploiement multi-instances (Vercel serverless) : l'état n'est pas
+ * partagé entre instances, chacune applique donc son propre quota. Pour une
+ * limite globale il faudrait un stockage externe (Redis).
+ *
+ * - `RefillingTokenBucket` : se recharge d'un jeton par intervalle.
+ * - `ExpiringTokenBucket` : quota fixe sur une fenêtre, remis à zéro à l'expiration.
+ * - `Throttler` : impose un délai croissant entre tentatives (échecs de connexion).
+ * - `TokenBucket` : variante de `RefillingTokenBucket` conservée pour compatibilité.
+ */
 export class RefillingTokenBucket<_Key> {
 	public max: number;
 	public refillIntervalSeconds: number;

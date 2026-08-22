@@ -62,9 +62,11 @@
 				</ul>
 
 				<Drawer.Footer class="mt-6 flex justify-center gap-4">
+					<!-- AUTH-PLUGIN ▼ supprimer ce bouton avec le module d'authentification. -->
 					<Button size="sm" href="/auth/login" onclick={() => (drawerOpen = false)}
 						>Se connecter</Button
 					>
+					<!-- AUTH-PLUGIN ▲ -->
 					<Button size="sm" variant="outline" onclick={() => (drawerOpen = false)}>Fermer</Button>
 				</Drawer.Footer>
 			</Drawer.Content>

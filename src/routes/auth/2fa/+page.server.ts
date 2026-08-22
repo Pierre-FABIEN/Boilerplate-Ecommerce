@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Validation du second facteur pour la session courante.
+//
+// Page imposée par `authHandle` à toute session dont la 2FA n'est pas encore
+// validée. Le code accepté réémet la session avec `twoFactorVerified = true` :
+// c'est cette nouvelle session qui donne accès au reste du site.
+// -----------------------------------------------------------------------------
+
 import { totpBucket } from '$lib/lucia/2fa';
 import { fail, redirect } from '@sveltejs/kit';
 import { getUserTOTPKey } from '$lib/lucia/user';

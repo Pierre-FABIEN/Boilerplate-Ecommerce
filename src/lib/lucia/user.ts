@@ -1,3 +1,14 @@
+// -----------------------------------------------------------------------------
+// Opérations métier sur le compte utilisateur.
+//
+// Couche intermédiaire entre les routes et les accès Prisma
+// (`$lib/prisma/user/user`) : c'est ici que les règles s'appliquent (hachage du
+// mot de passe, chiffrement des secrets 2FA, validation des identifiants) afin
+// qu'aucune route n'écrive un secret en clair par inadvertance.
+//
+// Le type `User` exporté ici est celui exposé dans `event.locals.user`.
+// -----------------------------------------------------------------------------
+
 import { hashPassword } from './password';
 import { encryptString } from './encryption';
 import { generateRandomRecoveryCode } from './utils';

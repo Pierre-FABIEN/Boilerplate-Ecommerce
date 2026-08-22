@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Réinitialisation, étape 2 : second facteur.
+//
+// Deux issues possibles : un code TOTP, ou le code de secours si l'application
+// d'authentification est perdue. Ce dernier retire la 2FA du compte, ce qui rend
+// l'étape suivante accessible sans second facteur.
+// -----------------------------------------------------------------------------
+
 import { verifyTOTP } from '@oslojs/otp';
 import { getUserTOTPKey } from '$lib/lucia/user';
 import { validatePasswordResetSessionRequest } from '$lib/lucia/passwordReset';

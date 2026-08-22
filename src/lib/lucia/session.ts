@@ -1,3 +1,14 @@
+// -----------------------------------------------------------------------------
+// Cycle de vie des sessions.
+//
+// Le token est généré côté serveur, stocké tel quel dans un cookie `httpOnly`
+// et sert d'identifiant de ligne. Durée de vie : 30 jours, prolongée
+// automatiquement dès qu'il reste moins de 15 jours (session « glissante »).
+//
+// `twoFactorVerified` est porté par la session, pas par le compte : chaque
+// nouvelle connexion doit revalider la 2FA.
+// -----------------------------------------------------------------------------
+
 import type { RequestEvent } from '@sveltejs/kit';
 import { generateSecureToken, isValidId } from './ids';
 import type { User } from './user';

@@ -32,8 +32,11 @@
 		setFirstOpen(true);
 		setRessourceToValide(true);
 
-		if (data.user === null) {
-		} else {
+		// Hydratation du panier serveur pour un visiteur connecté.
+		// AUTH-PLUGIN : dépend de `data.user` et de `data.pendingOrder`, ce dernier
+		// n'étant pas exposé par défaut (voir `+layout.server.ts`). Sans
+		// authentification, le panier reste purement client.
+		if (data.user) {
 			const items = data.pendingOrder;
 
 			if (!cartInitialized && items) {

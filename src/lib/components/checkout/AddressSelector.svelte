@@ -102,6 +102,9 @@
 				<p class="text-muted-foreground">Aucune adresse renseignée.</p>
 			{/if}
 
+			<!-- AUTH-PLUGIN ▼ la gestion des adresses vit dans l'espace compte
+			     (`/auth/settings/address`). Sans authentification, proposer un
+			     formulaire d'adresse directement dans le tunnel de commande. -->
 			<Button variant="outline" class="w-full">
 				<a
 					data-sveltekit-preload-data
@@ -112,6 +115,7 @@
 					Créer une adresse
 				</a>
 			</Button>
+			<!-- AUTH-PLUGIN ▲ -->
 		</div>
 	</div>
 </div>

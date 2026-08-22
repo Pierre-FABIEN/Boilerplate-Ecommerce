@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Retour de Google.
+//
+// Contrôle l'état et le vérificateur PKCE, lit les informations du compte dans le
+// jeton d'identité, puis retrouve l'utilisateur par `googleId` ou le crée.
+// L'adresse est considérée comme vérifiée d'emblée, Google l'ayant validée.
+// -----------------------------------------------------------------------------
+
 import { google } from '$lib/lucia/oauth';
 import { ObjectParser } from '@pilcrowjs/object-parser';
 import { getUserFromGoogleId, getUserFromEmail } from '$lib/lucia/user';

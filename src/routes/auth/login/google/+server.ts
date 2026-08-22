@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Départ vers Google (OAuth 2.0 + PKCE).
+//
+// L'état et le vérificateur sont déposés dans deux cookies éphémères (10 min) que
+// le retour compare : l'état déjoue la falsification de requête, le vérificateur
+// prouve que le code d'autorisation est bien échangé par le client qui l'a demandé.
+// -----------------------------------------------------------------------------
+
 import { google } from '$lib/lucia/oauth';
 import { generateCodeVerifier, generateState } from 'arctic';
 

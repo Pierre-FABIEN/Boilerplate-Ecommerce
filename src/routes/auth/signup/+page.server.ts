@@ -1,5 +1,12 @@
 // -----------------------------------------------------------------------------
-// src/routes/auth/signup/+page.server.ts
+// Inscription.
+//
+// Crée le compte, ouvre une session et envoie le code de vérification. Le compte
+// existe donc avant que l'adresse soit confirmée, mais `emailVerified = false`
+// le confine à la page de vérification.
+//
+// Un échec d'envoi d'email n'annule pas l'inscription : le code reste lisible en
+// base pendant sa durée de validité, et l'utilisateur peut le faire renvoyer.
 // -----------------------------------------------------------------------------
 
 import { redirect, fail } from '@sveltejs/kit';
@@ -17,7 +24,7 @@ import {
 	setEmailVerificationRequestCookie
 } from '$lib/lucia/email-verification';
 
-import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
+import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { auth } from '$lib/lucia'; // ⬅️  on récupère l’instance Lucia
 
 import type { PageServerLoad, Actions } from './$types';
@@ -128,7 +135,10 @@ export const actions: Actions = {
 		log('✅  Session created', { sid: session.id });
 
 		/* ---------- 7. Redirection finale ---------------------------------- */
-		log('Redirect to 2FA setup');
-		throw redirect(303, '/auth/2fa/setup');
+		// Le compte existe mais son adresse n'est pas vérifiée : c'est la seule
+		// étape possible à ce stade. La 2FA n'est proposée qu'ensuite, depuis les
+		// paramètres du compte.
+		log('Redirect to email verification');
+		throw redirect(303, '/auth/verify-email');
 	}
 };

@@ -16,11 +16,14 @@ dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export const load = (async ({ locals }) => {
-	// Récupérer l'utilisateur
+	// AUTH-PLUGIN ▼ le paiement est réservé aux comptes : la commande et les
+	// adresses sont rattachées à `User`. Rendre le tunnel anonyme suppose de
+	// revoir le modèle de données (voir docs/auth/retrait.md).
 	const userId = locals.user?.id;
 	if (!userId) {
-		throw new Error('Utilisateur non connecté');
+		throw redirect(302, '/auth/login');
 	}
+	// AUTH-PLUGIN ▲
 	// Préparer la validation Superform
 	const IOrderSchema = await superValidate(zod(OrderSchema));
 	// Charger les adresses

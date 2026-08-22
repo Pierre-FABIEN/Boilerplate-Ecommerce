@@ -32,40 +32,64 @@ enum AddressType {
 }
 
 // AUTH __________________________________________________________________________________
+//
+// AUTH-PLUGIN : `Session`, `EmailVerificationRequest` et `PasswordResetSession`
+// n'existent que pour l'authentification et se suppriment ensemble.
+//
+// `User` est en revanche partagé : le commerce s'y rattache (`Address`, `Order`,
+// `Transaction`). Retirer l'authentification revient donc à retirer ses champs
+// d'identification, pas la table. Voir docs/auth/retrait.md.
 
 model User {
-  id                        String                     @id @default(cuid())
-  email                     String                     @unique
-  username                  String?
-  passwordHash              String?
-  recoveryCode              String?
-  emailVerified             Boolean                    @default(false)
-  isMfaEnabled              Boolean                    @default(false)
-  totpKey                   Bytes?
-  googleId                  String?                    @unique
-  name                      String?
-  picture                   String?
-  role                      Role                       @default(CLIENT)
-  addresses                 Address[]
-  orders                    Order[]
-  transactions              Transaction[]
+  id           String  @id @default(cuid())
+  email        String  @unique
+  /// Facultatif : un compte créé via Google n'en possède pas.
+  username     String?
+  /// Argon2id. Nul pour les comptes Google (aucun mot de passe local).
+  passwordHash String?
+  /// Code de secours 2FA, chiffré (AES-128-GCM) puis encodé en base64.
+  recoveryCode String?
+
+  emailVerified Boolean @default(false)
+  /// La 2FA est exigée sur ce compte (distinct de « une clé TOTP existe »).
+  isMfaEnabled  Boolean @default(false)
+  /// Secret TOTP chiffré (AES-128-GCM). Jamais exposé au client.
+  totpKey       Bytes?
+
+  /// Identifiant Google, présent uniquement pour les comptes OAuth.
+  googleId String? @unique
+  name     String?
+  picture  String?
+
+  role Role @default(CLIENT)
+
+  // Relations commerce
+  addresses    Address[]
+  orders       Order[]
+  transactions Transaction[]
+
+  // Relations d'authentification (disparaissent avec le module)
   sessions                  Session[]
   emailVerificationRequests EmailVerificationRequest[] @relation("UserEmailVerificationRequests")
   passwordResetSessions     PasswordResetSession[]     @relation("UserPasswordResetSessions")
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([role])
   @@map("users")
 }
 
 model Session {
-  /// SHA-256 du token de session. Le token brut ne vit que dans le cookie.
+  /// Token de session, tel qu'il figure dans le cookie. À traiter comme un secret :
+  /// un accès en lecture à cette table permet d'usurper les sessions ouvertes.
   id                String   @id
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId            String
   expiresAt         DateTime
+  /// La 2FA a été validée pour cette session précise, pas seulement pour le compte.
   twoFactorVerified Boolean  @default(false)
+  /// Fournisseur OAuth à l'origine de la session (« google »), sinon nul.
   oauthProvider     String?
   createdAt         DateTime @default(now())
 
@@ -74,10 +98,14 @@ model Session {
   @@map("sessions")
 }
 
+/// Code à 8 caractères envoyé par email, à la création du compte comme au
+/// changement d'adresse. Une seule requête vivante par utilisateur : la
+/// précédente est supprimée avant d'en créer une nouvelle.
 model EmailVerificationRequest {
   id        String   @id
   user      User     @relation("UserEmailVerificationRequests", fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+  /// Adresse à vérifier, qui peut différer de `user.email` lors d'un changement.
   email     String
   code      String
   expiresAt DateTime
@@ -88,6 +116,9 @@ model EmailVerificationRequest {
   @@map("email_verification_requests")
 }
 
+/// Réinitialisation de mot de passe en trois temps : code reçu par email, puis
+/// 2FA si le compte l'exige, puis saisie du nouveau mot de passe. Les deux
+/// drapeaux tracent la progression et interdisent de sauter une étape.
 model PasswordResetSession {
   id                String   @id
   user              User     @relation("UserPasswordResetSessions", fields: [userId], references: [id], onDelete: Cascade)

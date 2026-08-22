@@ -1,4 +1,18 @@
+// -----------------------------------------------------------------------------
+// Accès Prisma au modèle `User`.
+//
+// Ce fichier est partagé : il sert à l'authentification (identifiants, email
+// vérifié, TOTP, code de récupération, OAuth) ET à l'administration commerce
+// (listes, rôles, suppression). En retirant le module d'authentification, seules
+// les fonctions marquées AUTH-PLUGIN disparaissent.
+//
+// Les secrets 2FA (`totpKey`, `recoveryCode`) sont chiffrés ici même : ils ne
+// transitent jamais en clair dans la base.
+// -----------------------------------------------------------------------------
+
+// AUTH-PLUGIN ▼ chiffrement des secrets 2FA, fourni par le module d'auth.
 import { decrypt, encrypt } from '$lib/lucia/encryption';
+// AUTH-PLUGIN ▲
 import { prisma } from '$lib/server';
 import { Role } from '@prisma/client';
 

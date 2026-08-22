@@ -1,5 +1,16 @@
+// -----------------------------------------------------------------------------
+// Vérification d'adresse email.
+//
+// Un code à 8 caractères, valable 10 minutes, envoyé par SMTP. L'identifiant de
+// la requête est déposé dans un cookie afin que la page de saisie retrouve la
+// demande en cours sans exposer d'identifiant utilisateur dans l'URL.
+//
+// Une seule demande vivante par compte : créer une nouvelle demande supprime la
+// précédente, ce qui invalide de fait l'ancien code.
+// -----------------------------------------------------------------------------
+
 import { generateRandomOTP } from './utils';
-import { ExpiringTokenBucket } from './rate-limit';
+import { ExpiringTokenBucket } from '$lib/server/rate-limit';
 import { generateSecureToken, isValidId } from './ids';
 import type { RequestEvent } from '@sveltejs/kit';
 import {

@@ -1,3 +1,16 @@
+// -----------------------------------------------------------------------------
+// Chiffrement symétrique des secrets 2FA (clé TOTP, code de récupération).
+//
+// AES-128-GCM, clé lue dans `ENCRYPTION_KEY` (16 octets encodés en base64). Le
+// vecteur d'initialisation est tiré au hasard à chaque appel et stocké en tête
+// du chiffré, suivi du tag d'authentification : [iv 16 | chiffré | tag 16].
+//
+// Ces secrets ne peuvent pas être hachés comme un mot de passe : le serveur doit
+// pouvoir les relire pour valider un code. Perdre `ENCRYPTION_KEY` rend donc
+// toutes les 2FA existantes inutilisables — la sauvegarder au même titre qu'un
+// mot de passe de base de données.
+// -----------------------------------------------------------------------------
+
 import { decodeBase64 } from '@oslojs/encoding';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { ENCRYPTION_KEY } from '$env/static/private';

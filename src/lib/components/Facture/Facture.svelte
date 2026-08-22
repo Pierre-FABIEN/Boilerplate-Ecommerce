@@ -153,7 +153,9 @@
 		doc.save(`Facture_${transaction.id}.pdf`);
 	}
 
-	// Génération automatique du PDF et redirection
+	// Génération automatique du PDF, puis retour à la liste des factures.
+	// AUTH-PLUGIN : cette liste vit dans l'espace compte ; sans authentification,
+	// rediriger vers une page de suivi de commande publique.
 	$effect(() => {
 		generateInvoicePDF();
 		goto('/auth/settings/factures');

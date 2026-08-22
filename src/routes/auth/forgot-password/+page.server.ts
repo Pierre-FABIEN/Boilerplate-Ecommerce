@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// Demande de réinitialisation de mot de passe.
+//
+// Ouvre une session de réinitialisation et envoie un code par email. Cette
+// session part toujours sans aucun droit acquis (`twoFactorVerified = false`) :
+// un compte protégé par 2FA devra la valider avant de changer son mot de passe,
+// sinon la 2FA serait contournable par un simple accès à la boîte mail.
+// -----------------------------------------------------------------------------
+
 import { getUserFromEmail } from '$lib/lucia/user';
 import {
 	sendPasswordResetEmail,
@@ -5,7 +14,7 @@ import {
 } from '$lib/lucia/passwordReset';
 import { invalidateUserPasswordResetSessions } from '$lib/prisma/passwordResetSession/passwordResetSession';
 import { createPasswordResetSessionPrisma } from '$lib/prisma/passwordResetSession/passwordResetSession';
-import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
+import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { generateSessionToken } from '$lib/lucia/session';
 import { fail, redirect } from '@sveltejs/kit';
 

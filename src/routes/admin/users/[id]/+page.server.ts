@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { type Actions } from '@sveltejs/kit';
+import { redirect, type Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateUserAndAddressSchema } from '$lib/schema/addresses/updateUserAndAddressSchema';
@@ -9,10 +9,17 @@ import { serializeData } from '$lib/utils/serializeData';
 import { updateUserSecurity } from '$lib/prisma/user/updateUserSecurity';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// 🔒 Vérification de l'authentification
+	// AUTH-PLUGIN ▼ cette page expose et modifie la fiche d'un autre utilisateur :
+	// elle exige la connexion ET le rôle administrateur. Une redirection est
+	// nécessaire ici, `fail()` n'ayant aucun effet dans un `load`.
 	if (!locals.user) {
-		return fail(401, { message: 'Unauthorized' });
+		throw redirect(302, '/auth/login');
 	}
+
+	if (locals.role !== 'ADMIN') {
+		throw redirect(302, '/');
+	}
+	// AUTH-PLUGIN ▲
 
 	// console.log('Loading user data for ID:', params.id);
 

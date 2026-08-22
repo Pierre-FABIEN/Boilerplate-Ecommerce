@@ -1,7 +1,17 @@
+// -----------------------------------------------------------------------------
+// Double authentification : quotas de tentatives et code de secours.
+//
+// `resetUser2FAWithRecoveryCode` est la porte de sortie quand l'application
+// d'authentification est perdue : le code de secours est consommé (remplacé par
+// un nouveau), la clé TOTP effacée et toutes les sessions du compte
+// invalidées — en une seule transaction, pour qu'un code ne puisse pas servir
+// deux fois.
+// -----------------------------------------------------------------------------
+
 import { findUserWithRecoveryCode } from '$lib/prisma/user/user';
 import { prisma } from '$lib/server';
 import { decryptToString, encryptString } from './encryption';
-import { ExpiringTokenBucket } from './rate-limit';
+import { ExpiringTokenBucket } from '$lib/server/rate-limit';
 import { generateRandomRecoveryCode } from './utils';
 import { isValidId } from './ids';
 

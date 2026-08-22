@@ -1,6 +1,15 @@
+// -----------------------------------------------------------------------------
+// Connexion par email et mot de passe.
+//
+// Deux garde-fous se cumulent : un quota par adresse IP, et un délai croissant
+// par compte après chaque échec. Les messages d'erreur ne distinguent jamais un
+// compte inconnu d'un mot de passe erroné, pour ne pas révéler quelles adresses
+// sont inscrites.
+// -----------------------------------------------------------------------------
+
 import { fail, redirect } from '@sveltejs/kit';
 import { getUserFromEmail, getUserPasswordHash } from '$lib/lucia/user';
-import { RefillingTokenBucket, Throttler } from '$lib/lucia/rate-limit';
+import { RefillingTokenBucket, Throttler } from '$lib/server/rate-limit';
 import { verifyPasswordHash } from '$lib/lucia/password';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/lucia/session';
 
@@ -11,24 +20,12 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { message, superValidate } from 'sveltekit-superforms';
 
 export const load = async (event: PageServerLoadEvent) => {
+	// Déjà connecté : il ne reste qu'à l'orienter. Les étapes de 2FA sont déjà
+	// imposées en amont par `authHandle`, seule la vérification d'adresse est à
+	// contrôler ici.
 	if (event.locals.session !== null && event.locals.user !== null) {
 		if (!event.locals.user.emailVerified) {
 			return redirect(302, '/auth/verify-email');
-		}
-
-		console.log(event.locals.user, 'slkrjghxkgujh');
-
-		if (!event.locals.user.googleId || !event.locals.user?.isMfaEnabled) {
-			if (!event.locals.user.registered2FA) {
-				if (event.locals.user.isMfaEnabled) {
-					return redirect(302, '/auth/2fa/setup');
-				}
-			}
-			if (!event.locals.session?.twoFactorVerified) {
-				if (event.locals.user.isMfaEnabled) {
-					return redirect(302, '/auth/2fa');
-				}
-			}
 		}
 		return redirect(302, '/auth/');
 	}

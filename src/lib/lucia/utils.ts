@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// Génération des codes lisibles par un humain.
+//
+// Base32 sans rembourrage : uniquement des majuscules et des chiffres, faciles à
+// recopier depuis un email. 5 octets aléatoires donnent 8 caractères (codes de
+// vérification), 10 octets en donnent 16 (codes de secours).
+// -----------------------------------------------------------------------------
+
 import { encodeBase32UpperCaseNoPadding } from '@oslojs/encoding';
 
 export function generateRandomOTP(): string {

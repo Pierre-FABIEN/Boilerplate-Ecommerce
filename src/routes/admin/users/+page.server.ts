@@ -8,15 +8,15 @@ import { serializeData } from '$lib/utils/serializeData';
 
 // Fonction de chargement côté serveur
 export const load: PageServerLoad = async ({ locals }) => {
-	// Vérifie si l'utilisateur est connecté
+	// AUTH-PLUGIN ▼ garde d'accès : connexion puis rôle administrateur.
 	if (!locals.user) {
-		throw redirect(302, '/auth/login'); // Redirige vers la page de connexion
+		throw redirect(302, '/auth/login');
 	}
 
-	// Vérifie le rôle
 	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/'); // Redirige vers la page d'accueil
+		throw redirect(302, '/');
 	}
+	// AUTH-PLUGIN ▲
 
 	const IdeleteUserSchema = await superValidate(zod(deleteUserSchema));
 

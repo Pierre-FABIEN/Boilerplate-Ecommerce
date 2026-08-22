@@ -1,3 +1,14 @@
+// -----------------------------------------------------------------------------
+// Paramètres du compte : adresse email, mot de passe, double authentification.
+//
+// Trois actions, trois précautions :
+//   - changer d'adresse n'écrit rien tout de suite ; l'adresse n'est remplacée
+//     qu'après validation du code envoyé à la nouvelle ;
+//   - changer de mot de passe exige le mot de passe courant et révoque les
+//     autres sessions, la session en cours étant réémise ;
+//   - activer la 2FA renvoie vers sa configuration, qui délivre le code de secours.
+// -----------------------------------------------------------------------------
+
 import {
 	createEmailVerificationRequest,
 	sendVerificationEmail,
@@ -14,7 +25,7 @@ import {
 	invalidateUserSessions,
 	setSessionTokenCookie
 } from '$lib/lucia/session';
-import { ExpiringTokenBucket } from '$lib/lucia/rate-limit';
+import { ExpiringTokenBucket } from '$lib/server/rate-limit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { emailSchema, passwordSchema } from '$lib/schema/auth/settingsSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
