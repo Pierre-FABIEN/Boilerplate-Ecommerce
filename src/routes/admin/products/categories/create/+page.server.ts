@@ -5,6 +5,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { createCategorySchema } from '$lib/schema/categories/deleteCategorySchema';
 import { createCategory } from '$lib/prisma/categories/categories';
+import { requireAdmin } from '$lib/admin/guards';
 
 // Fonction de chargement
 export const load: PageServerLoad = async () => {
@@ -16,7 +17,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createCategory: async ({ request }) => {
+	createCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('createCategory action initiated.');
 
 		const formData = await request.formData();

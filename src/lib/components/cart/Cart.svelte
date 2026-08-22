@@ -282,11 +282,13 @@
 									Mes paramètres
 								</Button>
 
+								<!-- ADMIN-PLUGIN ▼ lien vers le back-office, visible aux seuls administrateurs. -->
 								{#if data.user.role === 'ADMIN'}
 									<Button class="w-full m-2" href="/admin" onclick={() => (sidebarOpen = false)}>
 										Dashboard
 									</Button>
 								{/if}
+								<!-- ADMIN-PLUGIN ▲ -->
 
 								<Button class="w-full m-2" variant="destructive" onclick={handleSignOut}>
 									Se déconnecter

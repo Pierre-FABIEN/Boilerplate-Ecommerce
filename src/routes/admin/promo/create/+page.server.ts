@@ -4,6 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { createPromoSchema } from '$lib/schema/promo/promoSchema';
 import { createPromoCode, getPromoCodeByCode } from '$lib/prisma/promo/promo';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const createPromoForm = await superValidate(zod(createPromoSchema));
@@ -11,7 +12,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createPromo: async ({ request }) => {
+	createPromo: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(createPromoSchema));
 

@@ -237,11 +237,26 @@ export const getUserRecoveryAndGoogleId = async (
 	});
 };
 
+/** Champs d'un utilisateur exposables au back-office, sans secret. */
+const adminUserSelect = {
+	id: true,
+	email: true,
+	username: true,
+	name: true,
+	picture: true,
+	role: true,
+	emailVerified: true,
+	isMfaEnabled: true,
+	googleId: true,
+	createdAt: true,
+	updatedAt: true
+} as const;
+
 export const getAllUsers = async () => {
 	try {
-		// Comme on utilise include, Prisma renvoie tous les champs scalaires, dont createdAt
 		const users = await prisma.user.findMany({
-			include: {
+			select: {
+				...adminUserSelect,
 				addresses: true,
 				orders: {
 					include: {
@@ -311,9 +326,9 @@ export const updateUserRole = async (id: string, role: Role) => {
 };
 
 export async function getUsersById(userId: string) {
-	// Ici, on récupère déjà tout par défaut
 	return await prisma.user.findUnique({
-		where: { id: userId }
+		where: { id: userId },
+		select: adminUserSelect
 	});
 }
 
@@ -333,23 +348,21 @@ export async function updateUserMFA(userId: string, data: { isMfaEnabled: boolea
 
 export async function latestUsers() {
 	const users = await prisma.user.findMany({
-		orderBy: { id: 'desc' },
+		orderBy: { createdAt: 'desc' },
 		take: 5,
 		select: {
 			id: true,
 			email: true,
 			username: true,
 			createdAt: true,
-			totpKey: true,
-			name: true
+			name: true,
+			role: true
 		}
 	});
 
-	// Sérialisation des champs nécessaires
 	return users.map((user) => ({
 		...user,
-		createdAt: user.createdAt.toISOString(), // Date en ISO
-		totpKey: user.totpKey ? Array.from(user.totpKey) : null // Uint8Array -> tableau
+		createdAt: user.createdAt.toISOString()
 	}));
 }
 

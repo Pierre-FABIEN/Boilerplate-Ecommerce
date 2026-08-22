@@ -7,7 +7,7 @@
 // l'auth au cycle de requête.
 //
 // Ordre de la chaîne (voir `handle` en bas de fichier) :
-//   devtoolsGuard → cookieGuard → rateLimit → authHandle → pendingOrderHandle
+//   devtoolsGuard → cookieGuard → rateLimit → authHandle → adminHandle → pendingOrderHandle
 // -----------------------------------------------------------------------------
 
 import type { Handle } from '@sveltejs/kit';
@@ -19,6 +19,10 @@ import { createPendingOrder, findPendingOrder } from '$lib/prisma/order/prending
 // AUTH-PLUGIN ▼ retirer cet import et `authHandle` de la séquence finale.
 import { authHandle } from '$lib/lucia/hooks';
 // AUTH-PLUGIN ▲
+
+// ADMIN-PLUGIN ▼ retirer cet import et `adminHandle` de la séquence finale.
+import { adminHandle } from '$lib/admin/hooks';
+// ADMIN-PLUGIN ▲
 
 /** Passe à `true` pour tracer les gardes globales dans la console. */
 const DEBUG = false;
@@ -118,8 +122,12 @@ export const handle: Handle = sequence(
 	devtoolsGuard,
 	cookieGuard,
 	rateLimit,
-	// AUTH-PLUGIN ▼ retirer ces deux lignes pour désactiver l'authentification.
+	// AUTH-PLUGIN ▼ retirer cette ligne pour désactiver l'authentification.
 	authHandle,
-	pendingOrderHandle
 	// AUTH-PLUGIN ▲
+	// ADMIN-PLUGIN ▼ retirer cette ligne pour désactiver l'administration.
+	// Doit rester après `authHandle` : il lit `locals.user` / `locals.role`.
+	adminHandle,
+	// ADMIN-PLUGIN ▲
+	pendingOrderHandle
 );

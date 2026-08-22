@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { redirect, type Actions } from '@sveltejs/kit';
+import { type Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateUserAndAddressSchema } from '$lib/schema/addresses/updateUserAndAddressSchema';
@@ -7,19 +7,17 @@ import { getUsersById, updateUserMFA, updateUserRole } from '$lib/prisma/user/us
 import { getUserAddresses, updateAddress } from '$lib/prisma/addresses/addresses';
 import { serializeData } from '$lib/utils/serializeData';
 import { updateUserSecurity } from '$lib/prisma/user/updateUserSecurity';
+import { assertAdmin, requireAdmin } from '$lib/admin/guards';
+
+/**
+ * Fiche d'un utilisateur : rôle, 2FA, mot de passe, adresses.
+ *
+ * Le rôle n'accepte que les valeurs de l'enum Prisma (`ADMIN` | `CLIENT`).
+ * Un mot de passe vide laisse l'existant intact.
+ */
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// AUTH-PLUGIN ▼ cette page expose et modifie la fiche d'un autre utilisateur :
-	// elle exige la connexion ET le rôle administrateur. Une redirection est
-	// nécessaire ici, `fail()` n'ayant aucun effet dans un `load`.
-	if (!locals.user) {
-		throw redirect(302, '/auth/login');
-	}
-
-	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/');
-	}
-	// AUTH-PLUGIN ▲
+	assertAdmin(locals);
 
 	// console.log('Loading user data for ID:', params.id);
 
@@ -42,7 +40,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// ✅ Préparation des données initiales pour le formulaire
 	const initialData = {
 		id: userSelected.id,
-		role: userSelected.role || 'USER',
+		role: userSelected.role || 'CLIENT',
 		isMfaEnabled: userSelected.isMfaEnabled ?? false,
 		passwordHash: '',
 		addresses: addressesFetched.map((address) => ({
@@ -82,7 +80,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-	updateUserAndAddresses: async ({ request }) => {
+	updateUserAndAddresses: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('updateUserAndAddresses action initiated.');
 
 		const formData = await request.formData();

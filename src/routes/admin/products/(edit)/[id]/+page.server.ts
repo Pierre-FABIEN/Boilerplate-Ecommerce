@@ -15,6 +15,7 @@ import {
 	getAllcategories,
 	getCategoriesByIds
 } from '$lib/prisma/categories/categories';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
@@ -51,7 +52,8 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	updateProduct: async ({ request }) => {
+	updateProduct: async ({ request, locals }) => {
+		requireAdmin(locals);
 		try {
 			const formData = await request.formData();
 			const form = await superValidate(formData, zod(updateProductSchema));

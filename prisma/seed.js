@@ -23,7 +23,7 @@ const encrypt = (data) => {
 
 const generateRecoveryCode = () => Math.floor(10000000 + Math.random() * 90000000).toString();
 
-const ADMIN_EMAIL = 'xplicitdrink.dev@gmail.com';
+const ADMIN_EMAIL = 'xplicitdrink.dev@gmail.com'; // ADMIN-PLUGIN : compte de démonstration
 
 // Hash Argon2id statique correspondant au mot de passe de démonstration.
 const ADMIN_PASSWORD_HASH =

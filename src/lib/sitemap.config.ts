@@ -6,7 +6,7 @@ export const sitemapConfig = {
 	// Routes à exclure du sitemap (routes privées, admin, auth)
 	excludedRoutes: [
 		'/auth', // AUTH-PLUGIN : à retirer si le module d'authentification disparaît
-		'/admin',
+		'/admin', // ADMIN-PLUGIN : à retirer si le module d'administration disparaît
 		'/checkout',
 		'/sitemap.xml',
 		'/api',

@@ -1,11 +1,11 @@
 import { z } from 'zod';
+import { Role } from '@prisma/client';
 
-// Schéma pour la mise à jour d'un utilisateur
 const updateUserSchema = z.object({
 	id: z.string(),
 	name: z.string().min(1, 'Name is required'),
 	email: z.string().email('Invalid email format'),
-	role: z.string().min(1, 'Role is required')
+	role: z.nativeEnum(Role)
 });
 
 // Schéma pour la suppression d'un utilisateur

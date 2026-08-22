@@ -1,20 +1,22 @@
-// import type { PageServerLoad } from './$types';
-// import { redirect } from '@sveltejs/kit';
+import type { LayoutServerLoad } from './$types';
+import { assertAdmin } from '$lib/admin/guards';
 
-// export const load = (async ({ locals }) => {
-// 	// Vérifie si l'utilisateur est connecté
-// 	if (!locals.user) {
-// 		throw redirect(302, '/auth/login'); // Redirige vers la page de connexion
-// 	}
+/**
+ * Données partagées par toutes les pages d'administration.
+ *
+ * La garde vit aussi dans `adminHandle` ; celle-ci couvre une page oubliée si le
+ * hook venait à être retiré. Projection volontairement réduite : `locals.user`
+ * porte la clé TOTP chiffrée, qui ne doit jamais partir vers le navigateur.
+ */
+export const load: LayoutServerLoad = async ({ locals }) => {
+	assertAdmin(locals);
 
-// 	// Vérifie le rôle
-// 	if (locals.role !== 'ADMIN') {
-// 		throw redirect(302, '/'); // Redirige vers la page d'accueil
-// 	}
-
-// 	// Retourne les données nécessaires pour l'admin
-// 	return {
-// 		user: locals.user,
-// 		role: locals.role
-// 	};
-// }) satisfies PageServerLoad;
+	return {
+		user: {
+			id: locals.user.id,
+			email: locals.user.email,
+			username: locals.user.username,
+			role: locals.user.role
+		}
+	};
+};

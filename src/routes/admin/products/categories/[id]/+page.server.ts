@@ -6,6 +6,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { updateCategorySchema } from '$lib/schema/categories/deleteCategorySchema';
 import { updateCategory } from '$lib/prisma/categories/categories';
 import { getCategoriesById } from '$lib/prisma/categories/categories';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const category = await getCategoriesById(params.id);
@@ -29,7 +30,8 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	updateCategory: async ({ request }) => {
+	updateCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('updateCategory action initiated.');
 
 		const formData = await request.formData();

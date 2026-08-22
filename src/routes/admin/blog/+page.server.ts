@@ -19,6 +19,7 @@ import { deletePost } from '$lib/prisma/blogPost/blogPost';
 import { getAllPosts } from '$lib/prisma/blogPost/blogPost';
 import { deleteBlogCategorySchema } from '$lib/schema/BlogPost/categoriesSchema';
 import { deleteBlogTagSchema } from '$lib/schema/BlogPost/tagSchema';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const BlogPost = await getAllPosts();
@@ -40,7 +41,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	deleteBlogPost: async ({ request }) => {
+	deleteBlogPost: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('deletePost action initiated.', request);
 
 		const formData = await request.formData();
@@ -71,7 +73,8 @@ export const actions: Actions = {
 			return fail(500, { message: 'Post deletion failed' });
 		}
 	},
-	deleteBlogTag: async ({ request }) => {
+	deleteBlogTag: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('deleteTag action initiated.', request);
 
 		const formData = await request.formData();
@@ -102,7 +105,8 @@ export const actions: Actions = {
 			return fail(500, { message: 'Tag deletion failed' });
 		}
 	},
-	deleteBlogCategory: async ({ request }) => {
+	deleteBlogCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('deleteCategory action initiated.', request);
 
 		const formData = await request.formData();

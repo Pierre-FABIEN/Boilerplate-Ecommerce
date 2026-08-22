@@ -16,7 +16,7 @@
 
 	let { data, columns, name, actions = null, addLink = null } = $props();
 
-	let dialogOpen = $state(false);
+	let dialogOpenId = $state<string | null>(null);
 	let searchQuery = $state('');
 	let currentPage = $state(1);
 	let itemsPerPage = $state(5);
@@ -31,8 +31,8 @@
 	let itemsPerPageString = $state(5);
 	let sortColumn = $state('');
 	let sortDirection = $state('asc');
-	let filteredItems = $state([]);
-	let paginatedItems = $state([]);
+	let filteredItems = $state<any[]>([]);
+	let paginatedItems = $state<any[]>([]);
 	let columnsVisibility = $state(
 		columns.reduce((acc, col) => {
 			acc[col.key] = true;
@@ -93,7 +93,7 @@
 		setTimeout(() => {
 			data = data.filter((item: any) => item.id !== id);
 			updateFilteredAndPaginatedItems();
-			dialogOpen = false;
+			dialogOpenId = null;
 		}, 10);
 	};
 
@@ -188,7 +188,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each paginatedItems as item, i (i)}
+						{#each paginatedItems as item (item.id)}
 							<TableRow>
 								{#each columns.filter((col) => columnsVisibility[col.key]) as column}
 									<td class="border border-gray-300 p-2">
@@ -223,7 +223,12 @@
 													</Tooltip.Root>
 												</Tooltip.Provider>
 											{:else if action.type === 'form'}
-												<AlertDialog.Root bind:open={dialogOpen}>
+												<AlertDialog.Root
+													open={dialogOpenId === item.id}
+													onOpenChange={(open) => {
+														dialogOpenId = open ? item.id : null;
+													}}
+												>
 													<AlertDialog.Trigger>
 														<Button variant="outline" class="m-1 p-1 text-xs">
 															{#if action.icon}
@@ -240,7 +245,7 @@
 															</AlertDialog.Description>
 														</AlertDialog.Header>
 														<AlertDialog.Footer>
-															<AlertDialog.Cancel onclick={() => (dialogOpen = false)}
+															<AlertDialog.Cancel onclick={() => (dialogOpenId = null)}
 																>Cancel</AlertDialog.Cancel
 															>
 

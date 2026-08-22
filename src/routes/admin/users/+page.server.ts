@@ -3,20 +3,18 @@ import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate } from 'sveltekit-superforms';
 import { deleteUserSchema } from '$lib/schema/users/userSchema';
 import { deleteUser, getAllUsers } from '$lib/prisma/user/user';
-import { redirect } from '@sveltejs/kit';
 import { serializeData } from '$lib/utils/serializeData';
+import { assertAdmin, requireAdmin } from '$lib/admin/guards';
 
-// Fonction de chargement côté serveur
+/**
+ * Liste des comptes et suppression.
+ *
+ * Les secrets (hash, TOTP, code de secours) sont exclus dès la requête Prisma :
+ * ils ne doivent jamais transiter vers le navigateur, même pour un admin.
+ */
+
 export const load: PageServerLoad = async ({ locals }) => {
-	// AUTH-PLUGIN ▼ garde d'accès : connexion puis rôle administrateur.
-	if (!locals.user) {
-		throw redirect(302, '/auth/login');
-	}
-
-	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/');
-	}
-	// AUTH-PLUGIN ▲
+	assertAdmin(locals);
 
 	const IdeleteUserSchema = await superValidate(zod(deleteUserSchema));
 
@@ -32,7 +30,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 // Action pour supprimer un utilisateur
 export const actions: Actions = {
-	deleteUser: async ({ request }) => {
+	deleteUser: async ({ request, locals }) => {
+		requireAdmin(locals);
+
 		const formData = await request.formData();
 		// console.log('Received form data:', formData);
 

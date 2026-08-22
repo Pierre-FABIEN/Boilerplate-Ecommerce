@@ -1,21 +1,11 @@
 import { getAllTransactionsDashboard } from '$lib/prisma/transaction/getAllTransactionsDashboard';
 import { latestUsers } from '$lib/prisma/user/user';
+import { assertAdmin } from '$lib/admin/guards';
 
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
 
 export const load = (async ({ locals }) => {
-	// AUTH-PLUGIN ▼ garde d'accès au tableau de bord. Sans authentification, il
-	// faut un autre mécanisme (réseau privé, mot de passe d'accès, sous-domaine
-	// protégé) : ne pas se contenter de supprimer ces contrôles.
-	if (!locals.user) {
-		throw redirect(302, '/auth/login');
-	}
-
-	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/');
-	}
-	// AUTH-PLUGIN ▲
+	assertAdmin(locals);
 
 	const transactions = await getAllTransactionsDashboard();
 

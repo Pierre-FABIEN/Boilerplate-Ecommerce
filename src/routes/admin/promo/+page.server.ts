@@ -5,6 +5,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { deletePromoSchema } from '$lib/schema/promo/promoSchema';
 import { getAllPromoCodes, getPromoCodeById, deletePromoCode } from '$lib/prisma/promo/promo';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const promoCodes = await getAllPromoCodes();
@@ -17,7 +18,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	deletePromo: async ({ request }) => {
+	deletePromo: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(deletePromoSchema));
 		const id = formData.get('id') as string;

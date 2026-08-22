@@ -1,4 +1,13 @@
-# Tests end-to-end — authentification
+# Tests end-to-end
+
+La suite Playwright couvre deux domaines, exécutés en séquence (un seul worker) :
+
+- authentification : un parcours unique, `e2e/auth/journey.spec.ts` ;
+- administration : accès (`e2e/admin/security.spec.ts`) et CRUD des comptes
+  (`e2e/admin/users.spec.ts`). Les autres sections du back-office n'ont pas
+  encore de tests fonctionnels.
+
+## Authentification
 
 Un seul scénario, `e2e/auth/journey.spec.ts`, joue tout le cycle de vie d'un
 compte dans une session de navigateur unique : inscription, vérification
@@ -70,6 +79,17 @@ affiché alors que la donnée a changé quand même ne peut pas passer inaperçu
 | 16        | code TOTP erroné, page du compte visitée sans second facteur validé      | session promue après saisie du code           |
 | 17        | code de secours trop court, code de secours erroné                       | 2FA retirée, code de secours renouvelé        |
 | 18        | code TOTP calculé sur une clé de configuration périmée                    | 2FA reconfigurée, déconnexion complète        |
+
+## Administration
+
+`e2e/admin/security.spec.ts` vérifie que `/admin` est fermé : un visiteur
+anonyme est renvoyé à la connexion, un `CLIENT` à l'accueil, y compris pour les
+POST (`?/deleteUser`, `?/deletePromo`). Un `ADMIN` atteint le tableau de bord
+et la liste des comptes.
+
+`e2e/admin/users.spec.ts` couvre le CRUD des utilisateurs : liste sans fuite de
+secrets, promotion de rôle, refus d'un rôle hors enum, bascule MFA, suppression.
+Le CRUD produits / blog / promo / ventes / contacts est reporté.
 
 ## Architecture des utilitaires
 

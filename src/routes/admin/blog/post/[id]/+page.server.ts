@@ -10,6 +10,7 @@ import {
 	getPostById,
 	updatePost
 } from '$lib/prisma/blogPost/blogPost';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const blogPost = await getPostById(params.id);
@@ -40,7 +41,8 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	updatePost: async ({ request }) => {
+	updatePost: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		// console.log('Raw Form data:', formData);
 

@@ -4,6 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { createBlogTagSchema } from '$lib/schema/BlogPost/tagSchema';
 import { createTag } from '$lib/prisma/blogPost/blogPost';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const createTagForm = await superValidate(zod(createBlogTagSchema));
@@ -13,7 +14,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createTag: async ({ request }) => {
+	createTag: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		// console.log('formData', formData);
 

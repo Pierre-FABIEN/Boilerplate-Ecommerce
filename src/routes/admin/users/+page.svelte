@@ -61,6 +61,5 @@
 		columns={userColumns}
 		data={data.allUsers ?? []}
 		actions={userActions}
-		addLink="/admin/users/create"
 	/>
 </div>

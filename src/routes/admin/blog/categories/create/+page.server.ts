@@ -4,6 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { createBlogCategorySchema } from '$lib/schema/BlogPost/categoriesSchema';
 import { createCategory } from '$lib/prisma/blogPost/blogPost';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const createCategoryForm = await superValidate(zod(createBlogCategorySchema));
@@ -13,7 +14,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createCategory: async ({ request }) => {
+	createCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		// console.log('formData', formData);
 

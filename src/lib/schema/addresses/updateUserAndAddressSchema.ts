@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Role } from '@prisma/client';
 
 // Enum to differentiate Shipping and Billing addresses
 export const AddressTypeEnum = z.enum(['SHIPPING', 'BILLING']);
@@ -38,7 +39,7 @@ const addressSchema = z.object({
 // Schema for user and address update validation
 const updateUserAndAddressSchema = z.object({
 	id: z.string(),
-	role: z.string().min(1, 'Role is required'),
+	role: z.nativeEnum(Role),
 	isMfaEnabled: z.boolean(),
 	passwordHash: z.string().nullable().optional(),
 	addresses: z.array(addressSchema)

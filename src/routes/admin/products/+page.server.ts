@@ -15,6 +15,7 @@ import {
 	getCategoriesById
 } from '$lib/prisma/categories/categories';
 import { deleteProductById, getAllProducts, getProductById } from '$lib/prisma/products/products';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const IdeleteProductSchema = await superValidate(zod(deleteProductSchema));
@@ -31,7 +32,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	deleteProduct: async ({ request }) => {
+	deleteProduct: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(deleteProductSchema));
 		const id = formData.get('id') as string;
@@ -73,7 +75,8 @@ export const actions: Actions = {
 			return fail(500, { message: 'Product deletion failed' });
 		}
 	},
-	deleteCategory: async ({ request }) => {
+	deleteCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(deleteCategorySchema));
 		const categoryId = formData.get('categoryId') as string;

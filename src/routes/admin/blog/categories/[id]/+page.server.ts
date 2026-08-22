@@ -6,6 +6,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 import { updateBlogCategorySchema } from '$lib/schema/BlogPost/categoriesSchema';
 import { getCategoryById, updateCategory } from '$lib/prisma/blogPost/blogPost';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async ({ params }) => {
 	// Récupérer la catégorie en base
@@ -30,7 +31,8 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	updateCategory: async ({ request }) => {
+	updateCategory: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// Récupérer les données
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(updateBlogCategorySchema));

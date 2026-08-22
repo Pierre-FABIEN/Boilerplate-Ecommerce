@@ -94,6 +94,30 @@ export async function occupyEmail(email: string) {
 	await resilient(() => db.user.create({ data: { email } }));
 }
 
+/** Passe un compte au rôle administrateur. Le rôle est relu à chaque requête. */
+export async function promoteToAdmin(email: string) {
+	await resilient(() => db.user.update({ where: { email }, data: { role: 'ADMIN' } }));
+}
+
+/** Code promo jetable, pour vérifier qu'un CLIENT ne peut pas le supprimer. */
+export async function createPromoCode(code: string) {
+	return resilient(() =>
+		db.promoCode.create({
+			data: { code, type: 'PERCENTAGE', value: 10, active: true }
+		})
+	);
+}
+
+export async function deletePromoCode(id: string) {
+	await resilient(async () => {
+		await db.promoCode.deleteMany({ where: { id } });
+	});
+}
+
+export async function findPromoCode(id: string) {
+	return resilient(() => db.promoCode.findUnique({ where: { id } }));
+}
+
 /** Nombre de sessions actives, pour vérifier révocations et déconnexions. */
 export async function countSessions(email: string): Promise<number> {
 	const user = await requireUser(email);

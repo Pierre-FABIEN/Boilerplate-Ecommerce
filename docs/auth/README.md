@@ -146,11 +146,11 @@ les routes qu'on ajoutera demain, la page protège son propre cas d'usage.
 | ---------------------------- | ----------------------------------------------------------------------- |
 | `authHandle`                 | 2FA exigée non configurée, 2FA non validée, `/auth/settings/**` anonyme  |
 | `load` de chaque page        | état précis attendu par la page (session de reset, email vérifié, etc.)  |
-| `/admin/**`                  | connexion **et** rôle `ADMIN`                                           |
+| `/admin/**`                  | `adminHandle` : connexion **et** rôle `ADMIN` (voir [docs/admin](../admin/README.md)) |
 | `/checkout`                  | connexion (commande et adresses rattachées au compte)                   |
 
-Ce que le hook ne fait pas : protéger `/admin`. Les routes d'administration
-portent leur propre garde ; toute nouvelle page sous `/admin` doit la reprendre.
+`authHandle` ne protège pas `/admin` : c'est `adminHandle` (`src/lib/admin/hooks.ts`),
+branché juste après, qui s'en charge.
 
 ## Sécurité
 

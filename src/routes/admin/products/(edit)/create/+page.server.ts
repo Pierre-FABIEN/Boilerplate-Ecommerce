@@ -8,6 +8,7 @@ import { createProductSchema } from '$lib/schema/products/productSchema';
 import { slugify } from '$lib/prisma/slugify';
 import { connectProductToCategories, createProduct } from '$lib/prisma/products/products';
 import { getAllcategories, getCategoriesByIds } from '$lib/prisma/categories/categories';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load: PageServerLoad = async () => {
 	const IcreateProductSchema = await superValidate(zod(createProductSchema));
@@ -20,7 +21,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createProduct: async ({ request }) => {
+	createProduct: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const formData = await request.formData();
 
 		const form = await superValidate(formData, zod(createProductSchema));

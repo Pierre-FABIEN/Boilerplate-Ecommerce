@@ -21,11 +21,13 @@
 		<CardContent class="text-center">
 			<p class="text-gray-700 mb-4">Vous êtes connecté(e) avec succès.</p>
 		</CardContent>
+		<!-- ADMIN-PLUGIN ▼ lien vers le back-office, visible aux seuls administrateurs. -->
 		{#if data.user.role === 'ADMIN'}
 			<div class="w-full ccc">
 				<Button class="m-5" href="/admin">Dashboard</Button>
 			</div>
 		{/if}
+		<!-- ADMIN-PLUGIN ▲ -->
 
 		<div class="w-full ccc">
 			<Button class="m-5" href="/auth/settings">Paramètres</Button>

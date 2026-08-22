@@ -6,6 +6,7 @@ import { createBlogPostSchema } from '$lib/schema/BlogPost/BlogPostSchema';
 import { createPost, getAllCategoriesPosts, getAllTagsPosts } from '$lib/prisma/blogPost/blogPost';
 import { slugify } from '$lib/prisma/slugify';
 import { prisma } from '$lib/server';
+import { requireAdmin } from '$lib/admin/guards';
 
 export const load = async () => {
 	const AllCategoriesPost = await getAllCategoriesPosts();
@@ -19,7 +20,8 @@ export const load = async () => {
 };
 
 export const actions: Actions = {
-	createPost: async ({ request }) => {
+	createPost: async ({ request, locals }) => {
+		requireAdmin(locals);
 		// console.log('createPost action initiated.');
 		const formData = await request.formData();
 		// console.log('Received form data:', formData);
