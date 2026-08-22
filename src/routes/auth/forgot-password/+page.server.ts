@@ -13,7 +13,7 @@ import type { Actions, RequestEvent } from './$types';
 import { message, superValidate } from 'sveltekit-superforms';
 import { forgotPasswordSchema } from '$lib/schema/auth/forgotPasswordSchema';
 import { zod } from 'sveltekit-superforms/adapters';
-import { generateForgotPasswordCode, generateRandomRecoveryCode } from '$lib/lucia/utils';
+import { generateForgotPasswordCode } from '$lib/lucia/utils';
 
 const ipBucket = new RefillingTokenBucket<string>(3, 60);
 const userBucket = new RefillingTokenBucket<number>(3, 60);
@@ -75,7 +75,10 @@ export const actions: Actions = {
 			code: code,
 			expiresAt: expirationDate,
 			emailVerified: false,
-			twoFactorVerified: user.isMfaEnabled ?? false
+			// Toujours faux à la création : c'est l'étape /reset-password/2fa qui
+			// valide le second facteur. Initialiser ce drapeau depuis isMfaEnabled
+			// revenait à sauter la 2FA pour les comptes qui l'ont activée.
+			twoFactorVerified: false
 		};
 
 		// console.log('sessionData reset sessionData created:', sessionData);

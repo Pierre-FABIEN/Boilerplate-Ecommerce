@@ -1,9 +1,9 @@
 import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/lucia/2fa';
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
 import type { Actions, RequestEvent } from './$types';
 import { message, superValidate } from 'sveltekit-superforms';
-import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
+import { recoveryCodeSchema } from '$lib/schema/auth/recoveryCodeSchema';
 import { zod } from 'sveltekit-superforms/adapters';
 
 export const load = async (event: RequestEvent) => {
@@ -21,7 +21,7 @@ export const load = async (event: RequestEvent) => {
 	if (event.locals.session.twoFactorVerified) {
 		return redirect(302, '/auth/');
 	}
-	const verifyCodeForm = await superValidate(event, zod(verifyCodeSchema));
+	const verifyCodeForm = await superValidate(event, zod(recoveryCodeSchema));
 	return { verifyCodeForm };
 };
 
@@ -30,7 +30,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const code = formData.get('code');
 
-		const form = await superValidate(formData, zod(verifyCodeSchema));
+		const form = await superValidate(formData, zod(recoveryCodeSchema));
 
 		if (event.locals.session === null || event.locals.user === null) {
 			return message(form, 'Not authenticated');
@@ -55,13 +55,17 @@ export const actions: Actions = {
 		if (!recoveryCodeBucket.consume(event.locals.user.id, 1)) {
 			return message(form, 'Too many requests');
 		}
-		const valid = resetUser2FAWithRecoveryCode(event.locals.user.id, code);
+		const valid = await resetUser2FAWithRecoveryCode(event.locals.user.id, code);
 		if (!valid) {
 			return message(form, 'Invalid recovery code');
 		}
 		recoveryCodeBucket.reset(event.locals.user.id);
-				if (event.locals.user.isMfaEnabled) {
-		return redirect(302, '/auth/2fa/setup');
-	}
+
+		// La 2FA vient d'être retirée : l'utilisateur doit la reconfigurer si elle
+		// reste exigée, sinon il peut rejoindre son espace directement.
+		if (event.locals.user.isMfaEnabled) {
+			return redirect(302, '/auth/2fa/setup');
+		}
+		return redirect(302, '/auth/');
 	}
 };

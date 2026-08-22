@@ -2,7 +2,7 @@ import { hashPassword } from './password';
 import { encryptString } from './encryption';
 import { generateRandomRecoveryCode } from './utils';
 import { isValidId } from './ids';
-import { decryptToString, decrypt, encrypt } from './encryption';
+import { decryptToString, decrypt } from './encryption';
 import { Role } from '@prisma/client';
 import {
 	createUserInDatabase,
@@ -178,10 +178,9 @@ export async function handleGoogleOAuth(
 	return user;
 }
 
-export async function updateUserTOTPKey(userId: string, key: Uint8Array): Promise<void> {
-	const encryptedKey = encrypt(key);
-	await updateUserTOTPKey(userId, encryptedKey);
-}
+// Le DAO Prisma chiffre déjà la clé avant écriture : on le réexporte tel quel
+// plutôt que d'ajouter un wrapper qui s'appelait lui-même.
+export { updateUserTOTPKey } from '$lib/prisma/user/user';
 
 export async function getUserRecoverCode(userId: string): Promise<string> {
 	const user = await getUserRecoveryAndGoogleId(userId);

@@ -2,7 +2,7 @@ import { validatePasswordResetSessionRequest } from '$lib/lucia/passwordReset';
 import { setPasswordResetSessionAsEmailVerified } from '$lib/prisma/passwordResetSession/passwordResetSession';
 import { ExpiringTokenBucket } from '$lib/lucia/rate-limit';
 import { setUserAsEmailVerifiedIfEmailMatches } from '$lib/lucia/user';
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
 import type { Actions, RequestEvent } from './$types';
 import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
@@ -25,11 +25,11 @@ export const load = async (event: RequestEvent) => {
 	if (!session.emailVerified) {
 		// console.log('Email is not verified, staying on verify email page.');
 	}
-	const verifyForm = await superValidate(event, zod(verifyCodeSchema));
+	const verifyEmailForm = await superValidate(event, zod(verifyCodeSchema));
 
 	return {
 		email: session.email,
-		verifyForm
+		verifyEmailForm
 	};
 };
 
@@ -67,8 +67,8 @@ export const actions: Actions = {
 			return message(form, 'Incorrect code');
 		}
 		bucket.reset(session.userId);
-		setPasswordResetSessionAsEmailVerified(session.id);
-		const emailMatches = setUserAsEmailVerifiedIfEmailMatches(session.userId, session.email);
+		await setPasswordResetSessionAsEmailVerified(session.id);
+		const emailMatches = await setUserAsEmailVerifiedIfEmailMatches(session.userId, session.email);
 		if (!emailMatches) {
 			return message(form, 'Please restart the process');
 		}

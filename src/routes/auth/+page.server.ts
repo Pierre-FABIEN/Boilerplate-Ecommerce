@@ -1,4 +1,6 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { invalidateSession } from '$lib/lucia/session';
+import { auth } from '$lib/lucia';
 
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
 
@@ -31,4 +33,19 @@ export const load = async (event: PageServerLoadEvent) => {
 	return {
 		user: event.locals.user
 	};
+};
+
+export const actions: Actions = {
+	signout: async (event: RequestEvent) => {
+		if (event.locals.session === null) {
+			return redirect(302, '/auth/login');
+		}
+
+		await invalidateSession(event.locals.session.id);
+		event.cookies.delete(auth.sessionCookieName, { path: '/' });
+		event.locals.session = null;
+		event.locals.user = null;
+
+		return redirect(302, '/auth/login');
+	}
 };

@@ -5,13 +5,13 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
+	import { recoveryCodeSchema } from '$lib/schema/auth/recoveryCodeSchema';
 
 	let { data } = $props();
 
 	// Initialiser le formulaire Superform avec Zod
 	const recoveryCodeForm = superForm(data?.verifyCodeForm ?? {}, {
-		validators: zodClient(verifyCodeSchema),
+		validators: zodClient(recoveryCodeSchema),
 		id: 'recoveryCodeForm'
 	});
 

@@ -28,9 +28,11 @@ import type { PageServerLoad, Actions } from './$types';
 
 const ipBucket = new RefillingTokenBucket<string>(3, 10); // 3 req / 10 s
 
-// function log(...args: unknown[]) {
-// 	console.log('[signup]', ...args);
-// }
+const DEBUG = false;
+
+function log(...args: unknown[]) {
+	if (DEBUG) console.log('[signup]', ...args);
+}
 
 /* -------------------------------------------------------------------------- */
 /*  PAGE LOAD                                                                 */
