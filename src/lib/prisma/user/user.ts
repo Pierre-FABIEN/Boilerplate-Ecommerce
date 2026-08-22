@@ -246,8 +246,6 @@ export const getAllUsers = async () => {
 			console.error('Unknown error fetching users:', error);
 			throw new Error('An unknown error occurred');
 		}
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -295,8 +293,6 @@ export const updateUserRole = async (id: string, role: Role) => {
 			console.error('Unknown error updating user role:', error);
 			throw new Error('An unknown error occurred during role update.');
 		}
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 

@@ -386,8 +386,9 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 					}))
 				})),
 
-				// Relation utilisateur
-				user: { connect: { id: userId } }
+				// Clés étrangères posées en scalaire : mélanger un `connect` avec le
+				// scalaire orderId ne correspond à aucun des deux inputs Prisma.
+				userId: userId
 			};
 
 			console.log('📝 Données de transaction préparées:', {

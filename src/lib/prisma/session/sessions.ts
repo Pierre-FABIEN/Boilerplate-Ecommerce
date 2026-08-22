@@ -1,5 +1,4 @@
 import { prisma } from '$lib/server';
-import { ObjectId } from 'mongodb';
 
 export const createSessionInDB = async (data: {
 	id: string;
@@ -56,7 +55,7 @@ export const verifyTwoFactorForSession = async (sessionId: string) => {
 
 export const resetTwoFactorVerificationForUser = async (userId: string) => {
 	return await prisma.session.updateMany({
-		where: { userId: new ObjectId(userId).toString() }, // Convertit userId en ObjectId et le stringify
-		data: { twoFactorVerified: false } // Réinitialise la vérification à deux facteurs
+		where: { userId },
+		data: { twoFactorVerified: false }
 	});
 };

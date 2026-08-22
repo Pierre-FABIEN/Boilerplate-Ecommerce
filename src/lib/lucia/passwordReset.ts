@@ -1,5 +1,5 @@
 import { generateRandomOTP } from './utils';
-import { ObjectId } from 'mongodb'; // Import ObjectId pour les identifiants MongoDB
+import { generateSecureToken, isValidId } from './ids';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User } from './user';
 import {
@@ -28,8 +28,7 @@ export async function createPasswordResetSession(
 	userId: string,
 	email: string
 ): Promise<PasswordResetSession> {
-	// Génère un nouvel identifiant MongoDB pour la session
-	const sessionId = new ObjectId().toString();
+	const sessionId = generateSecureToken();
 
 	// Crée une nouvelle session
 	const session: PasswordResetSession = {
@@ -52,11 +51,11 @@ export async function createPasswordResetSession(
 export async function validatePasswordResetSessionToken(
 	token: string
 ): Promise<PasswordResetSessionValidationResult> {
-	if (!ObjectId.isValid(token)) {
+	if (!isValidId(token)) {
 		throw new Error('Invalid session token format');
 	}
 
-	const sessionId = token; // L'identifiant est déjà valide en tant qu'ObjectId
+	const sessionId = token;
 	const result = await findPasswordResetSession(sessionId);
 
 	if (!result || Date.now() >= result.expiresAt.getTime()) {
@@ -90,7 +89,7 @@ export async function validatePasswordResetSessionRequest(
 	event: RequestEvent
 ): Promise<PasswordResetSessionValidationResult> {
 	const token = event.cookies.get('password_reset_session') ?? null;
-	if (!token || !ObjectId.isValid(token)) {
+	if (!isValidId(token)) {
 		return { session: null, user: null };
 	}
 	const result = await validatePasswordResetSessionToken(token);

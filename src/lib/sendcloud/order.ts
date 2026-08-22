@@ -19,7 +19,7 @@ type TxForV3 = {
   address_city: string;
   address_zip: string;
   address_country_code: string;   // "FR"
-  customer_details_email?: string;
+  customer_details_email?: string | null;
 
   // indicatif
   shippingMethodName: string;

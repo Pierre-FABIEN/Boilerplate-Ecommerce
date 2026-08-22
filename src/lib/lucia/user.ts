@@ -1,7 +1,7 @@
 import { hashPassword } from './password';
 import { encryptString } from './encryption';
 import { generateRandomRecoveryCode } from './utils';
-import { ObjectId } from 'mongodb';
+import { isValidId } from './ids';
 import { decryptToString, decrypt, encrypt } from './encryption';
 import { Role } from '@prisma/client';
 import {
@@ -66,11 +66,6 @@ export async function createUser(email: string, username: string, password: stri
 	};
 }
 
-// Vérifie si un ID est un ObjectId valide
-function isValidObjectId(id: string): boolean {
-	return ObjectId.isValid(id);
-}
-
 // Récupère un utilisateur par email
 export async function getUserFromEmail(email: string): Promise<User | null> {
 	const prismaUser = await getUserByEmailPrisma(email);
@@ -113,7 +108,7 @@ export async function getUserFromGoogleId(googleId: string): Promise<User | null
 
 // Mise à jour du mot de passe utilisateur
 export async function updateUserPassword(userId: string, password: string): Promise<void> {
-	if (!isValidObjectId(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 	const passwordHash = await hashPassword(password);
@@ -125,7 +120,7 @@ export async function updateUserEmailAndSetEmailAsVerified(
 	userId: string,
 	email: string
 ): Promise<void> {
-	if (!isValidObjectId(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 	await updateUserEmail(userId, email);
@@ -136,7 +131,7 @@ export async function setUserAsEmailVerifiedIfEmailMatches(
 	userId: string,
 	email: string
 ): Promise<boolean> {
-	if (!isValidObjectId(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 	const result = await verifyUserEmail(userId, email);
@@ -145,7 +140,7 @@ export async function setUserAsEmailVerifiedIfEmailMatches(
 
 // Réinitialise le code de récupération
 export async function resetUserRecoveryCode(userId: string): Promise<string> {
-	if (!isValidObjectId(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 	const recoveryCode = generateRandomRecoveryCode();

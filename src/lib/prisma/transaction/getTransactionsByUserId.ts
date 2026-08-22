@@ -18,8 +18,5 @@ export const getTransactionsByUserId = async (userId: string) => {
 	} catch (error) {
 		console.error('Error retrieving transactions: ', error);
 		return [];
-	} finally {
-		// Déconnecte Prisma Client après exécution
-		await prisma.$disconnect();
 	}
 };

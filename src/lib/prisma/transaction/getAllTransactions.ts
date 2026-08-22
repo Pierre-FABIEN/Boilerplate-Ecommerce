@@ -6,8 +6,5 @@ export const getAllTransactions = async () => {
 		return transactions;
 	} catch (error) {
 		console.error('Error retrieving transactions: ', error);
-	} finally {
-		// Déconnecte Prisma Client à la fin
-		await prisma.$disconnect();
 	}
 };

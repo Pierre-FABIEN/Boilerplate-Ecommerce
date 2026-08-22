@@ -4,7 +4,7 @@ import { prisma } from '$lib/server';
 function log(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', context: string, ...args: unknown[]) {
 	const timestamp = new Date().toISOString();
 	const prefix = `[${timestamp}] [${level}] [${context}]`;
-	
+
 	switch (level) {
 		case 'ERROR':
 			console.error(prefix, ...args);
@@ -46,7 +46,7 @@ export const getAllTransactionsDashboard = async () => {
 		});
 
 		// Transformer les données pour correspondre au format attendu par le frontend
-		const formattedTransactions = transactions.map(transaction => ({
+		const formattedTransactions = transactions.map((transaction) => ({
 			...transaction,
 			app_user_email: transaction.user?.email,
 			app_user_name: transaction.user?.name,
@@ -58,8 +58,5 @@ export const getAllTransactionsDashboard = async () => {
 	} catch (error) {
 		log('ERROR', 'Transaction', 'Erreur lors de la récupération des transactions:', error);
 		throw error;
-	} finally {
-		// Déconnecte Prisma Client à la fin
-		await prisma.$disconnect();
 	}
 };

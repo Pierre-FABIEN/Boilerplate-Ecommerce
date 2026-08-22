@@ -1,6 +1,8 @@
 datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Connexion directe (sans pooler) requise par `prisma migrate` sur Neon.
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -24,10 +26,15 @@ enum PromoType {
   FIXED
 }
 
+enum AddressType {
+  SHIPPING
+  BILLING
+}
 
 // AUTH __________________________________________________________________________________
+
 model User {
-  id                        String                     @id @default(auto()) @map("_id") @db.ObjectId
+  id                        String                     @id @default(cuid())
   email                     String                     @unique
   username                  String?
   passwordHash              String?
@@ -45,344 +52,384 @@ model User {
   sessions                  Session[]
   emailVerificationRequests EmailVerificationRequest[] @relation("UserEmailVerificationRequests")
   passwordResetSessions     PasswordResetSession[]     @relation("UserPasswordResetSessions")
-  createdAt     DateTime @default(now())
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+
+  @@index([role])
+  @@map("users")
 }
 
 model Session {
-  /// ID écrit par Lucia (nanoid) → plus de contrainte ObjectId
-  id                String   @id @map("_id")
-
-  /// relation vers l'utilisateur
+  /// SHA-256 du token de session. Le token brut ne vit que dans le cookie.
+  id                String   @id
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId            String
-
   expiresAt         DateTime
   twoFactorVerified Boolean  @default(false)
   oauthProvider     String?
+  createdAt         DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 model EmailVerificationRequest {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  user      User     @relation("UserEmailVerificationRequests", fields: [userId], references: [id])
-  userId    String   @db.ObjectId
+  id        String   @id
+  user      User     @relation("UserEmailVerificationRequests", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
   email     String
   code      String
   expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_requests")
 }
 
 model PasswordResetSession {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  user              User     @relation("UserPasswordResetSessions", fields: [userId], references: [id])
-  userId            String   @db.ObjectId
+  id                String   @id
+  user              User     @relation("UserPasswordResetSessions", fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
   email             String
   code              String
   expiresAt         DateTime
   emailVerified     Boolean  @default(false)
   twoFactorVerified Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_sessions")
 }
 
-
-
-// COMMERCE __________________________________________________________________________________
-
-
+// COMMERCE ______________________________________________________________________________
 
 model Address {
-  id            String  @id @default(auto()) @map("_id") @db.ObjectId
-  first_name    String  // Prénom du destinataire
-  last_name     String  // Nom de famille du destinataire
-  phone         String  // Numéro de téléphone
-  company       String? // Nom de l'entreprise (optionnel)
-  street_number String  // Numéro de rue
-  street        String  // Nom de la rue
-  city          String  // Ville
-  county        String  // Département
-  state         String  // Région
-  stateLetter   String  // Code ISO de la région
-  state_code    String  // Code abrégé de l'État/région
-  zip           String  // Code postal
-  country       String  // Nom du pays
-  country_code  String  // Code ISO alpha-2 du pays
-  ISO_3166_1_alpha_3 String // Code ISO alpha-3 du pays
-  
-  type          AddressType // Enum : SHIPPING ou BILLING
-  userId        String  @db.ObjectId
-  user          User    @relation(fields: [userId], references: [id])
-  orders      Order[]
+  id                 String      @id @default(cuid())
+  first_name         String
+  last_name          String
+  phone              String
+  company            String?
+  street_number      String
+  street             String
+  city               String
+  county             String
+  state              String
+  stateLetter        String
+  state_code         String
+  zip                String
+  country            String
+  country_code       String
+  ISO_3166_1_alpha_3 String
+  type               AddressType
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders             Order[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
-  createdAt     DateTime @default(now()) // Date de création
-  updatedAt     DateTime @updatedAt      // Date de mise à jour
-
+  @@index([userId])
   @@map("addresses")
 }
 
-// Enum pour différencier Facturation & Livraison
-enum AddressType {
-  SHIPPING
-  BILLING
-}
-
 model Order {
-  id                      String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId                  String  @db.ObjectId
-  addressId               String? @db.ObjectId  
-  subtotal                Float   @default(0)
-  tax                     Float   @default(0)
-  total                   Float   @default(0)
-  status                  OrderStatus @default(PENDING)
-  promoCode               String?
-  discountAmount          Float   @default(0)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @default(now())
-  items                   OrderItem[]
+  id             String      @id @default(cuid())
+  userId         String
+  addressId      String?
+  subtotal       Float       @default(0)
+  tax            Float       @default(0)
+  total          Float       @default(0)
+  status         OrderStatus @default(PENDING)
+  promoCode      String?
+  discountAmount Float       @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  items          OrderItem[]
 
-  shippingOption          String?
-  shippingCost            Float?
+  shippingOption String?
+  shippingCost   Float?
 
   // Champs plats pour les informations du point relais
-  servicePointId          String?
-  servicePointPostNumber  String?
-  servicePointLatitude    String?
-  servicePointLongitude   String?
-  servicePointType        String?
-  servicePointExtraRefCab String?
+  servicePointId           String?
+  servicePointPostNumber   String?
+  servicePointLatitude     String?
+  servicePointLongitude    String?
+  servicePointType         String?
+  servicePointExtraRefCab  String?
   servicePointExtraShopRef String?
 
-  user                    User @relation(fields: [userId], references: [id])
-  address                 Address? @relation(fields: [addressId], references: [id])
-  statusHistory           OrderStatusHistory[]
+  // Une commande est conservée si son utilisateur est supprimé : l'effacement
+  // se fait par anonymisation, pas par suppression (obligation comptable).
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  address       Address?             @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  statusHistory OrderStatusHistory[]
+  transactions  Transaction[]
 
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
   @@map("orders")
 }
 
-
-
 model OrderItem {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  orderId   String   @db.ObjectId
-  productId String   @db.ObjectId
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
   quantity  Int
   price     Float
   custom    Custom[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  order     Order    @relation(fields: [orderId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Restrict : un produit déjà commandé ne doit pas pouvoir détruire l'historique de vente.
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items")
 }
 
 model OrderStatusHistory {
-  id        String      @id @default(auto()) @map("_id") @db.ObjectId
-  orderId   String      @db.ObjectId
+  id        String      @id @default(cuid())
+  orderId   String
   status    OrderStatus
   changedAt DateTime    @default(now())
 
-  order     Order       @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
   @@map("order_status_histories")
 }
 
 model Product {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  id           String            @id @default(cuid())
   name         String
   description  String
   price        Float
   stock        Int
   images       String[]
-  slug         String       @unique
+  slug         String            @unique
   colorProduct String
   categories   ProductCategory[]
   orderItems   OrderItem[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @default(now())
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
   @@map("products")
 }
 
 model Custom {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  image       String   // URL de l'image personnalisée
-  userMessage     String   // Message personnalisé
-  orderItemId String   @db.ObjectId
+  id          String    @id @default(cuid())
+  image       String
+  userMessage String
+  orderItemId String
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([orderItemId])
   @@map("customizations")
 }
 
 model Transaction {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  stripePaymentId        String   @unique
-  orderId                String   @db.ObjectId
-  userId                 String?  @db.ObjectId 
-  amount                 Float
-  currency               String
+  id              String  @id @default(cuid())
+  stripePaymentId String  @unique
+  /// Nullable : la transaction est l'écriture permanente, la commande est transitoire.
+  orderId         String?
+  userId          String?
+  amount          Float
+  currency        String
 
-  customer_details_email String?  @default("")
-  customer_details_name  String?  @default("")
-  customer_details_phone String?  @default("")
+  customer_details_email String? @default("")
+  customer_details_name  String? @default("")
+  customer_details_phone String? @default("")
 
-  status                 String
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @default(now())
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  shippingOption         String
-  shippingCost           Float
+  shippingOption String
+  shippingCost   Float
 
   // Informations sur le mode d'expédition
-  shippingMethodId       Int
-  shippingMethodName     String
+  shippingMethodId   Int
+  shippingMethodName String
 
   // Informations supplémentaires Sendcloud
-  sendcloudParcelId      Int?
-  trackingNumber         String? 
-  trackingUrl            String? 
+  sendcloudParcelId Int?
+  trackingNumber    String?
+  trackingUrl       String?
 
-  // 📦 Dimensions et poids du colis selon l'API Sendcloud
-  package_length         Float    // Longueur du colis en cm
-  package_width          Float    // Largeur du colis en cm
-  package_height         Float    // Hauteur du colis en cm
-  package_dimension_unit String   // Unité des dimensions (ex: "cm")
+  // Dimensions et poids du colis selon l'API Sendcloud
+  package_length         Float
+  package_width          Float
+  package_height         Float
+  package_dimension_unit String
+  package_weight         Float
+  package_weight_unit    String
+  package_volume         Float
+  package_volume_unit    String
 
-  package_weight         Float    // Poids total en kg
-  package_weight_unit    String   // Unité du poids (ex: "kg")
+  // Adresse d'expédition figée au moment du paiement
+  address_first_name         String
+  address_last_name          String
+  address_phone              String
+  address_company            String?
+  address_street_number      String
+  address_street             String
+  address_city               String
+  address_county             String
+  address_state              String
+  address_stateLetter        String
+  address_state_code         String
+  address_zip                String
+  address_country            String
+  address_country_code       String
+  address_ISO_3166_1_alpha_3 String
+  address_type               AddressType
 
-  package_volume         Float    // Volume total en cm3
-  package_volume_unit    String   // Unité du volume (ex: "cm3")
+  // Point relais
+  servicePointId           String?
+  servicePointPostNumber   String?
+  servicePointLatitude     String?
+  servicePointLongitude    String?
+  servicePointType         String?
+  servicePointExtraRefCab  String?
+  servicePointExtraShopRef String?
 
-  // 📍 Adresse d'expédition
-  address_first_name     String  // Prénom du destinataire
-  address_last_name      String  // Nom de famille du destinataire
-  address_phone          String  // Numéro de téléphone
-  address_company        String? // Nom de l'entreprise (optionnel)
-  address_street_number  String  // Numéro de rue
-  address_street         String  // Nom de la rue
-  address_city           String  // Ville
-  address_county         String  // Département
-  address_state          String  // Région
-  address_stateLetter    String  // Code ISO de la région
-  address_state_code     String  // Code abrégé de l'État/région
-  address_zip            String  // Code postal
-  address_country        String  // Nom du pays
-  address_country_code   String  // Code ISO alpha-2 du pays
-  address_ISO_3166_1_alpha_3 String // Code ISO alpha-3 du pays
-  address_type           AddressType // Enum : SHIPPING ou BILLING
+  /// Instantané des produits commandés (jsonb).
+  products Json
 
-    // 📍 Point Relais
-  servicePointId         String?  
-  servicePointPostNumber String?  
-  servicePointLatitude   String?  
-  servicePointLongitude  String?  
-  servicePointType       String?  
-  servicePointExtraRefCab String?  
-  servicePointExtraShopRef String?  
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
-  products               Json      // Produits commandés
-
-  user                   User?    @relation(fields: [userId], references: [id])
-
+  @@index([userId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([status])
   @@map("transactions")
 }
 
-
 model ProductCategory {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId   String   @db.ObjectId
-  categoryId  String   @db.ObjectId
+  id         String @id @default(cuid())
+  productId  String
+  categoryId String
 
-  product     Product  @relation(fields: [productId], references: [id])
-  category    Category @relation(fields: [categoryId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@index([categoryId])
   @@map("product_categories")
 }
 
 model Category {
-  id        String       @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
+  id        String            @id @default(cuid())
+  name      String            @unique
   products  ProductCategory[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @default(now())
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
   @@map("categories")
 }
 
 model PromoCode {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  code        String    @unique
-  type        PromoType
-  value       Float                 // pourcentage (0-100) ou montant fixe en €
-  minAmount   Float?                // montant TTC produits minimum requis
-  usageLimit  Int?                  // null = illimité
-  usageCount  Int       @default(0)
-  expiresAt   DateTime?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  code       String    @unique
+  type       PromoType
+  value      Float
+  minAmount  Float?
+  usageLimit Int?
+  usageCount Int       @default(0)
+  expiresAt  DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
+  @@index([active])
   @@map("promo_codes")
 }
 
-
-
-
-
 // BLOG __________________________________________________________________________________
+
 model BlogPost {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  content     String
-  slug        String       @unique
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  published   Boolean      @default(false)
-  author      BlogAuthor       @relation(fields: [authorId], references: [id])
-  authorId    String       @db.ObjectId
-  category    BlogCategory?    @relation(fields: [categoryId], references: [id])
-  categoryId  String?          @db.ObjectId
-  comments    BlogComment[]
-  tags        BlogPostTag[]
+  id         String        @id @default(cuid())
+  title      String
+  content    String
+  slug       String        @unique
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  published  Boolean       @default(false)
+  author     BlogAuthor    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  authorId   String
+  category   BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId String?
+  comments   BlogComment[]
+  tags       BlogPostTag[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([published])
+  @@map("blog_posts")
 }
 
 model BlogAuthor {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   @unique
+  id        String     @id @default(cuid())
+  name      String     @unique
   posts     BlogPost[]
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
+
+  @@map("blog_authors")
 }
 
 model BlogCategory {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String   @unique
+  id          String     @id @default(cuid())
+  name        String     @unique
   description String?
   posts       BlogPost[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
+
+  @@map("blog_categories")
 }
 
 model BlogComment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   content   String
   author    String
-  post      BlogPost     @relation(fields: [postId], references: [id])
-  postId    String   @db.ObjectId
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
   createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@map("blog_comments")
 }
 
 model BlogTag {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String    @unique
+  id        String        @id @default(cuid())
+  name      String        @unique
   posts     BlogPostTag[]
-  createdAt DateTime  @default(now())
+  createdAt DateTime      @default(now())
+
+  @@map("blog_tags")
 }
 
 model BlogPostTag {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  post   BlogPost   @relation(fields: [postId], references: [id])
-  postId String @db.ObjectId
-  tag    BlogTag    @relation(fields: [tagId], references: [id])
-  tagId  String @db.ObjectId
+  id     String   @id @default(cuid())
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
 
-  @@unique([postId, tagId]) 
+  @@unique([postId, tagId])
+  @@index([tagId])
+  @@map("blog_post_tags")
 }
 
 model ContactSubmission {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   name      String
   email     String
   subject   String
@@ -390,5 +437,6 @@ model ContactSubmission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([email])
   @@map("contact_submissions")
 }

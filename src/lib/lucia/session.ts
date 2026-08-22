@@ -1,5 +1,5 @@
-import { ObjectId } from 'mongodb'; // Import ObjectId pour MongoDB
 import type { RequestEvent } from '@sveltejs/kit';
+import { generateSecureToken, isValidId } from './ids';
 import type { User } from './user';
 import { findUserByGoogleId, createUserWithGoogleOAuth } from '$lib/prisma/user/user';
 import {
@@ -27,9 +27,8 @@ export interface Session extends SessionFlags {
 
 type SessionValidationResult = { session: Session; user: User } | { session: null; user: null };
 
-// Génère un token de session (identifiant MongoDB valide)
 export function generateSessionToken(): string {
-	return new ObjectId().toString(); // Génère un ObjectId valide
+	return generateSecureToken();
 }
 
 export async function createSession(
@@ -38,7 +37,7 @@ export async function createSession(
 	flags: SessionFlags,
 	oauthProvider?: string | null
 ): Promise<Session> {
-	if (!ObjectId.isValid(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 
@@ -135,7 +134,7 @@ export async function invalidateSession(sessionId: string): Promise<void> {
 
 // Invalide toutes les sessions d'un utilisateur
 export async function invalidateUserSessions(userId: string): Promise<void> {
-	if (!ObjectId.isValid(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 

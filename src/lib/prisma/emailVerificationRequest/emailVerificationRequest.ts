@@ -19,7 +19,9 @@ export const deleteEmailVerificationRequestsByUserId = async (userId: string) =>
 };
 
 export const findEmailVerificationRequest = async (id: string, userId: string) => {
-	return await prisma.emailVerificationRequest.findUnique({
+	// findFirst et non findUnique : (id, userId) n'est pas une contrainte unique,
+	// userId sert ici de garde-fou d'appartenance.
+	return await prisma.emailVerificationRequest.findFirst({
 		where: {
 			id: id,
 			userId: userId

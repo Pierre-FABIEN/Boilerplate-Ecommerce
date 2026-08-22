@@ -28,8 +28,6 @@ export const getAllContactSubmissions = async () => {
 	} catch (error) {
 		console.error('Error retrieving contact submissions:', error);
 		throw new Error('Could not retrieve contact submissions.');
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -42,7 +40,5 @@ export const getContactSubmissionById = async (id: string) => {
 	} catch (error) {
 		console.error('Error retrieving contact submission:', error);
 		throw new Error('Could not retrieve contact submission.');
-	} finally {
-		await prisma.$disconnect();
 	}
 };

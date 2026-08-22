@@ -1,6 +1,6 @@
 import { generateRandomOTP } from './utils';
 import { ExpiringTokenBucket } from './rate-limit';
-import { ObjectId } from 'mongodb'; // Import de ObjectId
+import { generateSecureToken, isValidId } from './ids';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	createEmailVerificationRequestPrisma,
@@ -26,7 +26,7 @@ export async function getUserEmailVerificationRequest(
 	id: string
 ): Promise<EmailVerificationRequest | null> {
 	// Validation de l'identifiant
-	if (!ObjectId.isValid(id)) {
+	if (!isValidId(id)) {
 		throw new Error('Invalid email verification request ID');
 	}
 
@@ -53,8 +53,7 @@ export async function createEmailVerificationRequest(
 	// Supprime les requêtes existantes pour éviter les doublons
 	await deleteUserEmailVerificationRequest(userId);
 
-	// Génération d'un nouvel identifiant
-	const id = new ObjectId().toString(); // Utilisation d'un ObjectId valide
+	const id = generateSecureToken();
 	const code = generateRandomOTP();
 	const expiresAt = new Date(Date.now() + 1000 * 60 * 10); // Expiration dans 10 minutes
 
@@ -222,7 +221,7 @@ export async function getUserEmailVerificationRequestFromRequest(
 	}
 
 	const id = event.cookies.get('email_verification') ?? null;
-	if (!id || !ObjectId.isValid(id)) {
+	if (!isValidId(id)) {
 		return null;
 	}
 

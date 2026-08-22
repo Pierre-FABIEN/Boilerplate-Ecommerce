@@ -19,8 +19,6 @@ export const getAllPosts = async () => {
 		return posts;
 	} catch (error) {
 		console.error('Error retrieving posts:', error);
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -36,8 +34,6 @@ export const getPostBySlug = async (slug: string) => {
 		return post;
 	} catch (error) {
 		console.error('Error retrieving post:', error);
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -88,8 +84,6 @@ export const updatePost = async (data: {
 	} catch (error) {
 		console.error('Error updating post:', error);
 		throw error;
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -105,8 +99,6 @@ export const getPostById = async (id: string) => {
 		return post;
 	} catch (error) {
 		console.error('Error retrieving post:', error);
-	} finally {
-		await prisma.$disconnect();
 	}
 };
 
@@ -155,10 +147,6 @@ export const createPost = async (
 	} catch (error) {
 		console.error('Error creating post:', error);
 		throw error;
-	} finally {
-		// Note : Dans un environnement serveur (et surtout en serverless), il est généralement
-		// préférable de gérer la connexion Prisma au niveau global et de ne pas se déconnecter après chaque requête.
-		await prisma.$disconnect();
 	}
 };
 
@@ -184,9 +172,6 @@ export const deletePost = async (id: string) => {
 	} catch (error) {
 		console.error('Error deleting post:', error);
 		throw error;
-	} finally {
-		// Dans un environnement serveur, il est préférable de gérer la connexion Prisma globalement
-		// await prisma.$disconnect();
 	}
 };
 

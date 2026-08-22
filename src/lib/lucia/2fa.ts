@@ -3,7 +3,7 @@ import { prisma } from '$lib/server';
 import { decryptToString, encryptString } from './encryption';
 import { ExpiringTokenBucket } from './rate-limit';
 import { generateRandomRecoveryCode } from './utils';
-import { ObjectId } from 'mongodb'; // Import de ObjectId
+import { isValidId } from './ids';
 
 export const totpBucket = new ExpiringTokenBucket<string>(5, 60 * 30);
 export const recoveryCodeBucket = new ExpiringTokenBucket<string>(3, 60 * 60);
@@ -13,7 +13,7 @@ export async function resetUser2FAWithRecoveryCode(
 	recoveryCode: string
 ): Promise<boolean> {
 	// Vérification du format de l'identifiant
-	if (!ObjectId.isValid(userId)) {
+	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
 	}
 
@@ -37,12 +37,12 @@ export async function resetUser2FAWithRecoveryCode(
 	// Mettre à jour le code de récupération et réinitialiser la 2FA
 	const result = await prisma.$transaction([
 		prisma.session.updateMany({
-			where: { userId: new ObjectId(userId).toString() }, // Assurez-vous que userId est un ObjectId
+			where: { userId },
 			data: { twoFactorVerified: false }
 		}),
 		prisma.user.updateMany({
 			where: {
-				id: new ObjectId(userId).toString(), // Conversion en ObjectId
+				id: userId,
 				recoveryCode: user.recoveryCode
 			},
 			data: {
