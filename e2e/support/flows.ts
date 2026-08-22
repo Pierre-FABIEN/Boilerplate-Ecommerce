@@ -1,8 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { generateTOTP } from '@oslojs/otp';
 import { decodeBase64 } from '@oslojs/encoding';
-import type { Account } from './account';
-import { enableMfa, getEmailVerificationCode, getTotpKey } from './db';
+import { getTotpKey } from './db';
 
 /**
  * Attend une URL par son chemin, en ignorant le slash final.
@@ -21,45 +20,66 @@ export function currentPath(page: Page): string {
 }
 
 /**
- * Remplit et soumet le formulaire d'inscription.
+ * Vérifie qu'un message est affiché.
  *
- * À l'issue de l'action le serveur redirige vers `/auth/2fa/setup`, dont le
- * `load` renvoie aussitôt vers `/auth/verify-email` puisque l'adresse n'est pas
- * encore vérifiée. La page d'atterrissage attendue est donc la vérification.
+ * Les erreurs de formulaire remontent à la fois dans un toast et sous le champ
+ * concerné : on ne retient que la première occurrence pour éviter l'échec du
+ * mode strict de Playwright.
  */
-export async function signUp(page: Page, account: Account) {
-	await page.goto('/auth/signup');
-	await expect(page.getByRole('heading', { name: 'Créer un compte' })).toBeVisible();
-
-	await page.locator('input[name="username"]').fill(account.username);
-	await page.locator('input[name="email"]').fill(account.email);
-	await page.locator('input[name="password"]').fill(account.password);
-	await page.getByRole('button', { name: "S'inscrire" }).click();
-
-	await page.waitForURL('**/auth/verify-email');
+export async function expectMessage(page: Page, text: string) {
+	await expect(page.getByText(text).first()).toBeVisible();
 }
 
-/** Saisit le code reçu par email, lu directement en base. */
-export async function verifyEmail(page: Page, account: Account) {
-	const code = await getEmailVerificationCode(account.email);
-	await page.locator('input[name="code"]').fill(code);
-	await page.getByRole('button', { name: 'Vérifier' }).click();
+/**
+ * Nom du cookie de session.
+ *
+ * `sessionCookie.name` n'est pas surchargé dans `src/lib/lucia/index.ts`, Lucia
+ * retombe donc sur sa valeur par défaut.
+ */
+export const SESSION_COOKIE = 'auth_session';
+
+/** Cookie de session courant du navigateur, ou `null` s'il n'y en a pas. */
+export async function sessionCookie(page: Page) {
+	const cookies = await page.context().cookies();
+	return cookies.find((cookie) => cookie.name === SESSION_COOKIE && cookie.value !== '') ?? null;
 }
 
-/** Inscription complète jusqu'à l'espace connecté, sans 2FA. */
-export async function signUpAndVerify(page: Page, account: Account) {
-	await signUp(page, account);
-	await verifyEmail(page, account);
-	await waitForPath(page, '/auth');
+/** Remplit les trois champs de l'inscription sans soumettre. */
+export async function fillSignupForm(
+	page: Page,
+	values: { username: string; email: string; password: string }
+) {
+	await page.locator('input[name="username"]').fill(values.username);
+	await page.locator('input[name="email"]').fill(values.email);
+	await page.locator('input[name="password"]').fill(values.password);
 }
 
-export async function logIn(page: Page, account: Account, password = account.password) {
+/** Soumet le formulaire de connexion depuis la page dédiée. */
+export async function logIn(page: Page, email: string, password: string) {
 	await page.goto('/auth/login');
 	await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
 
-	await page.locator('input[name="email"]').fill(account.email);
+	await page.locator('input[name="email"]').fill(email);
 	await page.locator('input[name="password"]').fill(password);
 	await page.getByRole('button', { name: 'Continuer' }).click();
+}
+
+/**
+ * Patiente le temps du délai imposé après des échecs de connexion.
+ *
+ * `Throttler` (src/lib/lucia/rate-limit.ts) impose une attente croissante entre
+ * deux tentatives sur un même compte : 0s, 1s, 2s, 4s… Sans cette pause, la
+ * tentative suivante reçoit « Too many requests » au lieu du message attendu.
+ */
+export async function waitOutLoginThrottle(page: Page, seconds: number) {
+	await page.waitForTimeout(seconds * 1000 + 300);
+}
+
+/** Se déconnecte depuis l'espace connecté et attend la page de connexion. */
+export async function signOut(page: Page) {
+	await page.goto('/auth/');
+	await page.getByRole('button', { name: 'Se déconnecter' }).click();
+	await waitForPath(page, '/auth/login');
 }
 
 /**
@@ -74,11 +94,7 @@ export async function setUpTotp(page: Page): Promise<string> {
 		page.getByRole('heading', { name: "Configurer l'authentification à deux facteurs" })
 	).toBeVisible();
 
-	const encodedKey = await page.locator('input[name="encodedTOTPKey"]').inputValue();
-	const code = generateTOTP(decodeBase64(encodedKey), 30, 6);
-
-	await page.locator('input[name="code"]').fill(code);
-	await page.getByRole('button', { name: 'Valider' }).click();
+	await submitTotpSetupCode(page, await validSetupCode(page));
 
 	await page.waitForURL('**/auth/recovery-code');
 	const recoveryCode = (await page.locator('.font-mono').innerText()).trim();
@@ -86,26 +102,19 @@ export async function setUpTotp(page: Page): Promise<string> {
 	return recoveryCode;
 }
 
+/** Code TOTP valide calculé depuis la clé proposée par la page de configuration. */
+export async function validSetupCode(page: Page): Promise<string> {
+	const encodedKey = await page.locator('input[name="encodedTOTPKey"]').inputValue();
+	return generateTOTP(decodeBase64(encodedKey), 30, 6);
+}
+
+/** Saisit un code sur la page de configuration 2FA et soumet. */
+export async function submitTotpSetupCode(page: Page, code: string) {
+	await page.locator('input[name="code"]').fill(code);
+	await page.getByRole('button', { name: 'Valider' }).click();
+}
+
 /** Génère un code TOTP valide depuis la clé chiffrée stockée en base. */
 export async function currentTotpCode(email: string): Promise<string> {
 	return generateTOTP(await getTotpKey(email), 30, 6);
-}
-
-/**
- * Amène un compte à l'état « 2FA exigée et configurée ».
- *
- * L'interface d'activation de la MFA est commentée dans les paramètres, donc le
- * drapeau est basculé en base ; le reste du parcours passe bien par les pages.
- * @returns le code de récupération du compte.
- */
-export async function enrollWithTotp(page: Page, account: Account): Promise<string> {
-	await signUpAndVerify(page, account);
-	await enableMfa(account.email);
-
-	// Le hook d'authentification renvoie vers la configuration dès la requête
-	// suivante, puisque la 2FA est désormais exigée sans être configurée.
-	await page.goto('/auth/');
-	await page.waitForURL('**/auth/2fa/setup');
-
-	return setUpTotp(page);
 }

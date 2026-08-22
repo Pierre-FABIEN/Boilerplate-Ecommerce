@@ -3,7 +3,7 @@ import {
 	validatePasswordResetSessionRequest
 } from '$lib/lucia/passwordReset';
 import { invalidateUserPasswordResetSessions } from '$lib/prisma/passwordResetSession/passwordResetSession';
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { verifyPasswordStrength } from '$lib/lucia/password';
 import {
 	createSession,
@@ -53,10 +53,14 @@ export const actions: Actions = {
 			return message(form, 'Forbidden');
 		}
 
-		const password = formData.get('password');
-		if (typeof password !== 'string') {
-			return message(form, 'Invalid or missing fields');
+		// La validation Zod doit aussi s'appliquer côté serveur : sans ce contrôle,
+		// un appel direct pouvait imposer un mot de passe ne respectant pas la
+		// politique de robustesse.
+		if (!form.valid) {
+			return fail(400, { form });
 		}
+
+		const { password } = form.data;
 		await invalidateUserPasswordResetSessions(passwordResetSession.userId);
 		await invalidateUserSessions(passwordResetSession.userId);
 		await updateUserPassword(passwordResetSession.userId, password);

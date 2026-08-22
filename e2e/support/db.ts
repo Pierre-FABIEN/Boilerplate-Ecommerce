@@ -11,6 +11,28 @@ export const db = new PrismaClient({
 });
 
 /**
+ * Rejoue une lecture sur coupure réseau passagère.
+ *
+ * La base est distante (Neon) et se met en veille : une requête peut échouer le
+ * temps que le calcul redémarre. Sans cela, un incident réseau se lit comme une
+ * régression fonctionnelle.
+ */
+async function resilient<T>(operation: () => Promise<T>, attempts = 4): Promise<T> {
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			return await operation();
+		} catch (error) {
+			lastError = error;
+			const unreachable = String(error).includes("Can't reach database server");
+			if (!unreachable) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+		}
+	}
+	throw lastError;
+}
+
+/**
  * Déchiffre une charge AES-128-GCM produite par `src/lib/lucia/encryption.ts`.
  * Le module applicatif n'est pas réutilisable ici car il dépend de
  * `$env/static/private`, indisponible hors du bundle SvelteKit.
@@ -29,7 +51,7 @@ function decryptPayload(payload: Uint8Array): Buffer {
 }
 
 export async function getUser(email: string) {
-	return db.user.findUnique({ where: { email } });
+	return resilient(() => db.user.findUnique({ where: { email } }));
 }
 
 export async function requireUser(email: string) {
@@ -38,29 +60,8 @@ export async function requireUser(email: string) {
 	return user;
 }
 
-/** Code OTP de vérification d'adresse email, le plus récent d'abord. */
-export async function getEmailVerificationCode(email: string): Promise<string> {
-	const user = await requireUser(email);
-	const request = await db.emailVerificationRequest.findFirst({
-		where: { userId: user.id },
-		orderBy: { createdAt: 'desc' }
-	});
-	if (!request) throw new Error(`Aucune demande de vérification pour ${email}`);
-	return request.code;
-}
-
-/** Code OTP de réinitialisation de mot de passe, le plus récent d'abord. */
-export async function getPasswordResetCode(email: string): Promise<string> {
-	const user = await requireUser(email);
-	const session = await db.passwordResetSession.findFirst({
-		where: { userId: user.id },
-		orderBy: { createdAt: 'desc' }
-	});
-	if (!session) throw new Error(`Aucune session de réinitialisation pour ${email}`);
-	return session.code;
-}
-
-/** Clé TOTP déchiffrée, telle qu'enregistrée après la configuration de la 2FA. */
+/**
+ * Clé TOTP déchiffrée, telle qu'enregistrée après la configuration de la 2FA. */
 export async function getTotpKey(email: string): Promise<Uint8Array> {
 	const user = await requireUser(email);
 	if (!user.totpKey) throw new Error(`Aucune clé TOTP enregistrée pour ${email}`);
@@ -80,21 +81,23 @@ export async function getRecoveryCode(email: string): Promise<string> {
  * tests basculent le drapeau en base pour atteindre les parcours 2FA.
  */
 export async function enableMfa(email: string) {
-	await db.user.update({ where: { email }, data: { isMfaEnabled: true } });
+	await resilient(() => db.user.update({ where: { email }, data: { isMfaEnabled: true } }));
 }
 
-/** Fait expirer une demande de vérification d'email pour tester ce cas. */
-export async function expireEmailVerificationRequests(email: string) {
-	const user = await requireUser(email);
-	await db.emailVerificationRequest.updateMany({
-		where: { userId: user.id },
-		data: { expiresAt: new Date(Date.now() - 60_000) }
-	});
+/**
+ * Crée un compte minimal qui occupe une adresse email.
+ *
+ * Sert à vérifier qu'une adresse déjà prise est refusée : seule l'unicité de
+ * l'email est en jeu, aucun mot de passe n'est nécessaire.
+ */
+export async function occupyEmail(email: string) {
+	await resilient(() => db.user.create({ data: { email } }));
 }
 
+/** Nombre de sessions actives, pour vérifier révocations et déconnexions. */
 export async function countSessions(email: string): Promise<number> {
 	const user = await requireUser(email);
-	return db.session.count({ where: { userId: user.id } });
+	return resilient(() => db.session.count({ where: { userId: user.id } }));
 }
 
 /**
@@ -109,6 +112,6 @@ export async function deleteUser(email: string) {
 	const user = await getUser(email);
 	if (!user) return;
 
-	await db.order.deleteMany({ where: { userId: user.id } });
-	await db.user.delete({ where: { id: user.id } });
+	await resilient(() => db.order.deleteMany({ where: { userId: user.id } }));
+	await resilient(() => db.user.delete({ where: { id: user.id } }));
 }

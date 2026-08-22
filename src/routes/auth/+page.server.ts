@@ -12,24 +12,18 @@ export const load = async (event: PageServerLoadEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 
-	// console.log(event.locals.user, 'slkrjghxkgujh AUTH');
-
-	if (!event.locals.user.googleId) {
-		if (!event.locals.user.isMfaEnabled) {
-			return;
-		}
-
+	// La 2FA ne concerne pas les comptes Google, dont le second facteur est géré
+	// par le fournisseur. Auparavant cette branche sortait par un `return` nu
+	// quand la MFA était désactivée, laissant la page sans données.
+	if (!event.locals.user.googleId && event.locals.user.isMfaEnabled) {
 		if (!event.locals.user.registered2FA) {
-			if (event.locals.user.isMfaEnabled) {
-				return redirect(302, '/auth/2fa/setup');
-			}
+			return redirect(302, '/auth/2fa/setup');
 		}
 		if (!event.locals.session.twoFactorVerified) {
-			if (event.locals.user.isMfaEnabled) {
-				return redirect(302, '/auth/2fa');
-			}
+			return redirect(302, '/auth/2fa');
 		}
 	}
+
 	return {
 		user: event.locals.user
 	};

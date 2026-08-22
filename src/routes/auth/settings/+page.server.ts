@@ -68,20 +68,22 @@ export const load = async (event: RequestEvent) => {
 
 export const actions: Actions = {
 	password: async (event: RequestEvent) => {
+		// Le formulaire est validé d'abord : les messages d'erreur doivent passer
+		// par `message(form, ...)` pour que superforms les expose côté client.
+		const form = await superValidate(event, zod(passwordSchema));
+
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Not authenticated' } });
+			return message(form, 'Not authenticated', { status: 401 });
 		}
 		if (event.locals.user.isMfaEnabled) {
 			if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
-				return fail(403, { form: { message: 'Forbidden' } });
+				return message(form, 'Forbidden', { status: 403 });
 			}
 		}
 		if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
-			return fail(429, { form: { message: 'Too many requests' } });
+			return message(form, 'Too many requests', { status: 429 });
 		}
 
-		// Valider le formulaire avec Superform
-		const form = await superValidate(event, zod(passwordSchema));
 		if (!form.valid) {
 			return fail(400, { form });
 		}
@@ -91,7 +93,7 @@ export const actions: Actions = {
 		const passwordHash = await getUserPasswordHash(event.locals.user.id);
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {
-			return fail(400, { form: { message: 'Incorrect password', form } });
+			return message(form, 'Incorrect password', { status: 400 });
 		}
 
 		passwordUpdateBucket.reset(event.locals.session.id);
@@ -109,21 +111,19 @@ export const actions: Actions = {
 	},
 
 	email: async (event: RequestEvent) => {
+		const form = await superValidate(event, zod(emailSchema));
+
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Not authenticated' } });
+			return message(form, 'Not authenticated', { status: 401 });
 		}
 		if (event.locals.user.isMfaEnabled) {
 			if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
-				return fail(403, { form: { message: 'Forbidden' } });
+				return message(form, 'Forbidden', { status: 403 });
 			}
 		}
 		if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
-			return fail(429, { form: { message: 'Too many requests' } });
+			return message(form, 'Too many requests', { status: 429 });
 		}
-
-		// Valider le formulaire avec Superform
-		const form = await superValidate(event, zod(emailSchema));
-		// console.log(form);
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -131,14 +131,17 @@ export const actions: Actions = {
 
 		const { email } = form.data;
 
-		// Vérifier la disponibilité de l'email
 		const emailAvailable = await checkEmailAvailability(email);
 		if (!emailAvailable) {
-			return fail(400, { form: { message: 'This email is already used', form } });
+			return message(form, 'This email is already used', { status: 400 });
 		}
 
 		const verificationRequest = await createEmailVerificationRequest(event.locals.user.id, email);
-		sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		try {
+			await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		} catch (error) {
+			console.error("Échec de l'envoi du code de vérification :", error);
+		}
 		setEmailVerificationRequestCookie(event, verificationRequest);
 
 		redirect(302, '/auth/verify-email');

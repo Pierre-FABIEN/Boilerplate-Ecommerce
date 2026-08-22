@@ -75,7 +75,9 @@ export const actions: Actions = {
 			const isValid = verifyTOTP(totpKey, 30, 6, code);
 
 			if (!isValid) {
-				return fail(400, { message: 'Invalid TOTP code', form });
+				// `message` et non `fail` : sinon le texte n'atteint pas le store
+				// superforms et l'utilisateur ne voit aucune erreur.
+				return message(form, 'Invalid TOTP code', { status: 400 });
 			}
 			// console.log('Vérification TOTP réussie.');
 		} catch (error: unknown) {

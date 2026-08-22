@@ -11,6 +11,20 @@ import { E2E_EMAIL_PREFIX } from './account';
  *
  * La fonction retournée est utilisée par Playwright comme teardown global.
  */
+async function withRetry<T>(operation: () => Promise<T>, attempts = 5): Promise<T> {
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			return await operation();
+		} catch (error) {
+			lastError = error;
+			console.log(`[e2e] base injoignable (tentative ${attempt}/${attempts}), nouvel essai…`);
+			await new Promise((resolve) => setTimeout(resolve, 3000));
+		}
+	}
+	throw lastError;
+}
+
 export default async function globalSetup() {
 	execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
 		env: {
@@ -21,10 +35,14 @@ export default async function globalSetup() {
 		stdio: 'pipe'
 	});
 
-	const stale = await db.user.findMany({
-		where: { email: { startsWith: E2E_EMAIL_PREFIX } },
-		select: { id: true }
-	});
+	// Neon met la base en veille après inactivité : la première connexion peut
+	// échouer le temps que le calcul redémarre.
+	const stale = await withRetry(() =>
+		db.user.findMany({
+			where: { email: { startsWith: E2E_EMAIL_PREFIX } },
+			select: { id: true }
+		})
+	);
 	if (stale.length > 0) {
 		const ids = stale.map((u) => u.id);
 		// Les paniers bloquent la suppression des comptes (`Order → User` en Restrict).
@@ -34,8 +52,11 @@ export default async function globalSetup() {
 	}
 
 	const smtpPort = Number(process.env.SMTP_PORT ?? 2525);
-	const sink = await startSmtpSink(smtpPort);
-	console.log(`[e2e] puits SMTP à l'écoute sur 127.0.0.1:${smtpPort}`);
+	const httpPort = Number(process.env.SMTP_HTTP_PORT ?? 2526);
+	const sink = await startSmtpSink(smtpPort, httpPort);
+	console.log(
+		`[e2e] boîte de réception : SMTP sur 127.0.0.1:${smtpPort}, lecture sur 127.0.0.1:${httpPort}`
+	);
 
 	return async () => {
 		await sink.close();

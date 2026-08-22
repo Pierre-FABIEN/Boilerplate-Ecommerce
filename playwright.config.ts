@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import dns from 'node:dns';
 import dotenv from 'dotenv';
+
+// Neon ne publie que des AAAA en premier, et l'IPv6 de WSL2 vers AWS coupe par
+// intermittence : la base devenait injoignable au milieu d'un run. On privilégie
+// donc l'IPv4, ici pour le process Playwright et plus bas pour le serveur.
+dns.setDefaultResultOrder('ipv4first');
 
 // `.env.test` prime sur `.env` : la suite travaille sur le schéma PostgreSQL
 // `e2e` et sur le puits SMTP local, jamais sur les données de développement.
@@ -21,14 +27,23 @@ export default defineConfig({
 	// par test plutôt que sur le parallélisme.
 	fullyParallel: false,
 	workers: 1,
-	retries: process.env.CI ? 1 : 0,
+	// Une reprise même en local : la base est distante, et une coupure réseau
+	// passagère ne doit pas se lire comme une régression.
+	retries: 1,
 	forbidOnly: !!process.env.CI,
 	reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
 
 	use: {
 		baseURL: `http://localhost:${PORT}`,
 		trace: 'retain-on-failure',
-		screenshot: 'only-on-failure'
+		screenshot: 'only-on-failure',
+
+		// Par défaut on ne garde la vidéo que des échecs, pour ne pas alourdir
+		// chaque exécution. `E2E_VIDEO=1` enregistre tous les parcours.
+		video: process.env.E2E_VIDEO
+			? { mode: 'on', size: { width: 1280, height: 720 } }
+			: 'retain-on-failure',
+		viewport: { width: 1280, height: 720 }
 	},
 
 	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
@@ -45,7 +60,8 @@ export default defineConfig({
 		stderr: 'pipe',
 		env: {
 			...(process.env as Record<string, string>),
-			NODE_ENV: 'development'
+			NODE_ENV: 'development',
+			NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`.trim()
 		}
 	}
 });

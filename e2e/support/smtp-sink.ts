@@ -1,31 +1,50 @@
 import net from 'node:net';
+import http from 'node:http';
+
+export type CapturedEmail = {
+	to: string[];
+	raw: string;
+	receivedAt: number;
+};
 
 /**
- * Serveur SMTP minimal qui accepte tout et jette les messages.
+ * Boîte de réception de test : un serveur SMTP minimal qui accepte tout et
+ * conserve les messages, doublé d'une petite API HTTP pour les relire.
  *
- * L'application envoie de vrais emails via nodemailer (vérification d'adresse,
- * réinitialisation de mot de passe). En test on ne veut ni contacter Brevo ni
- * voir l'envoi échouer, car certains chemins ne rattrapent pas l'erreur. Ce
- * puits répond correctement au dialogue SMTP pour que nodemailer considère
- * l'envoi réussi. Les codes eux-mêmes sont ensuite lus directement en base.
+ * L'application envoie de vrais emails via nodemailer (code de vérification,
+ * réinitialisation de mot de passe). Ce puits évite de contacter Brevo tout en
+ * laissant l'envoi réussir, et permet aux tests de récupérer le code dans le
+ * message effectivement reçu plutôt que dans la base.
+ *
+ * L'API HTTP est nécessaire parce que les tests Playwright tournent dans des
+ * processus distincts de celui qui démarre le puits : la mémoire n'est pas
+ * partagée.
  */
-export function startSmtpSink(port: number): Promise<{ close: () => Promise<void> }> {
-	const server = net.createServer((socket) => {
+export function startSmtpSink(smtpPort: number, httpPort: number) {
+	const messages: CapturedEmail[] = [];
+
+	const smtpServer = net.createServer((socket) => {
 		let inDataMode = false;
+		let buffer = '';
+		let recipients: string[] = [];
 
 		const send = (line: string) => socket.write(`${line}\r\n`);
-
 		send('220 localhost E2E SMTP sink');
 
-		let buffer = '';
 		socket.on('data', (chunk) => {
 			buffer += chunk.toString('utf8');
 
-			// En mode DATA, le message se termine par une ligne ne contenant qu'un point.
 			if (inDataMode) {
-				if (buffer.includes('\r\n.\r\n')) {
+				const terminator = buffer.indexOf('\r\n.\r\n');
+				if (terminator !== -1) {
+					messages.push({
+						to: recipients,
+						raw: buffer.slice(0, terminator),
+						receivedAt: Date.now()
+					});
+					recipients = [];
 					inDataMode = false;
-					buffer = '';
+					buffer = buffer.slice(terminator + 5);
 					send('250 2.0.0 Message accepted');
 				}
 				return;
@@ -35,12 +54,11 @@ export function startSmtpSink(port: number): Promise<{ close: () => Promise<void
 			while ((newlineIndex = buffer.indexOf('\r\n')) !== -1) {
 				const command = buffer.slice(0, newlineIndex);
 				buffer = buffer.slice(newlineIndex + 2);
-
 				const verb = command.split(' ')[0].toUpperCase();
 
 				switch (verb) {
 					case 'EHLO':
-						// On n'annonce pas STARTTLS : nodemailer reste en clair.
+						// STARTTLS n'est pas annoncé : nodemailer reste en clair.
 						send('250-localhost');
 						send('250-AUTH PLAIN LOGIN');
 						send('250 8BITMIME');
@@ -51,11 +69,19 @@ export function startSmtpSink(port: number): Promise<{ close: () => Promise<void
 					case 'AUTH':
 						send('235 2.7.0 Authentication successful');
 						break;
+					case 'RCPT': {
+						const match = command.match(/<([^>]+)>/);
+						if (match) recipients.push(match[1].toLowerCase());
+						send('250 2.1.5 Ok');
+						break;
+					}
 					case 'MAIL':
-					case 'RCPT':
-					case 'RSET':
 					case 'NOOP':
 						send('250 2.1.0 Ok');
+						break;
+					case 'RSET':
+						recipients = [];
+						send('250 2.0.0 Ok');
 						break;
 					case 'DATA':
 						inDataMode = true;
@@ -75,15 +101,26 @@ export function startSmtpSink(port: number): Promise<{ close: () => Promise<void
 		socket.on('error', () => socket.destroy());
 	});
 
-	return new Promise((resolve, reject) => {
-		server.once('error', reject);
-		server.listen(port, '127.0.0.1', () => {
-			resolve({
-				close: () =>
-					new Promise<void>((done) => {
-						server.close(() => done());
-					})
-			});
-		});
+	const httpServer = http.createServer((request, response) => {
+		if (request.method === 'DELETE') {
+			messages.length = 0;
+			response.writeHead(204).end();
+			return;
+		}
+		response.writeHead(200, { 'content-type': 'application/json' });
+		response.end(JSON.stringify(messages));
 	});
+
+	const listen = (server: net.Server | http.Server, port: number) =>
+		new Promise<void>((resolve, reject) => {
+			server.once('error', reject);
+			server.listen(port, '127.0.0.1', () => resolve());
+		});
+
+	return Promise.all([listen(smtpServer, smtpPort), listen(httpServer, httpPort)]).then(() => ({
+		close: async () => {
+			await new Promise<void>((done) => smtpServer.close(() => done()));
+			await new Promise<void>((done) => httpServer.close(() => done()));
+		}
+	}));
 }

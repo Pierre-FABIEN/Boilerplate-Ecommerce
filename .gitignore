@@ -1,4 +1,6 @@
 test-results
+playwright-report
+e2e-videos
 node_modules
 
 # Output
@@ -12,11 +14,11 @@ node_modules
 .DS_Store
 Thumbs.db
 
-# Env
+# Env — `.env.test` contient les identifiants de la base de test, il reste ignoré.
 .env
 .env.*
 !.env.example
-!.env.test
+!.env.test.example
 
 # Vite
 vite.config.js.timestamp-*

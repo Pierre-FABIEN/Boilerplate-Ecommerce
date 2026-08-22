@@ -40,12 +40,18 @@
 	} = isMfaEnabledForm;
 
 	// Notifications pour les messages d'erreur
+	const SUCCESS_MESSAGES = ['Password modified successfully'];
+
 	$effect(() => {
 		if ($emailMessage) {
-			toast.success($emailMessage);
+			toast.error($emailMessage);
 		}
 		if ($passwordMessage) {
-			toast.success($passwordMessage);
+			if (SUCCESS_MESSAGES.includes($passwordMessage)) {
+				toast.success($passwordMessage);
+			} else {
+				toast.error($passwordMessage);
+			}
 		}
 		if ($isMfaEnabledMessage && $isMfaEnabledMessage.text === 'Authentication modifiée') {
 			$isMfaEnabledData.isMfaEnabled = $isMfaEnabledMessage.newStatus;
