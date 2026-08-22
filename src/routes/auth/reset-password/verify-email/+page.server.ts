@@ -9,7 +9,8 @@ import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
 import { zod } from 'sveltekit-superforms/adapters';
 import { message, superValidate } from 'sveltekit-superforms';
 
-const bucket = new ExpiringTokenBucket<number>(5, 60 * 30);
+// La clé est l'identifiant utilisateur, devenu un cuid avec PostgreSQL.
+const bucket = new ExpiringTokenBucket<string>(5, 60 * 30);
 
 export const load = async (event: RequestEvent) => {
 	const { session } = await validatePasswordResetSessionRequest(event);

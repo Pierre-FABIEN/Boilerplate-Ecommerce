@@ -31,12 +31,23 @@ export default defineConfig({
 	// passagère ne doit pas se lire comme une régression.
 	retries: 1,
 	forbidOnly: !!process.env.CI,
-	reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
+	// En local, `step-reporter` commente l'avancement en direct : le parcours est
+	// un test unique de plusieurs minutes, sinon la console reste muette.
+	reporter: process.env.CI
+		? [['github'], ['html', { open: 'never' }]]
+		: [['list'], ['./e2e/support/step-reporter.ts'], ['html', { open: 'never' }]],
 
 	use: {
 		baseURL: `http://localhost:${PORT}`,
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure',
+
+		// Sans ces bornes, un geste qui n'aboutit pas consomme le délai du test
+		// entier — soit plusieurs minutes de silence avant de savoir ce qui a
+		// bloqué. Le serveur de dev compile à la demande, d'où une navigation
+		// volontairement large.
+		actionTimeout: 20_000,
+		navigationTimeout: 60_000,
 
 		// Par défaut on ne garde la vidéo que des échecs, pour ne pas alourdir
 		// chaque exécution. `E2E_VIDEO=1` enregistre tous les parcours.

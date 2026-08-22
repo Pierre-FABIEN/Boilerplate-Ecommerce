@@ -19,9 +19,23 @@ Le choix d'un parcours continu plutôt que de fichiers séparés est délibéré
 ```bash
 npm run test:e2e          # exécution simple
 npm run test:e2e:video    # avec vidéo, copiée dans e2e-videos/
+npm run test:e2e:headed   # navigateur visible, avec vidéo
 npm run test:e2e:ui       # mode interactif Playwright
 npm run test:e2e:report   # dernier rapport HTML
 ```
+
+Le parcours étant un test unique de deux à trois minutes, les rapporteurs
+standard n'écriraient rien avant la fin. `e2e/support/step-reporter.ts` annonce
+donc chaque étape en direct :
+
+```
+[00:56] ✓ 1. Les pages protégées sont fermées aux visiteurs anonymes (54413 ms)
+[01:06] ✓ 2. Inscription : les saisies invalides sont refusées (9680 ms)
+```
+
+Pour suivre le déroulé à l'écran, `test:e2e:headed` ouvre le navigateur (sous WSL,
+via WSLg). Les délais d'action sont bornés à 20 s : un geste qui n'aboutit pas
+échoue vite, en nommant le geste fautif, au lieu d'épuiser le délai du test.
 
 Prérequis :
 
@@ -31,8 +45,11 @@ Prérequis :
 - la base Neon accessible. Les URL contenant `&` **doivent** rester entre
   guillemets dans `.env.test`.
 
-Playwright démarre lui-même le serveur de développement sur le port défini par
-`PORT` (2000 par défaut) ; rien n'est à lancer à la main.
+Playwright démarre lui-même le serveur de développement sur le port 4173
+(`PORT` dans `playwright.config.ts`) ; rien n'est à lancer à la main. Le serveur de
+dev compile chaque route à la première visite, ce qui explique la première étape
+particulièrement lente — une cinquantaine de secondes pour neuf pages jamais
+visitées. Ce n'est pas un blocage.
 
 ## Ce qui est vérifié, étape par étape
 
@@ -75,8 +92,10 @@ affiché alors que la donnée a changé quand même ne peut pas passer inaperçu
 - **`fixtures.ts`** — un compte neuf par test, supprimé à la fin, et une adresse
   IP unique injectée via `X-Forwarded-For` pour que les limiteurs par IP repartent
   de zéro.
-- **`flows.ts`** — gestes réutilisables (connexion, déconnexion, configuration
-  TOTP) et petites aides d'assertion.
+- **`flows.ts`** — gestes réutilisables (connexion, déconnexion, saisie de code,
+  configuration TOTP) et petites aides d'assertion. Toutes les saisies passent par
+  `fillStable()`, voir plus bas.
+- **`step-reporter.ts`** — l'avancement en direct dans la console.
 - **`global-setup.ts`** — applique les migrations sur le schéma `e2e`, purge les
   comptes de test résiduels, démarre la boîte SMTP, et referme tout à la fin.
 
@@ -90,8 +109,8 @@ tableau ci-dessous donne les marges disponibles.
 | ------------------------------------------- | --------------- | ---------- | ------------------------ |
 | `hooks.server.ts`                           | 100 / 1 s       | IP         | ~60 requêtes             |
 | signup `ipBucket`                           | 3 / 10 s        | IP         | 1                        |
-| login `throttler`                           | 0,1,2,4,8,16… s | compte     | 3 échecs                 |
-| `verify-email` (saisie du code)             | 5 / 30 min      | compte     | 4                        |
+| login `throttler`                           | 0,1,2,4,8,16… s | compte     | 2 échecs                 |
+| `verify-email` (saisie du code)             | 5 / 30 min      | compte     | 4 ← marge la plus mince  |
 | `sendVerificationEmailBucket` (renvoi)      | 3 / 10 min      | compte     | 1                        |
 | `forgot-password` (IP et compte)            | 3 / 60 s        | IP, compte | 1                        |
 | `reset-password/verify-email`               | 5 / 30 min      | compte     | 2                        |
@@ -113,8 +132,21 @@ validation serveur. Pour tester celle-ci, il faut poster directement via
 **Messages.** Les erreurs serveur remontent en toast (`svelte-sonner`) et,
 lorsqu'elles portent sur un champ, également sous le champ. `expectMessage()`
 retient la première occurrence pour éviter l'échec du mode strict de Playwright.
-Exception : `/auth/verify-email` récupère bien `$message` mais ne l'affiche pas —
-sur cette page, un refus se constate par l'URL et l'état en base.
+
+**Saisies après un refus.** Superforms réinjecte les données postées dans le
+formulaire quand l'action échoue. Ce rendu peut survenir juste après la saisie
+suivante et l'écraser : le champ affiche alors la bonne valeur au moment où on
+l'observe, mais c'est l'ancienne qui repart au serveur. D'où `fillStable()`, qui
+laisse passer un cycle de rendu et réessaie tant que la saisie ne tient pas. Toute
+nouvelle saisie doit passer par cette aide, `locator.fill()` seul étant instable
+sur ces formulaires.
+
+**Résultats d'action et superforms.** Une action pilotée par superforms doit
+toujours renvoyer son `form`, via `message(form, …)` ou `fail(400, { form })`. Un
+`fail()` portant une autre charge laisse le client croire que la soumission est
+toujours en cours : le formulaire refuse alors toute nouvelle tentative, sans
+message ni erreur visible. C'est exactement ce que le scénario a mis au jour sur
+`/auth/verify-email`, en soumettant un code erroné avant le bon.
 
 **Sélecteurs.** Les composants shadcn-svelte réservent des surprises : `CardTitle`
 rend un `div` (donc `getByText`, pas `getByRole('heading')`), et un `Button` avec
@@ -147,6 +179,7 @@ relation `Order → User` est en `Restrict`.
 
 | Symptôme                                          | Cause probable                                                                 |
 | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `http://localhost:4173 is already used` ou `EADDRINUSE 2525` | Une exécution interrompue a laissé le serveur de dev ou la boîte SMTP en vie. Libérer les ports : `fuser -k 4173/tcp 2525/tcp 2526/tcp`. |
 | `Can't reach database server`                     | Neon en veille ou IPv6 capricieux sous WSL. Les lectures rejouent déjà ; relancer. |
 | Le test attend un code d'email indéfiniment       | La boîte SMTP n'a pas démarré : vérifier que `SMTP_HOST`/`SMTP_PORT` de `.env.test` visent bien le sink local. |
 | « Too many requests » inattendu                   | Une tentative invalide a été ajoutée sans marge. Voir le tableau des limiteurs. |

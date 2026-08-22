@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { generateTOTP } from '@oslojs/otp';
 import { decodeBase64 } from '@oslojs/encoding';
 import { getTotpKey } from './db';
@@ -31,6 +31,35 @@ export async function expectMessage(page: Page, text: string) {
 }
 
 /**
+ * Saisit une valeur et s'assure qu'elle a bien pris.
+ *
+ * Après une soumission refusée, superforms réinjecte les données postées dans le
+ * formulaire. Ce rendu peut arriver juste après une nouvelle saisie et l'écraser
+ * sans erreur : c'est alors l'ancienne valeur qui repart au serveur, panne
+ * d'autant plus trompeuse que le champ affiche la bonne valeur au moment où on
+ * l'observe. On laisse donc passer un cycle de rendu, et on réessaie jusqu'à ce
+ * que la saisie tienne.
+ */
+export async function fillStable(input: Locator, value: string) {
+	await expect(async () => {
+		await input.fill(value);
+		await input.page().waitForTimeout(200);
+		await expect(input).toHaveValue(value, { timeout: 1_000 });
+	}).toPass({ timeout: 15_000 });
+}
+
+/** Champ de saisie de code à usage unique, commun aux pages de vérification. */
+export function codeInput(page: Page): Locator {
+	return page.locator('input[name="code"]');
+}
+
+/** Saisit un code à usage unique et soumet le formulaire correspondant. */
+export async function submitCode(page: Page, code: string, button = 'Vérifier') {
+	await fillStable(codeInput(page), code);
+	await page.getByRole('button', { name: button }).click();
+}
+
+/**
  * Nom du cookie de session.
  *
  * `sessionCookie.name` n'est pas surchargé dans `src/lib/lucia/index.ts`, Lucia
@@ -49,9 +78,9 @@ export async function fillSignupForm(
 	page: Page,
 	values: { username: string; email: string; password: string }
 ) {
-	await page.locator('input[name="username"]').fill(values.username);
-	await page.locator('input[name="email"]').fill(values.email);
-	await page.locator('input[name="password"]').fill(values.password);
+	await fillStable(page.locator('input[name="username"]'), values.username);
+	await fillStable(page.locator('input[name="email"]'), values.email);
+	await fillStable(page.locator('input[name="password"]'), values.password);
 }
 
 /** Soumet le formulaire de connexion depuis la page dédiée. */
@@ -59,8 +88,8 @@ export async function logIn(page: Page, email: string, password: string) {
 	await page.goto('/auth/login');
 	await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
 
-	await page.locator('input[name="email"]').fill(email);
-	await page.locator('input[name="password"]').fill(password);
+	await fillStable(page.locator('input[name="email"]'), email);
+	await fillStable(page.locator('input[name="password"]'), password);
 	await page.getByRole('button', { name: 'Continuer' }).click();
 }
 
@@ -85,8 +114,6 @@ export async function signOut(page: Page) {
 /**
  * Configure la 2FA sur la page `/auth/2fa/setup`.
  *
- * La clé proposée par le serveur est lue dans le champ caché, ce qui permet de
- * calculer un code TOTP valide sans dépendre de la base.
  * @returns le code de récupération affiché à l'étape suivante.
  */
 export async function setUpTotp(page: Page): Promise<string> {
@@ -94,7 +121,7 @@ export async function setUpTotp(page: Page): Promise<string> {
 		page.getByRole('heading', { name: "Configurer l'authentification à deux facteurs" })
 	).toBeVisible();
 
-	await submitTotpSetupCode(page, await validSetupCode(page));
+	await submitCode(page, await validSetupCode(page), 'Valider');
 
 	await page.waitForURL('**/auth/recovery-code');
 	const recoveryCode = (await page.locator('.font-mono').innerText()).trim();
@@ -102,16 +129,15 @@ export async function setUpTotp(page: Page): Promise<string> {
 	return recoveryCode;
 }
 
-/** Code TOTP valide calculé depuis la clé proposée par la page de configuration. */
+/**
+ * Code TOTP valide calculé depuis la clé proposée par la page de configuration.
+ *
+ * La clé est lue dans le champ caché du formulaire, ce qui évite de dépendre de
+ * la base pour une clé qui n'y est pas encore enregistrée.
+ */
 export async function validSetupCode(page: Page): Promise<string> {
 	const encodedKey = await page.locator('input[name="encodedTOTPKey"]').inputValue();
 	return generateTOTP(decodeBase64(encodedKey), 30, 6);
-}
-
-/** Saisit un code sur la page de configuration 2FA et soumet. */
-export async function submitTotpSetupCode(page: Page, code: string) {
-	await page.locator('input[name="code"]').fill(code);
-	await page.getByRole('button', { name: 'Valider' }).click();
 }
 
 /** Génère un code TOTP valide depuis la clé chiffrée stockée en base. */

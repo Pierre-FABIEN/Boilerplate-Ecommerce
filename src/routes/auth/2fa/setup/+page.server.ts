@@ -12,7 +12,8 @@ import type { Actions, RequestEvent } from './$types';
 import { zod } from 'sveltekit-superforms/adapters';
 import { auth } from '$lib/lucia';
 
-const totpUpdateBucket = new RefillingTokenBucket<number>(3, 60 * 10);
+// La clé est l'identifiant utilisateur, devenu un cuid avec PostgreSQL.
+const totpUpdateBucket = new RefillingTokenBucket<string>(3, 60 * 10);
 
 export const load = async (event: RequestEvent) => {
 	if (event.locals.session === null || event.locals.user === null) {
@@ -35,7 +36,10 @@ export const load = async (event: RequestEvent) => {
 	const totpKey = new Uint8Array(20);
 	crypto.getRandomValues(totpKey);
 	const encodedTOTPKey = encodeBase64(totpKey);
-	const keyURI = createTOTPKeyURI('Demo', event.locals.user.username, totpKey, 30, 6);
+	// Le pseudonyme est facultatif (comptes Google) : l'email sert alors de libellé
+	// dans l'application d'authentification.
+	const accountLabel = event.locals.user.username ?? event.locals.user.email;
+	const keyURI = createTOTPKeyURI('Demo', accountLabel, totpKey, 30, 6);
 
 	// Générer le QR code
 	const qrcode = renderSVG(keyURI);

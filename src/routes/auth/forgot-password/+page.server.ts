@@ -16,7 +16,8 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { generateForgotPasswordCode } from '$lib/lucia/utils';
 
 const ipBucket = new RefillingTokenBucket<string>(3, 60);
-const userBucket = new RefillingTokenBucket<number>(3, 60);
+// La clé est l'identifiant utilisateur, devenu un cuid avec PostgreSQL.
+const userBucket = new RefillingTokenBucket<string>(3, 60);
 
 export const load = async (event) => {
 	if (event.locals.session !== null && event.locals.user !== null) {

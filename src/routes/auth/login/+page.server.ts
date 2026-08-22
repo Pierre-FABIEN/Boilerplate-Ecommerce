@@ -40,7 +40,8 @@ export const load = async (event: PageServerLoadEvent) => {
 	};
 };
 
-const throttler = new Throttler<number>([0, 1, 2, 4, 8, 16, 30, 60, 180, 300]);
+// La clé est l'identifiant utilisateur, devenu un cuid avec PostgreSQL.
+const throttler = new Throttler<string>([0, 1, 2, 4, 8, 16, 30, 60, 180, 300]);
 const ipBucket = new RefillingTokenBucket<string>(20, 1);
 
 export const actions: Actions = {
@@ -80,6 +81,12 @@ export const actions: Actions = {
 			return message(form, 'Too many requests');
 		}
 		const passwordHash = await getUserPasswordHash(user.id ?? undefined, email);
+
+		// Un compte sans mot de passe n'en a jamais défini : la vérification
+		// planterait au lieu de refuser proprement.
+		if (passwordHash === null) {
+			return message(form, 'Invalid password');
+		}
 
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {

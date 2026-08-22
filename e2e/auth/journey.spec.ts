@@ -4,11 +4,12 @@ import {
 	currentTotpCode,
 	expectMessage,
 	fillSignupForm,
+	fillStable,
 	logIn,
 	sessionCookie,
 	setUpTotp,
 	signOut,
-	submitTotpSetupCode,
+	submitCode,
 	validSetupCode,
 	waitForPath,
 	waitOutLoginThrottle
@@ -18,9 +19,9 @@ import {
 	countSessions,
 	deleteUser,
 	enableMfa,
+	getRecoveryCode,
 	occupyEmail,
-	requireUser,
-	getRecoveryCode
+	requireUser
 } from '../support/db';
 
 /**
@@ -68,7 +69,7 @@ const GUARDED_PAGES = [
 ] as const;
 
 test.describe('Parcours complet', () => {
-	// Le scénario enchaîne dix-sept étapes, dont deux configurations TOTP et
+	// Le scénario enchaîne dix-huit étapes, dont deux configurations TOTP et
 	// plusieurs attentes de backoff volontaires.
 	test.setTimeout(12 * 60_000);
 
@@ -102,11 +103,11 @@ test.describe('Parcours complet', () => {
 
 			// Le champ `type="email"` bloque l'envoi avant même la validation Zod :
 			// c'est l'état de validité du champ qui témoigne du refus.
-			await page.locator('input[name="email"]').fill('adresse-invalide');
-			const emailIsValid = await page
-				.locator('input[name="email"]')
-				.evaluate((input: HTMLInputElement) => input.checkValidity());
-			expect(emailIsValid).toBe(false);
+			const emailField = page.locator('input[name="email"]');
+			await fillStable(emailField, 'adresse-invalide');
+			expect(await emailField.evaluate((input: HTMLInputElement) => input.checkValidity())).toBe(
+				false
+			);
 
 			for (const [password, expectedMessage] of WEAK_PASSWORDS) {
 				await fillSignupForm(page, {
@@ -149,15 +150,13 @@ test.describe('Parcours complet', () => {
 		await test.step("4. Vérification de l'adresse : les codes invalides sont rejetés", async () => {
 			await expect(page.getByRole('heading', { name: 'Vérifiez votre adresse email' })).toBeVisible();
 
-			await page.locator('input[name="code"]').fill('123');
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, '123');
 			await expectMessage(page, 'Le code doit contenir 8 chiffres.');
 
 			// Format valide mais code inexistant : la requête part, l'adresse reste
-			// non vérifiée.
-			await page.locator('input[name="code"]').fill(WRONG_EMAIL_CODE);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
-			await expect(page.getByRole('heading', { name: 'Vérifiez votre adresse email' })).toBeVisible();
+			// non vérifiée, et le formulaire accepte une nouvelle tentative.
+			await submitCode(page, WRONG_EMAIL_CODE);
+			await expectMessage(page, 'Incorrect code');
 			expect((await requireUser(currentEmail)).emailVerified).toBe(false);
 		});
 
@@ -169,13 +168,11 @@ test.describe('Parcours complet', () => {
 			const secondCode = await waitForEmailCode(currentEmail);
 			expect(secondCode).not.toBe(firstCode);
 
-			await page.locator('input[name="code"]').fill(firstCode);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
-			await expect(page.getByRole('heading', { name: 'Vérifiez votre adresse email' })).toBeVisible();
+			await submitCode(page, firstCode);
+			await expectMessage(page, 'Incorrect code');
 			expect((await requireUser(currentEmail)).emailVerified).toBe(false);
 
-			await page.locator('input[name="code"]').fill(secondCode);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, secondCode);
 
 			await waitForPath(page, '/auth');
 			await expect(page.getByText(`👋 Bonjour, ${account.username} !`)).toBeVisible();
@@ -187,14 +184,16 @@ test.describe('Parcours complet', () => {
 			await waitForPath(page, '/auth/settings');
 
 			const passwordHashBefore = (await requireUser(currentEmail)).passwordHash;
+			const currentPasswordField = page.locator('input[name="password"]');
+			const newPasswordField = page.locator('input[name="new_password"]');
 
-			await page.locator('input[name="password"]').fill(FIRST_PASSWORD);
-			await page.locator('input[name="new_password"]').fill('court');
+			await fillStable(currentPasswordField, FIRST_PASSWORD);
+			await fillStable(newPasswordField, 'court');
 			await page.getByRole('button', { name: 'Changer le mot de passe' }).click();
 			await expectMessage(page, 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
 
-			await page.locator('input[name="password"]').fill(WRONG_PASSWORD);
-			await page.locator('input[name="new_password"]').fill(SECOND_PASSWORD);
+			await fillStable(currentPasswordField, WRONG_PASSWORD);
+			await fillStable(newPasswordField, SECOND_PASSWORD);
 			await page.getByRole('button', { name: 'Changer le mot de passe' }).click();
 			await expectMessage(page, 'Incorrect password');
 
@@ -202,8 +201,8 @@ test.describe('Parcours complet', () => {
 		});
 
 		await test.step('7. Mot de passe : le changement révoque les autres sessions', async () => {
-			await page.locator('input[name="password"]').fill(FIRST_PASSWORD);
-			await page.locator('input[name="new_password"]').fill(SECOND_PASSWORD);
+			await fillStable(page.locator('input[name="password"]'), FIRST_PASSWORD);
+			await fillStable(page.locator('input[name="new_password"]'), SECOND_PASSWORD);
 			await page.getByRole('button', { name: 'Changer le mot de passe' }).click();
 
 			await expectMessage(page, 'Password modified successfully');
@@ -244,7 +243,7 @@ test.describe('Parcours complet', () => {
 			await occupyEmail(takenEmail);
 
 			await page.goto('/auth/settings');
-			await page.locator('input[name="email"]').fill(takenEmail);
+			await fillStable(page.locator('input[name="email"]'), takenEmail);
 			await page.getByRole('button', { name: "Mettre à jour l'email" }).click();
 
 			await expectMessage(page, 'This email is already used');
@@ -256,7 +255,7 @@ test.describe('Parcours complet', () => {
 		await test.step("11. Changement d'email : effectif après validation du code", async () => {
 			await clearMailbox();
 
-			await page.locator('input[name="email"]').fill(newEmail);
+			await fillStable(page.locator('input[name="email"]'), newEmail);
 			await page.getByRole('button', { name: "Mettre à jour l'email" }).click();
 
 			await waitForPath(page, '/auth/verify-email');
@@ -265,9 +264,7 @@ test.describe('Parcours complet', () => {
 			expect((await requireUser(currentEmail)).email).toBe(currentEmail);
 
 			// Le code part à la nouvelle adresse : c'est elle qui doit être prouvée.
-			const code = await waitForEmailCode(newEmail);
-			await page.locator('input[name="code"]').fill(code);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, await waitForEmailCode(newEmail));
 
 			await waitForPath(page, '/auth');
 			currentEmail = newEmail;
@@ -284,17 +281,17 @@ test.describe('Parcours complet', () => {
 			await waitForPath(page, '/auth/forgot-password');
 
 			// Une adresse inconnue ne déclenche aucun envoi.
-			await page.locator('input[name="email"]').fill(`inconnu-${Date.now()}@example.test`);
+			const emailField = page.locator('input[name="email"]');
+			await fillStable(emailField, `inconnu-${Date.now()}@example.test`);
 			await page.getByRole('button', { name: 'Envoyer' }).click();
 			await expectMessage(page, 'Account does not exist');
 			expect(currentPath(page)).toBe('/auth/forgot-password');
 
-			await page.locator('input[name="email"]').fill(currentEmail);
+			await fillStable(emailField, currentEmail);
 			await page.getByRole('button', { name: 'Envoyer' }).click();
 			await waitForPath(page, '/auth/reset-password/verify-email');
 
-			await page.locator('input[name="code"]').fill(WRONG_EMAIL_CODE);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, WRONG_EMAIL_CODE);
 			await expectMessage(page, 'Incorrect code');
 
 			// Le formulaire de nouveau mot de passe reste inaccessible avant preuve
@@ -304,19 +301,18 @@ test.describe('Parcours complet', () => {
 		});
 
 		await test.step('13. Mot de passe oublié : réinitialisation avec le bon code', async () => {
-			const code = await waitForEmailCode(currentEmail);
-			await page.locator('input[name="code"]').fill(code);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, await waitForEmailCode(currentEmail));
 
 			// Sans 2FA configurée à ce stade, l'étape du second facteur est sautée.
 			await waitForPath(page, '/auth/reset-password');
 
-			await page.locator('input[name="password"]').fill('faible');
+			const passwordField = page.locator('input[name="password"]');
+			await fillStable(passwordField, 'faible');
 			await page.getByRole('button', { name: 'Réinitialiser le mot de passe' }).click();
 			await expectMessage(page, 'Le mot de passe doit contenir au moins 8 caractères');
 			expect(currentPath(page)).toBe('/auth/reset-password');
 
-			await page.locator('input[name="password"]').fill(THIRD_PASSWORD);
+			await fillStable(passwordField, THIRD_PASSWORD);
 			await page.getByRole('button', { name: 'Réinitialiser le mot de passe' }).click();
 
 			await waitForPath(page, '/auth');
@@ -331,10 +327,10 @@ test.describe('Parcours complet', () => {
 			await page.goto('/auth/');
 			await waitForPath(page, '/auth/2fa/setup');
 
-			await submitTotpSetupCode(page, '123');
+			await submitCode(page, '123', 'Valider');
 			await expectMessage(page, 'Le code doit contenir exactement 6 caractères');
 
-			await submitTotpSetupCode(page, WRONG_TOTP_CODE);
+			await submitCode(page, WRONG_TOTP_CODE, 'Valider');
 			await expectMessage(page, 'Invalid TOTP code');
 			expect((await requireUser(currentEmail)).totpKey).toBeNull();
 		});
@@ -355,8 +351,7 @@ test.describe('Parcours complet', () => {
 			await logIn(page, currentEmail, THIRD_PASSWORD);
 			await waitForPath(page, '/auth/2fa');
 
-			await page.locator('input[name="code"]').fill(WRONG_TOTP_CODE);
-			await page.getByRole('button', { name: 'Verify' }).click();
+			await submitCode(page, WRONG_TOTP_CODE, 'Verify');
 			await expectMessage(page, 'Invalid TOTP code');
 
 			// Tant que le second facteur n'est pas validé, les pages du compte
@@ -364,8 +359,7 @@ test.describe('Parcours complet', () => {
 			await page.goto('/auth/settings');
 			await waitForPath(page, '/auth/2fa');
 
-			await page.locator('input[name="code"]').fill(await currentTotpCode(currentEmail));
-			await page.getByRole('button', { name: 'Verify' }).click();
+			await submitCode(page, await currentTotpCode(currentEmail), 'Verify');
 			await waitForPath(page, '/auth');
 		});
 
@@ -377,17 +371,14 @@ test.describe('Parcours complet', () => {
 			await page.getByRole('link', { name: 'Use recovery code instead' }).click();
 			await waitForPath(page, '/auth/2fa/reset');
 
-			await page.locator('input[name="code"]').fill('trop-court');
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, 'trop-court');
 			await expectMessage(page, 'Le code doit contenir 16 chiffres.');
 
-			await page.locator('input[name="code"]').fill(WRONG_RECOVERY_CODE);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, WRONG_RECOVERY_CODE);
 			await expectMessage(page, 'Invalid recovery code');
 			expect((await requireUser(currentEmail)).totpKey).not.toBeNull();
 
-			await page.locator('input[name="code"]').fill(recoveryCode);
-			await page.getByRole('button', { name: 'Vérifier' }).click();
+			await submitCode(page, recoveryCode);
 
 			// La 2FA est retirée : une nouvelle configuration est exigée et le code de
 			// secours est remplacé.
@@ -401,7 +392,7 @@ test.describe('Parcours complet', () => {
 			// sur une clé périmée est refusé.
 			const staleCode = await validSetupCode(page);
 			await page.reload();
-			await submitTotpSetupCode(page, staleCode);
+			await submitCode(page, staleCode, 'Valider');
 			await expectMessage(page, 'Invalid TOTP code');
 
 			await setUpTotp(page);

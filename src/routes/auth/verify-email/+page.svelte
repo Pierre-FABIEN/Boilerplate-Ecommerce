@@ -3,6 +3,7 @@
 	import * as Form from '$shadcn/form';
 	import Button from '$shadcn/button/button.svelte';
 	import Input from '$shadcn/input/input.svelte';
+	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
@@ -15,6 +16,12 @@
 	});
 
 	const { form: verifyData, enhance: verifyEnhance, message: verifyMessage } = verifyCodeForm;
+
+	$effect(() => {
+		if ($verifyMessage) {
+			toast.error($verifyMessage);
+		}
+	});
 </script>
 
 <div class="w-screen h-screen ccc">
