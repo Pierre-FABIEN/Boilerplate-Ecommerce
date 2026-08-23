@@ -130,7 +130,7 @@ Routes fermées : `ADMIN_PATHS` dans `e2e/support/admin.ts`.
 | # | Étape | Geste | Preuve |
 | - | ----- | ----- | ------ |
 | 1 | La liste affiche les emails, sans secret | recherche dans le tableau | 3 emails visibles ; pas de hash / totp / recovery |
-| 2 | Promotion CLIENT → ADMIN | fiche → menu ADMIN → Save | `role === ADMIN` en base |
+| 2 | Promotion CLIENT → ADMIN | crayon « edit » → menu ADMIN → Save | URL `/admin/users/:id`, `role === ADMIN` |
 | 3 | Un rôle hors enum est refusé | POST `SUPERUSER` | `role` reste `CLIENT` |
 | 4 | La MFA se bascule depuis la fiche | checkbox + Save | `isMfaEnabled === true` |
 | 5 | Suppression d’un CLIENT | dialogue Continue | disparu du tableau **et** de la base |
@@ -149,9 +149,9 @@ compte est renvoyé à `/`.
 
 ### Catalogue admin — `e2e/products/admin.spec.ts`
 
-La création UI (Cloudinary) n'est pas jouée : `.env.test` n'a pas d'upload réel.
-Les produits sont posés en Prisma (`createCatalogProduct`), puis le CRUD passe
-par l'interface.
+Les produits du CRUD courant sont posés en Prisma (`createCatalogProduct`).
+L'upload Cloudinary est un spec à part (`e2e/products/cloudinary.spec.ts`), joué
+seulement si `CLOUDINARY_*` n'est pas factice.
 
 | # | Étape | Geste | Preuve |
 | - | ----- | ----- | ------ |
@@ -162,6 +162,32 @@ par l'interface.
 | 5 | Un produit commandé est refusé à la suppression | même geste sur un `OrderItem` | produit **encore** en base |
 
 Test à part : un CLIENT POST `?/deleteProduct` — le produit reste.
+
+### Catalogue Cloudinary — `e2e/products/cloudinary.spec.ts`
+
+Ignoré si les clés sont factices (`e2e`). Sinon : formulaire create, PNG 1×1,
+URL `res.cloudinary.com` en base.
+
+### Auth adresses — `e2e/auth/address.spec.ts`
+
+OpenCage est appelé pour de vrai dès que `SECRET_OPENCAGEDATA_KEY` n'est pas
+`e2e`. Sinon la fixture `Rue des Tests` est renvoyée.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Anonyme | GET `/auth/settings/address` | `/auth/login` |
+| 2 | Requête vide | GET `/api/open-cage-data` | 400 |
+| 3 | Création | suggestions OpenCage → Enregistrer | 1 adresse, ville Toulouse |
+| 4 | IDOR | GET/POST une adresse étrangère | 404 / adresse encore en base |
+| 5 | Suppression | Delete address | ligne absente |
+
+### Auth Google — `e2e/auth/google.spec.ts`
+
+Le départ (`GET /auth/login/google`) va toujours vers `accounts.google.com`.
+Le callback sans écran Google n'existe que si `GOOGLE_CLIENT_ID` est factice
+(`e2e-google-client-id`). Avec de vraies clés, l'écran de consentement Google
+reste manuel (ajoutez `http://localhost:2001/auth/login/google/callback` dans
+la console Google).
 
 ### Commerce panier — `e2e/commerce/cart.spec.ts`
 
@@ -368,7 +394,9 @@ relation `Order → User` est en `Restrict`.
 
 ## Hors périmètre
 
-- **Connexion Google OAuth** : nécessite un fournisseur externe, non simulé.
+- **Écran de consentement Google** : le départ OAuth est réel ; la saisie du
+  compte Google n'est pas automatisée. Le callback e2e n'existe que si
+  `GOOGLE_CLIENT_ID` est factice.
 - **Activation de la 2FA par l'interface** : le commutateur est commenté dans les
   paramètres alors que l'action serveur existe. Le scénario pose donc le drapeau
   en base (`enableMfa`) pour atteindre les parcours 2FA. À remplacer par un vrai

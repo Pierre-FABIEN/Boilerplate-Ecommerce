@@ -27,7 +27,11 @@ export const load = async (event) => {
 };
 
 export const actions: Actions = {
-	deleteAddress: async ({ request }) => {
+	deleteAddress: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { message: 'Unauthorized' });
+		}
+
 		const formData = await request.formData();
 
 		const form = await superValidate(formData, zod(deleteAddressSchema));
@@ -36,8 +40,10 @@ export const actions: Actions = {
 
 		try {
 			const addressId = formData.get('id') as string;
-
-			await deleteAddress(addressId);
+			const result = await deleteAddress(addressId, locals.user.id);
+			if (result.count === 0) {
+				return fail(403, { form, message: 'Forbidden' });
+			}
 
 			return message(form, 'Address deleted successfully');
 		} catch (error: unknown) {

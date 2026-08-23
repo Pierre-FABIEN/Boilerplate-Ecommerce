@@ -205,6 +205,10 @@ export async function getProductById(id: string) {
 	return resilient(() => db.product.findUnique({ where: { id } }));
 }
 
+export async function getProductByName(name: string) {
+	return resilient(() => db.product.findFirst({ where: { name } }));
+}
+
 /** Blog : article de test isolé (auteur + catégorie dédiés). */
 export async function createBlogPost(overrides?: {
 	title?: string;
@@ -376,6 +380,24 @@ export async function getTransactionByStripePaymentId(stripePaymentId: string) {
 		db.transaction.findUnique({
 			where: { stripePaymentId }
 		})
+	);
+}
+
+export async function findAddressesByUserId(userId: string) {
+	return resilient(() => db.address.findMany({ where: { userId } }));
+}
+
+export async function findAddressById(id: string) {
+	return resilient(() => db.address.findUnique({ where: { id } }));
+}
+
+export async function createCatalogCategory() {
+	return resilient(() => db.category.create({ data: { name: `e2e-cat-${Date.now()}` } }));
+}
+
+export async function deleteCatalogCategory(id: string) {
+	await resilient(() =>
+		db.category.deleteMany({ where: { id, name: { startsWith: 'e2e-cat-' } } })
 	);
 }
 

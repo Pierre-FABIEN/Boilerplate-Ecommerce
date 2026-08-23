@@ -195,10 +195,8 @@
 					</DropdownMenu.Root>
 
 					{#if addLink}
-						<Button class="ml-auto">
-							<a href={addLink}>
-								<Plus class="size-4" />
-							</a>
+						<Button class="ml-auto" href={addLink} aria-label="Ajouter">
+							<Plus class="size-4" />
 						</Button>
 					{/if}
 				</div>
@@ -244,11 +242,18 @@
 												<Tooltip.Provider>
 													<Tooltip.Root>
 														<Tooltip.Trigger>
-															<a href={action.url(item)} class="border rounded p-2">
-																{#if action.icon}
-																	<action.icon class="h-4 w-4 inline" />
-																{/if}
-															</a>
+															{#snippet child({ props })}
+																<a
+																	{...props}
+																	href={action.url(item)}
+																	class="border rounded p-2 inline-flex items-center"
+																	aria-label={action.name}
+																>
+																	{#if action.icon}
+																		<action.icon class="h-4 w-4 inline" />
+																	{/if}
+																</a>
+															{/snippet}
 														</Tooltip.Trigger>
 														<Tooltip.Content>
 															<p>{action.name}</p>

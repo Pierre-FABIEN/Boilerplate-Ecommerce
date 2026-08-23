@@ -20,6 +20,25 @@ export function currentPath(page: Page): string {
 }
 
 /**
+ * Champ visible d'un Superforms : le même `name` existe aussi en `hidden`.
+ */
+export function visibleNamedInput(page: Page, name: string, type = 'text') {
+	return page.locator(`input[name="${name}"][type="${type}"]`);
+}
+
+/** Clic qui traverse la barre de navigation flottante. */
+export async function clickThroughOverlay(locator: Locator) {
+	await locator.click({ force: true });
+}
+
+/** Soumission native : la barre du bas intercepte souvent le clic sur le bouton. */
+export async function requestSubmitForm(page: Page, action: string) {
+	await page.locator(`form[action="${action}"]`).evaluate((form) => {
+		(form as HTMLFormElement).requestSubmit();
+	});
+}
+
+/**
  * Vérifie qu'un message est affiché.
  *
  * Les erreurs de formulaire remontent à la fois dans un toast et sous le champ

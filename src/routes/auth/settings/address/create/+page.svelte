@@ -92,16 +92,29 @@
 		$createAddressData.street_number = components.house_number || '';
 		$createAddressData.street = components.road || '';
 		$createAddressData.city = components.city || components.town || components.village || '';
-		$createAddressData.county = components.county || '';
-		$createAddressData.state = components.state || '';
-		$createAddressData.state_code = components.state_code || '';
+		$createAddressData.county = components.county || components.state || '';
+		$createAddressData.state = components.state || components.county || '';
+		$createAddressData.state_code = (components.state_code || components.state || 'NA')
+			.toString()
+			.slice(0, 10);
 		$createAddressData.zip = components.postcode || '';
 		$createAddressData.country = components.country || '';
-		$createAddressData.country_code = components.country_code || '';
-
-		// 🛠 Corrige l'accès aux clés avec des tirets !
-		$createAddressData.stateLetter = components['ISO_3166-1_alpha-2'] || '';
-		$createAddressData.ISO_3166_1_alpha_3 = components['ISO_3166-1_alpha-3'] || '';
+		$createAddressData.country_code = (components.country_code || 'fr')
+			.toString()
+			.toUpperCase()
+			.slice(0, 2);
+		$createAddressData.stateLetter = (
+			components['ISO_3166-1_alpha-2'] || $createAddressData.country_code
+		)
+			.toString()
+			.toUpperCase()
+			.slice(0, 2);
+		$createAddressData.ISO_3166_1_alpha_3 = (
+			components['ISO_3166-1_alpha-3'] || ($createAddressData.country_code === 'FR' ? 'FRA' : '')
+		)
+			.toString()
+			.toUpperCase()
+			.slice(0, 3);
 
 		// Réinitialisation des suggestions après la sélection
 		addressSuggestions = [];
@@ -236,9 +249,17 @@
 				<Form.FieldErrors />
 			</Form.Field>
 
-			{#each Object.keys($createAddressData) as key}
-				<input type="hidden" name={key} value={$createAddressData[key] ?? ''} />
-			{/each}
+			<input type="hidden" name="userId" bind:value={$createAddressData.userId} />
+			<input type="hidden" name="county" bind:value={$createAddressData.county} />
+			<input type="hidden" name="state" bind:value={$createAddressData.state} />
+			<input type="hidden" name="stateLetter" bind:value={$createAddressData.stateLetter} />
+			<input type="hidden" name="state_code" bind:value={$createAddressData.state_code} />
+			<input type="hidden" name="country_code" bind:value={$createAddressData.country_code} />
+			<input
+				type="hidden"
+				name="ISO_3166_1_alpha_3"
+				bind:value={$createAddressData.ISO_3166_1_alpha_3}
+			/>
 
 			<Button type="submit" class="w-full">Enregistrer</Button>
 		</form>

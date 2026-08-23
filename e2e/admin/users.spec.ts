@@ -40,8 +40,14 @@ test.describe('Administration — utilisateurs', () => {
 				expect(html).not.toContain('passwordHash');
 			});
 
-			await test.step('2. Promotion CLIENT → ADMIN', async () => {
-				await page.goto(`/admin/users/${target.id}`);
+			await test.step('2. Promotion CLIENT → ADMIN (crayon)', async () => {
+				await page.goto('/admin/users');
+				await page.getByPlaceholder('Cherchez dans le tableau').fill(targetEmail);
+				await page
+					.locator('tr', { hasText: targetEmail })
+					.getByRole('link', { name: 'edit' })
+					.click();
+				await waitForPath(page, `/admin/users/${target.id}`);
 				await expect(
 					page.getByRole('heading', { name: 'Update User and Addresses' })
 				).toBeVisible();

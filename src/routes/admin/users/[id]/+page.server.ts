@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { type Actions } from '@sveltejs/kit';
+import { error, type Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateUserAndAddressSchema } from '$lib/schema/addresses/updateUserAndAddressSchema';
@@ -28,10 +28,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// console.log(userFetched, 'userFetched');
 	// console.log(addressesFetched, 'addressesFetched');
 
-	// ⚠️ Vérification si l'utilisateur existe
 	if (!userFetched) {
-		// console.log('User not found');
-		return fail(404, { message: 'User not found' });
+		error(404, 'User not found');
 	}
 
 	// ✅ Sérialisation des données utilisateur

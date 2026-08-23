@@ -14,10 +14,10 @@ export const getUserAddresses = async (userId: string) => {
 };
 
 // ✅ Supprimer une adresse par ID
-export const deleteAddress = async (addressId: string) => {
+export const deleteAddress = async (addressId: string, userId: string) => {
 	try {
-		return await prisma.address.delete({
-			where: { id: addressId }
+		return await prisma.address.deleteMany({
+			where: { id: addressId, userId }
 		});
 	} catch (error) {
 		console.error('Error deleting address:', error);
@@ -37,11 +37,19 @@ export const getAddressById = async (addressId: string) => {
 	}
 };
 
-export const updateAddress = async (id: string, data: Omit<UpdateAddressSchema, 'id'>) => {
+export const updateAddress = async (
+	id: string,
+	data: Omit<UpdateAddressSchema, 'id'>,
+	ownerId?: string
+) => {
 	try {
+		if (ownerId) {
+			const owned = await prisma.address.findFirst({ where: { id, userId: ownerId } });
+			if (!owned) return null;
+		}
 		return await prisma.address.update({
-			where: { id }, // Filtre par ID
-			data // ✅ Exclut `id` de la mise à jour
+			where: { id },
+			data
 		});
 	} catch (error) {
 		console.error('❌ Error updating address:', error);

@@ -110,6 +110,7 @@
 								type="submit"
 								class="inline-flex items-center gap-1 text-destructive hover:underline"
 								aria-label="Delete address"
+								onclick={() => ($deleteAddressData.id = address.id)}
 							>
 								<Trash size="16" />
 							</button>

@@ -16,10 +16,6 @@
 
 	let { data } = $props();
 
-	if (!data || !data.IupdateUserAndAddressSchema || !data.IupdateUserAndAddressSchema.data) {
-		throw new Error('Missing data for the form');
-	}
-
 	const updateUserAndAddresses = superForm(data.IupdateUserAndAddressSchema, {
 		validators: zodClient(updateUserAndAddressSchema),
 		id: 'updateUserAndAddresses',

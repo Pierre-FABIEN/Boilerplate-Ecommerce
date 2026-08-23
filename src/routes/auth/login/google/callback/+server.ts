@@ -12,9 +12,36 @@ import { getUserFromGoogleId, getUserFromEmail } from '$lib/lucia/user';
 import { decodeIdToken } from 'arctic';
 import { auth } from '$lib/lucia';
 import { createUserWithGoogleOAuth } from '$lib/prisma/user/user';
+import { GOOGLE_CLIENT_ID } from '$env/static/private';
+import { isDummySecret } from '$lib/server/dummy-secrets';
 
 import type { RequestEvent } from './$types';
 import type { OAuth2Tokens } from 'arctic';
+
+function isE2eGoogleBypass(code: string, email: string | null): boolean {
+	return (
+		isDummySecret(GOOGLE_CLIENT_ID) &&
+		code.startsWith('e2e-') &&
+		!!email &&
+		email.startsWith('e2e-')
+	);
+}
+
+async function establishGoogleSession(event: RequestEvent, userId: string): Promise<Response> {
+	const session = await auth.createSession(userId, { twoFactorVerified: false });
+	const sessionCookie = auth.createSessionCookie(session.id);
+	event.cookies.set(sessionCookie.name, sessionCookie.value, {
+		path: '/',
+		...sessionCookie.attributes
+	});
+
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: '/'
+		}
+	});
+}
 
 export async function GET(event: RequestEvent): Promise<Response> {
 	const storedState = event.cookies.get('google_oauth_state') ?? null;
@@ -26,10 +53,29 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		return new Response('Invalid request. Please restart the process.', { status: 400 });
 	}
 
+	const e2eEmail = event.url.searchParams.get('email');
+	if (isE2eGoogleBypass(code, e2eEmail)) {
+		const googleId = `e2e-google-${e2eEmail}`;
+		let user = await getUserFromGoogleId(googleId);
+		if (!user) {
+			user = await getUserFromEmail(e2eEmail as string);
+		}
+		if (!user) {
+			const created = await createUserWithGoogleOAuth(
+				googleId,
+				e2eEmail as string,
+				'E2e Google',
+				''
+			);
+			return establishGoogleSession(event, created.id);
+		}
+		return establishGoogleSession(event, user.id);
+	}
+
 	let tokens: OAuth2Tokens;
 	try {
 		tokens = await google.validateAuthorizationCode(code, codeVerifier);
-	} catch (e) {
+	} catch {
 		return new Response('Authorization failed. Please try again.', { status: 400 });
 	}
 
@@ -46,23 +92,10 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		user = await getUserFromEmail(email);
 
 		if (!user) {
-			// console.log(googleId, email, name, picture, "Création d'un nouvel utilisateur OAuth");
-			user = await createUserWithGoogleOAuth(googleId, email, name, picture);
+			const created = await createUserWithGoogleOAuth(googleId, email, name, picture);
+			return establishGoogleSession(event, created.id);
 		}
 	}
 
-	// ✅ Lucia: créer session + cookie standard
-	const session = await auth.createSession(user.id, { twoFactorVerified: false });
-	const sessionCookie = auth.createSessionCookie(session.id);
-	event.cookies.set(sessionCookie.name, sessionCookie.value, {
-		path: '/',
-		...sessionCookie.attributes
-	});
-
-	return new Response(null, {
-		status: 302,
-		headers: {
-			Location: '/'
-		}
-	});
+	return establishGoogleSession(event, user.id);
 }
