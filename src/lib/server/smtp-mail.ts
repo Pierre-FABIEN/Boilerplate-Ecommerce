@@ -22,6 +22,30 @@ export function createSmtpTransport() {
 	});
 }
 
+export type MailAttachment = {
+	filename: string;
+	content: Buffer;
+	contentType?: string;
+};
+
+export async function sendMail(options: {
+	to: string;
+	subject: string;
+	text: string;
+	html: string;
+	attachments?: MailAttachment[];
+}): Promise<SMTPTransport.SentMessageInfo> {
+	const transporter = createSmtpTransport();
+	return transporter.sendMail({
+		from: process.env.SMTP_FROM || '"MadeInDiamonds" <contact@madeindiamonds.com>',
+		to: options.to,
+		subject: options.subject,
+		text: options.text,
+		html: options.html,
+		attachments: options.attachments
+	});
+}
+
 export async function sendVerificationEmail(
 	email: string,
 	code: string

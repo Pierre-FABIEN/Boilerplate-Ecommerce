@@ -16,6 +16,7 @@ import {
 	promoteToAdmin,
 	requireUser
 } from '../support/db';
+import { clearMailbox, waitForEmailContaining } from '../support/mailbox';
 
 /**
  * Webhook Stripe signé + pages facture / bordereau.
@@ -57,6 +58,7 @@ test.describe('Commerce — webhook Stripe', () => {
 			await attachOrderAddress(linked.order.id, address.id);
 
 			await test.step('2. checkout.session.completed signé', async () => {
+				await clearMailbox();
 				const payload = checkoutSessionCompletedPayload({
 					sessionId,
 					orderId: linked.order.id,
@@ -83,10 +85,18 @@ test.describe('Commerce — webhook Stripe', () => {
 				transactionId = transaction!.id;
 			});
 
-			await test.step('3. Facture compte', async () => {
+			await test.step('3. Facture compte + PDF + e-mail', async () => {
 				const response = await page.request.get(`/auth/settings/factures/${transactionId}`);
 				expect(response.status()).toBe(200);
 				expect(await response.text()).toContain(transactionId!);
+
+				const pdf = await page.request.get(`/auth/settings/factures/${transactionId}/pdf`);
+				expect(pdf.status()).toBe(200);
+				expect(pdf.headers()['content-type']).toContain('application/pdf');
+				expect((await pdf.body()).subarray(0, 4).toString()).toBe('%PDF');
+
+				const mail = await waitForEmailContaining(account.email, 'Votre facture');
+				expect(mail.raw).toContain(transactionId);
 			});
 
 			await promoteToAdmin(account.email);
@@ -95,12 +105,20 @@ test.describe('Commerce — webhook Stripe', () => {
 				const response = await page.request.get(`/admin/sales/facture/${transactionId}`);
 				expect(response.status()).toBe(200);
 				expect(await response.text()).toContain(transactionId!);
+
+				const pdf = await page.request.get(`/admin/sales/facture/${transactionId}/pdf`);
+				expect(pdf.status()).toBe(200);
+				expect(pdf.headers()['content-type']).toContain('application/pdf');
 			});
 
 			await test.step('5. Bordereau admin', async () => {
 				const response = await page.request.get(`/admin/sales/bordereau/${transactionId}`);
 				expect(response.status()).toBe(200);
 				expect(await response.text()).toContain(transactionId!);
+
+				const pdf = await page.request.get(`/admin/sales/bordereau/${transactionId}/pdf`);
+				expect(pdf.status()).toBe(200);
+				expect(pdf.headers()['content-type']).toContain('application/pdf');
 			});
 		} finally {
 			if (transactionId) {

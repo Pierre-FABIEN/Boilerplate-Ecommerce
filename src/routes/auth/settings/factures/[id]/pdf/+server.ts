@@ -1,14 +1,16 @@
-import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getTransactionByIdForUser } from '$lib/prisma/transaction/getTransactionById';
+import { pdfDownloadResponse } from '$lib/server/invoice/http';
+import { renderInvoicePdf } from '$lib/server/invoice/pdf';
 import { buildInvoiceView } from '$lib/server/invoice/view';
 
 /**
- * Facture du compte.
+ * Téléchargement PDF — facture du visiteur connecté.
  *
- * COMMERCE-PLUGIN / AUTH-PLUGIN : uniquement la transaction du visiteur connecté.
+ * COMMERCE-PLUGIN / AUTH-PLUGIN
  */
-export const load = (async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const userId = locals.user?.id;
 	if (!userId) {
 		throw redirect(302, '/auth/login');
@@ -24,10 +26,6 @@ export const load = (async ({ params, locals }) => {
 		error(404, 'Facture introuvable');
 	}
 
-	return {
-		invoice: buildInvoiceView(transaction),
-		pdfHref: `/auth/settings/factures/${transaction.id}/pdf`,
-		backHref: '/auth/settings/factures',
-		backLabel: 'Retour aux factures'
-	};
-}) satisfies PageServerLoad;
+	const invoice = buildInvoiceView(transaction);
+	return pdfDownloadResponse(renderInvoicePdf(invoice), invoice.filename);
+};

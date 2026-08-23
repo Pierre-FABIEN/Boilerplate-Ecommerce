@@ -1,11 +1,13 @@
 import type { PageServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit';
 import { getTransactionsByUserId } from '$lib/prisma/transaction/getTransactionsByUserId';
 
 export const load = (async ({ locals }) => {
-	// Récupérer l'ID depuis l'URL
-	const userId = locals.user.id;
+	const userId = locals.user?.id;
+	if (!userId) {
+		throw redirect(302, '/auth/login');
+	}
 
-	// Récupérer la transaction
 	const transactions = await getTransactionsByUserId(userId);
 
 	return {

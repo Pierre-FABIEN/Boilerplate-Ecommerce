@@ -1,24 +1,28 @@
 import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
 import { getTransactionById } from '$lib/prisma/transaction/getTransactionById';
+import { buildBordereauView } from '$lib/server/invoice/bordereau';
 
+/**
+ * Bordereau admin.
+ *
+ * ADMIN-PLUGIN / COMMERCE-PLUGIN
+ */
 export const load = (async ({ params }) => {
-	// Récupérer l'ID depuis l'URL
 	const transactionId = params.id;
-
-	// Vérifier si l'ID est valide
 	if (!transactionId) {
-		throw new Error('Transaction ID is missing');
+		error(400, 'Transaction ID is missing');
 	}
 
-	// Récupérer la transaction
 	const transaction = await getTransactionById(transactionId);
-
-	// Vérifier si la transaction existe
 	if (!transaction) {
-		throw new Error(`No transaction found for ID: ${transactionId}`);
+		error(404, 'Bordereau introuvable');
 	}
 
 	return {
-		transaction
+		bordereau: buildBordereauView(transaction),
+		pdfHref: `/admin/sales/bordereau/${transaction.id}/pdf`,
+		backHref: '/admin/sales',
+		backLabel: 'Retour aux ventes'
 	};
 }) satisfies PageServerLoad;

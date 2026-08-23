@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { getUserIdByOrderId } from '$lib/prisma/order/prendingOrder';
 import { createSendcloudOrder } from '$lib/sendcloud/order';
 import { createSendcloudLabel } from '$lib/sendcloud/label';
+import { sendInvoiceEmail } from '$lib/server/invoice/email';
 
 /**
  * Webhook Stripe.
@@ -269,11 +270,20 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 	const userId = user.userId;
 
+	const already = await prisma.transaction.findUnique({
+		where: { stripePaymentId: session.id }
+	});
+	if (already) {
+		console.log('ℹ️ Transaction déjà enregistrée:', already.id);
+		return already;
+	}
+
 	let createdTransaction;
 
 	try {
 		console.log('💾 Début de la transaction Prisma...');
-		// (1) ENREGISTREMENT EN DB via une transaction Prisma courte
+		// (1) ENREGISTREMENT EN DB via une transaction Prisma courte — aucun
+		// appel Sendcloud ici : un timeout réseau empêcherait la facture d'exister.
 		createdTransaction = await prisma.$transaction(async (prismaTx) => {
 			console.log('🔍 Récupération de la commande depuis la base...');
 			// Récupère la commande
@@ -308,14 +318,12 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				}
 			});
 
-			// Calcul du bracket de poids
-			console.log('⚖️ Calcul du bracket de poids...');
 			const weightBracket = deduceWeightBracket(order);
-			console.log('📦 Bracket de poids calculé:', weightBracket);
-
-			console.log('🔍 Récupération des données de méthode d\'expédition...');
-			const shippingMethodData = await getShippingMethodData(order.shippingOption || '', weightBracket, order);
-			console.log('📋 Données de méthode d\'expédition:', shippingMethodData);
+			// Dimensions de secours uniquement : aucun fetch Sendcloud ici.
+			const shippingMethodData = fallbackShippingMethod(
+				order.shippingOption || '',
+				weightBracket
+			);
 
 			// Préparation des données de la transaction
 			const transactionData = {
@@ -430,8 +438,6 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 			});
 
 			return newTx;
-		}, {
-			timeout: 30000 // Augmenter le timeout à 30 secondes pour les appels API
 		});
 	} catch (error) {
 		console.error(`❌ Échec de la création de la transaction pour la commande ${orderId}:`, error);
@@ -440,12 +446,53 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 	console.log('🎉 Transaction en base créée avec succès:', createdTransaction?.id);
 
-	// (2) APPEL A SENDCLOUD en dehors de la transaction
+	if (createdTransaction && createdTransaction.status === 'paid') {
+		try {
+			await sendInvoiceEmail(createdTransaction);
+		} catch (error) {
+			console.error('❌ Envoi de la facture par e-mail impossible:', error);
+		}
+	}
+
+	// (2) APPEL A SENDCLOUD en dehors de la transaction (la facture existe déjà)
 	if (createdTransaction && createdTransaction.status === 'paid') {
 		if (!shouldCallSendcloud()) {
 			console.log('📦 Sendcloud ignoré (PUBLIC_ENV=test ou clés absentes)');
 		} else {
 			console.log('📦 Début des appels Sendcloud...');
+
+			try {
+				const orderForShipping = await prisma.order.findUnique({
+					where: { id: orderId },
+					include: { items: { include: { product: true, custom: true } } }
+				});
+				const weightBracket = deduceWeightBracket(orderForShipping);
+				const shippingMethodData = await getShippingMethodData(
+					createdTransaction.shippingOption || '',
+					weightBracket,
+					orderForShipping
+				);
+
+				if (shippingMethodData?.id && shippingMethodData.id !== createdTransaction.shippingMethodId) {
+					createdTransaction = await prisma.transaction.update({
+						where: { id: createdTransaction.id },
+						data: {
+							shippingMethodId: shippingMethodData.id,
+							shippingMethodName: shippingMethodData.name,
+							package_length: shippingMethodData.length,
+							package_width: shippingMethodData.width,
+							package_height: shippingMethodData.height,
+							package_dimension_unit: shippingMethodData.unit,
+							package_weight: shippingMethodData.weight,
+							package_weight_unit: shippingMethodData.weightUnit,
+							package_volume: shippingMethodData.volume,
+							package_volume_unit: shippingMethodData.volumeUnit
+						}
+					});
+				}
+			} catch (error) {
+				console.error('❌ Erreur lors de la résolution de la méthode Sendcloud:', error);
+			}
 
 			try {
 				console.log('🔄 Création de la commande Sendcloud...');

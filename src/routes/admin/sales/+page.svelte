@@ -1,42 +1,43 @@
 <script lang="ts">
 	import Table from '$components/Table.svelte';
 	import { formatDate } from '$lib/utils/formatDate';
+	import { formatMoney } from '$lib/utils/formatMoney';
 	import FileText from 'lucide-svelte/icons/file-text';
 	import Receipt from 'lucide-svelte/icons/receipt';
 
-	// Props
 	let { data } = $props();
 
-	// Define table columns
-	const userColumns = $state([
-		{ key: 'amount', label: 'amount' },
-		{ key: 'customer_details_name', label: 'name order' },
-		{ key: 'customer_details_email', label: 'email order' },
-		{ key: 'app_user_email', label: 'email' },
-		{ key: 'app_user_name', label: 'name' },
-		{ key: 'createdAt', label: 'Date de création', formatter: formatDate }
-	]);
-
-	// Define actions for each transaction
-	const transactionActions = $state([
+	const userColumns = [
 		{
-			type: 'link',
+			key: 'amount',
+			label: 'Montant',
+			formatter: (value: unknown) => formatMoney(typeof value === 'number' ? value : Number(value))
+		},
+		{ key: 'customer_details_name', label: 'Nom commande' },
+		{ key: 'customer_details_email', label: 'Email commande' },
+		{ key: 'app_user_email', label: 'Email compte' },
+		{ key: 'app_user_name', label: 'Nom compte' },
+		{ key: 'createdAt', label: 'Date de création', formatter: formatDate }
+	];
+
+	const transactionActions = [
+		{
+			type: 'link' as const,
 			name: 'facture',
-			url: (item: any) => `/admin/sales/facture/${item.id}`,
+			url: (item: { id: string }) => `/admin/sales/facture/${item.id}`,
 			icon: Receipt,
-			condition: (item: any) => item.hasFacture // Affiche le lien si une facture existe
+			condition: (item: { hasFacture?: boolean }) => Boolean(item.hasFacture)
 		},
 		{
-			type: 'link',
+			type: 'link' as const,
 			name: 'bordereau',
-			url: (item: any) => `/admin/sales/bordereau/${item.id}`,
+			url: (item: { id: string }) => `/admin/sales/bordereau/${item.id}`,
 			icon: FileText,
-			condition: (item: any) => item.hasBorderau // Affiche le lien si un bordereau existe
+			condition: (item: { hasBordereau?: boolean }) => Boolean(item.hasBordereau)
 		}
-	]);
+	];
 </script>
 
-<!-- UI Table -->
 <div class="ccc w-[100%]">
 	<Table
 		name="Ventes"

@@ -33,6 +33,7 @@
 				name: string;
 				url: (item: TableItem) => string;
 				icon?: Component;
+				condition?: (item: TableItem) => boolean;
 		  }
 		| {
 				type: 'form';
@@ -40,6 +41,7 @@
 				url: string;
 				enhanceAction: Action<HTMLFormElement>;
 				icon?: Component;
+				condition?: (item: TableItem) => boolean;
 		  };
 
 	interface Props {
@@ -108,8 +110,15 @@
 		paginatedItems = filteredItems.slice(start, end);
 	};
 
-	// Initialisation
 	updateFilteredAndPaginatedItems();
+
+	$effect(() => {
+		data;
+		searchQuery;
+		currentPage;
+		itemsPerPage;
+		updateFilteredAndPaginatedItems();
+	});
 
 	const changePage = (page: number) => {
 		currentPage = page;
@@ -238,7 +247,7 @@
 								{#if actions && actions.length > 0}
 									{#each actions as action}
 										<TableCell>
-											{#if action.type === 'link'}
+											{#if (!action.condition || action.condition(item)) && action.type === 'link'}
 												<Tooltip.Provider>
 													<Tooltip.Root>
 														<Tooltip.Trigger>
@@ -260,7 +269,7 @@
 														</Tooltip.Content>
 													</Tooltip.Root>
 												</Tooltip.Provider>
-											{:else if action.type === 'form'}
+											{:else if (!action.condition || action.condition(item)) && action.type === 'form'}
 												<AlertDialog.Root
 													open={dialogOpenId === item.id}
 													onOpenChange={(open) => {

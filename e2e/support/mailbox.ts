@@ -55,3 +55,35 @@ export async function waitForEmailCode(recipient: string, timeout = 30_000): Pro
 	if (!code) throw new Error(`Aucun email avec code reçu pour ${recipient}`);
 	return code;
 }
+
+/** Attend un e-mail dont le sujet ou le corps contient `needle`. */
+export async function waitForEmailContaining(
+	recipient: string,
+	needle: string,
+	timeout = 30_000
+): Promise<CapturedEmail> {
+	const target = recipient.toLowerCase();
+	const token = needle.toLowerCase();
+
+	const findMessage = async (): Promise<CapturedEmail | null> => {
+		const messages = await fetchMailbox();
+		return (
+			messages
+				.filter((message) => message.to.some((entry) => entry.toLowerCase().includes(target)))
+				.sort((a, b) => b.receivedAt - a.receivedAt)
+				.find((message) => decodeQuotedPrintable(message.raw).toLowerCase().includes(token)) ??
+			null
+		);
+	};
+
+	await expect
+		.poll(findMessage, {
+			timeout,
+			message: `Aucun email contenant « ${needle} » pour ${recipient}`
+		})
+		.not.toBeNull();
+
+	const message = await findMessage();
+	if (!message) throw new Error(`Aucun email contenant « ${needle} » pour ${recipient}`);
+	return message;
+}
