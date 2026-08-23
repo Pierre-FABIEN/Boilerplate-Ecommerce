@@ -87,21 +87,6 @@
 	});
 </script>
 
-<div class="chart-container">
-	<div bind:this={chartElement} class="chartCSS"></div>
+<div class="flex h-full w-full items-center justify-center">
+	<div bind:this={chartElement} class="h-full w-full"></div>
 </div>
-
-<style>
-	.chart-container {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
-
-	.chartCSS {
-		width: 100%;
-		height: 100%;
-	}
-</style>

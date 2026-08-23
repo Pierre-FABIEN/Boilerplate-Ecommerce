@@ -203,14 +203,14 @@
 	<!-- <Loader /> -->
 {/if}
 {#if $isClient}
-	<div class="wappper">
+	<div>
 		<ModeWatcher />
 		<Navigation {data} />
-		<div class="container ccc">
-			<div class="wrapperScroll">
+		<div class="ccc relative m-0 h-screen w-screen max-w-none overflow-hidden p-0">
+			<div class="absolute top-0 left-0 z-[1] h-screen w-screen overflow-hidden">
 				<SmoothScrollBar>
-					<main class="mainLayout">
-						<div class="content ccc" bind:this={contentRef}>
+					<main class="max-w-[100vw] overflow-hidden">
+						<div class="ccc absolute z-[1]" bind:this={contentRef}>
 							{@render children()}
 						</div>
 					</main>
@@ -220,42 +220,3 @@
 		<Toaster />
 	</div>
 {/if}
-
-<style lang="scss">
-	.container {
-		width: 100vw;
-		height: 100vh;
-		padding: 0;
-		margin: 0;
-		max-width: none;
-		overflow: hidden;
-		position: relative;
-	}
-
-	.mainLayout {
-		max-width: 100vw;
-		overflow: hidden;
-	}
-
-	.wrapperScroll {
-		width: 100vw;
-		height: 100vh;
-		overflow: hidden;
-		position: absolute;
-		top: 0;
-		left: 0;
-		z-index: 1;
-	}
-
-	.canva {
-		position: absolute;
-		width: 100vw;
-		height: 100vh;
-		z-index: 1;
-	}
-
-	.content {
-		position: absolute;
-		z-index: 1;
-	}
-</style>

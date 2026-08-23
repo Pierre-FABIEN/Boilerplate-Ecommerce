@@ -61,7 +61,7 @@
 </script>
 
 <div class="container w-[100vw] h-full mx-auto px-4 py-8">
-	<h1 class="titleHome mb-8 text-3xl font-bold tracking-tight">Paramètres du compte</h1>
+	<h1 class="mb-8 text-3xl font-bold tracking-tight">Paramètres du compte</h1>
 
 	<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4 pb-[100px]">
 		<!-- Informations Personnelles -->
@@ -231,19 +231,3 @@
 		{/if}
 	</div>
 </div>
-
-<style lang="scss">
-	.titleHome {
-		text-align: center;
-		font-family: 'Open Sans Variable', sans-serif;
-		font-style: italic;
-		text-align: left;
-		font-size: 50px;
-		margin-bottom: 12px;
-		margin-top: 20px;
-		-webkit-text-stroke: 1px black;
-		color: transparent;
-		text-transform: uppercase;
-		font-weight: 900;
-	}
-</style>

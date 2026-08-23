@@ -71,14 +71,6 @@
 	});
 </script>
 
-<div bind:this={smoothScoller} class="smoothScoller" id="smoothScoller">
+<div bind:this={smoothScoller} class="relative h-screen overflow-hidden" id="smoothScoller">
 	{@render children()}
 </div>
-
-<style>
-	.smoothScoller {
-		height: 100vh;
-		overflow: hidden;
-		position: relative;
-	}
-</style>

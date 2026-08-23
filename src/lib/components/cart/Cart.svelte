@@ -116,7 +116,7 @@
 <!-- ----------------------------------------------------------------- -->
 <!--  BOUTON PANIER                                                   -->
 <!-- ----------------------------------------------------------------- -->
-<div class="cartButton relative h-70 ccc">
+<div class="ccc relative h-[50px] w-[50px] rounded-[10px] border border-white bg-white/20">
 	<div class="absolute z-50 ccc">
 		<Sheet.Root bind:open={sidebarOpen}>
 			<Sheet.Trigger>
@@ -305,13 +305,3 @@
 		</Sheet.Root>
 	</div>
 </div>
-
-<style>
-	.cartButton {
-		width: 50px;
-		height: 50px;
-		border: 1px solid white;
-		background-color: rgba(255, 255, 255, 0.2);
-		border-radius: 10px;
-	}
-</style>

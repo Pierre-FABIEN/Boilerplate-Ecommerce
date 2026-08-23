@@ -94,14 +94,4 @@
 	});
 </script>
 
-<canvas bind:this={canvas} class="w-screen h-screen absolute"></canvas>
-
-<style>
-	canvas {
-		position: absolute;
-		display: block;
-		width: 100%;
-		height: 100vh;
-		z-index: -1;
-	}
-</style>
+<canvas bind:this={canvas} class="absolute -z-10 block h-screen w-full"></canvas>
