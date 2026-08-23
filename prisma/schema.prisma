@@ -340,6 +340,14 @@ model Transaction {
   /// Instantané des produits commandés (jsonb).
   products Json
 
+  /// Instantané fiscal figé au paiement (lot 2).
+  invoiceNumber  String? @unique
+  subtotalHt     Float   @default(0)
+  taxRate        Float   @default(5.5)
+  taxAmount      Float   @default(0)
+  discountAmount Float   @default(0)
+  promoCode      String?
+
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
@@ -348,6 +356,14 @@ model Transaction {
   @@index([createdAt])
   @@index([status])
   @@map("transactions")
+}
+
+/// Compteur annuel des numéros FAC-AAAA-n.
+model InvoiceCounter {
+  year Int @id
+  last Int
+
+  @@map("invoice_counters")
 }
 
 model ProductCategory {

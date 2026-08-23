@@ -34,7 +34,7 @@
 		</Button>
 	</div>
 
-	<h1 class="text-2xl font-bold">Facture {invoice.id}</h1>
+	<h1 class="text-2xl font-bold">Facture {invoice.number}</h1>
 	<p class="text-muted-foreground">Émise le {issuedLabel}</p>
 
 	<div class="grid gap-4 md:grid-cols-2">
@@ -112,6 +112,12 @@
 					<dt>Livraison</dt>
 					<dd>{formatMoney(invoice.shippingCost, currency)}</dd>
 				</div>
+				{#if invoice.discountAmount > 0}
+					<div class="flex justify-between">
+						<dt>Remise{invoice.promoCode ? ` (${invoice.promoCode})` : ''}</dt>
+						<dd>−{formatMoney(invoice.discountAmount, currency)}</dd>
+					</div>
+				{/if}
 				<div class="flex justify-between font-semibold">
 					<dt>Total</dt>
 					<dd>{formatMoney(invoice.totalTtc, currency)}</dd>

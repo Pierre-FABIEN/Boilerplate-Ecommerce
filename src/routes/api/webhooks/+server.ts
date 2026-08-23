@@ -6,6 +6,8 @@ import { getUserIdByOrderId } from '$lib/prisma/order/prendingOrder';
 import { createSendcloudOrder } from '$lib/sendcloud/order';
 import { createSendcloudLabel } from '$lib/sendcloud/label';
 import { sendInvoiceEmail } from '$lib/server/invoice/email';
+import { nextInvoiceNumber } from '$lib/server/invoice/number';
+import { snapshotInvoiceTotals } from '$lib/server/invoice/totals';
 
 /**
  * Webhook Stripe.
@@ -325,6 +327,17 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				weightBracket
 			);
 
+			const invoiceNumber = await nextInvoiceNumber(prismaTx);
+			const invoiceTotals = snapshotInvoiceTotals({
+				lines: order.items.map((item: { price: number; quantity: number }) => ({
+					price: item.price,
+					quantity: item.quantity
+				})),
+				shippingCost: parseFloat(order.shippingCost?.toString() ?? '0'),
+				discountAmount: order.discountAmount ?? 0,
+				paidTotal: (session.amount_total ?? 0) / 100
+			});
+
 			// Préparation des données de la transaction
 			const transactionData = {
 				// Liens Stripe
@@ -384,10 +397,17 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				servicePointExtraShopRef: order.servicePointExtraShopRef ?? null,
 
 				// Produits (JSON)
+				invoiceNumber,
+				subtotalHt: invoiceTotals.subtotalHt,
+				taxRate: invoiceTotals.taxRate,
+				taxAmount: invoiceTotals.taxAmount,
+				discountAmount: invoiceTotals.discountAmount,
+				promoCode: order.promoCode ?? null,
+
 				products: order.items.map((item: any) => ({
 					id: item.productId,
 					name: item.product.name,
-					price: item.product.price,
+					price: item.price,
 					quantity: item.quantity,
 					description: item.product.description,
 					stock: item.product.stock,

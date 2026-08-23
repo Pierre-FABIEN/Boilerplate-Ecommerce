@@ -17,6 +17,7 @@ export type InvoiceLine = {
 
 export type InvoiceView = {
 	id: string;
+	number: string;
 	issuedAt: string;
 	customerName: string;
 	customerEmail: string;
@@ -24,6 +25,8 @@ export type InvoiceView = {
 	addressLines: string[];
 	lines: InvoiceLine[];
 	shippingCost: number;
+	discountAmount: number;
+	promoCode: string;
 	subtotalHt: number;
 	taxRate: number;
 	taxAmount: number;

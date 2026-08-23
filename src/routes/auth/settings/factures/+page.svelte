@@ -7,6 +7,7 @@
 	let { data } = $props();
 
 	const userColumns = [
+		{ key: 'invoiceNumber', label: 'N°' },
 		{
 			key: 'amount',
 			label: 'Montant',

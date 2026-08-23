@@ -40,7 +40,7 @@ export function renderInvoicePdf(invoice: InvoiceView): Buffer {
 
 	doc.setFontSize(12);
 	const issued = new Date(invoice.issuedAt).toLocaleString('fr-FR');
-	doc.text(`Numéro de Facture: ${invoice.id}`, 14, 90);
+	doc.text(`Numéro de Facture: ${invoice.number}`, 14, 90);
 	doc.text(`Date d'émission: ${issued}`, 14, 96);
 
 	autoTable(doc, {
@@ -82,13 +82,24 @@ export function renderInvoicePdf(invoice: InvoiceView): Buffer {
 	doc.setFont('helvetica', 'normal');
 	doc.text(money(invoice.shippingCost, invoice.currency), valueX, finalY + 16, { align: 'right' });
 
+	let totalY = finalY + 24;
+	if (invoice.discountAmount > 0) {
+		doc.setFont('helvetica', 'bold');
+		doc.text('Remise:', titleX, totalY);
+		doc.setFont('helvetica', 'normal');
+		doc.text(`-${money(invoice.discountAmount, invoice.currency)}`, valueX, totalY, {
+			align: 'right'
+		});
+		totalY += 8;
+	}
+
 	doc.setFont('helvetica', 'bold');
-	doc.text('Total:', titleX, finalY + 24);
-	doc.text(money(invoice.totalTtc, invoice.currency), valueX, finalY + 24, { align: 'right' });
+	doc.text('Total:', titleX, totalY);
+	doc.text(money(invoice.totalTtc, invoice.currency), valueX, totalY, { align: 'right' });
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'italic');
-	doc.text('Merci pour votre commande !', 105, finalY + 40, { align: 'center' });
+	doc.text('Merci pour votre commande !', 105, totalY + 16, { align: 'center' });
 
 	return Buffer.from(doc.output('arraybuffer'));
 }

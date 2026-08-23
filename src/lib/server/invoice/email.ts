@@ -32,16 +32,16 @@ export async function sendInvoiceEmail(source: InvoiceSource): Promise<boolean> 
 
 	await sendMail({
 		to,
-		subject: `Votre facture ${invoice.id}`,
-		text: `Bonjour ${invoice.customerName},\n\nMerci pour votre commande. Votre facture de ${total} est jointe à cet e-mail.\n\n— ${invoice.company.name}`,
+		subject: `Votre facture ${invoice.number}`,
+		text: `Bonjour ${invoice.customerName},\n\nMerci pour votre commande. Votre facture ${invoice.number} de ${total} est jointe à cet e-mail.\n\n— ${invoice.company.name}`,
 		html: `<!DOCTYPE html>
 <html lang="fr">
-<head><meta charset="utf-8" /><title>Facture ${invoice.id}</title></head>
+<head><meta charset="utf-8" /><title>Facture ${invoice.number}</title></head>
 <body style="font-family: Arial, sans-serif; background:#f6f6f6; margin:0; padding:24px;">
   <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:8px; padding:24px;">
     <h1 style="font-size:20px; color:#111;">Votre facture est prête</h1>
     <p>Bonjour ${invoice.customerName},</p>
-    <p>Merci pour votre commande. Vous trouverez en pièce jointe la facture <strong>${invoice.id}</strong> d’un montant de <strong>${total}</strong>.</p>
+    <p>Merci pour votre commande. Vous trouverez en pièce jointe la facture <strong>${invoice.number}</strong> d’un montant de <strong>${total}</strong>.</p>
     <p style="color:#666; font-size:14px;">Vous pouvez aussi la télécharger depuis votre espace compte, rubrique Factures.</p>
     <p style="margin-top:24px; color:#999; font-size:13px;">— ${invoice.company.name}</p>
   </div>

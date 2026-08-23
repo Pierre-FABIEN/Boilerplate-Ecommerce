@@ -1,12 +1,13 @@
 /**
  * Instantané d'affichage d'une facture, partagé par l'aperçu HTML, le PDF
- * et l'e-mail. Les totaux restent ceux du PDF historique (TVA 20 % extraite
- * du TTC) — l'alignement avec le panier 5,5 % est un lot séparé.
+ * et l'e-mail. Les totaux figés au paiement priment ; à défaut on recalcule
+ * comme le checkout (TVA 5,5 % sur le HT).
  *
  * COMMERCE-PLUGIN
  */
 import type { InvoiceLine, InvoiceView } from '$lib/invoice/types';
 import { getInvoiceCompany } from './company';
+import { snapshotInvoiceTotals } from './totals';
 
 export type { InvoiceLine, InvoiceView };
 
@@ -16,6 +17,12 @@ export type InvoiceSource = {
 	amount: number;
 	currency: string;
 	shippingCost: number;
+	invoiceNumber?: string | null;
+	subtotalHt?: number | null;
+	taxRate?: number | null;
+	taxAmount?: number | null;
+	discountAmount?: number | null;
+	promoCode?: string | null;
 	customer_details_name?: string | null;
 	customer_details_email?: string | null;
 	address_phone?: string | null;
@@ -34,8 +41,6 @@ type RawProduct = {
 	price?: unknown;
 	quantity?: unknown;
 };
-
-const TAX_RATE = 20;
 
 function asNumber(value: unknown, fallback = 0): number {
 	const n = typeof value === 'number' ? value : Number(value);
@@ -59,12 +64,25 @@ function readLines(raw: unknown): InvoiceLine[] {
 }
 
 export function buildInvoiceView(source: InvoiceSource): InvoiceView {
-	const shippingCost = asNumber(source.shippingCost, 0);
-	const totalTtc = asNumber(source.amount, 0);
-	const goodsTtc = Math.max(0, totalTtc - shippingCost);
-	const subtotalHt = goodsTtc / (1 + TAX_RATE / 100);
-	const taxAmount = goodsTtc - subtotalHt;
+	const lines = readLines(source.products);
+	const computed = snapshotInvoiceTotals({
+		lines: lines.map((line) => ({ price: line.unitPrice, quantity: line.quantity })),
+		shippingCost: asNumber(source.shippingCost, 0),
+		discountAmount: asNumber(source.discountAmount, 0),
+		paidTotal: asNumber(source.amount, 0)
+	});
+
+	const hasSnapshot = asNumber(source.subtotalHt, 0) > 0;
+	const shippingCost = hasSnapshot ? asNumber(source.shippingCost, 0) : computed.shippingCost;
+	const discountAmount = hasSnapshot
+		? asNumber(source.discountAmount, 0)
+		: computed.discountAmount;
+	const subtotalHt = hasSnapshot ? asNumber(source.subtotalHt, 0) : computed.subtotalHt;
+	const taxRate = hasSnapshot ? asNumber(source.taxRate, computed.taxRate) : computed.taxRate;
+	const taxAmount = hasSnapshot ? asNumber(source.taxAmount, 0) : computed.taxAmount;
+	const totalTtc = asNumber(source.amount, computed.totalTtc);
 	const issued = source.createdAt instanceof Date ? source.createdAt : new Date(source.createdAt);
+	const number = source.invoiceNumber?.trim() || source.id;
 
 	const street = [source.address_street_number, source.address_street]
 		.filter((part) => part && String(part).trim())
@@ -82,19 +100,22 @@ export function buildInvoiceView(source: InvoiceSource): InvoiceView {
 
 	return {
 		id: source.id,
+		number,
 		issuedAt: issued.toISOString(),
 		customerName: source.customer_details_name?.trim() || 'N/A',
 		customerEmail: source.customer_details_email?.trim() || 'N/A',
 		customerPhone: source.address_phone?.trim() || 'N/A',
 		addressLines: [street, zipCity, region, country].filter((line) => line.length > 0),
-		lines: readLines(source.products),
+		lines,
 		shippingCost,
+		discountAmount,
+		promoCode: source.promoCode?.trim() || '',
 		subtotalHt,
-		taxRate: TAX_RATE,
+		taxRate,
 		taxAmount,
 		totalTtc,
 		currency: (source.currency || 'eur').toUpperCase(),
-		filename: `Facture_${source.id}.pdf`,
+		filename: `Facture_${number}.pdf`,
 		company: getInvoiceCompany()
 	};
 }
