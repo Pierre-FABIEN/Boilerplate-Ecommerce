@@ -1,3 +1,4 @@
+import { v2 as cloudinary } from 'cloudinary';
 import { test, expect } from '../support/fixtures';
 import { requestSubmitForm, waitForPath } from '../support/flows';
 import { signUpAndVerify } from '../support/admin';
@@ -16,14 +17,26 @@ const PNG_1x1 = Buffer.from(
 	'base64'
 );
 
+cloudinary.config({
+	cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+	api_key: process.env.CLOUDINARY_API_KEY,
+	api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 /**
- * Upload réel vers Cloudinary via le formulaire admin de création.
+ * Ping API + upload réel via le formulaire admin de création.
  */
-test.describe('Administration — Cloudinary', () => {
+test.describe('Live — Cloudinary', () => {
 	test.setTimeout(6 * 60_000);
+	test.use({ navigationTimeout: 180_000 });
 	test.skip(!hasLiveCloudinary(), 'CLOUDINARY_* factices : pas d’upload réel');
 
-	test('création UI avec image hébergée', async ({ page, account }) => {
+	test('ping API, puis création UI avec image hébergée', async ({ page, account }) => {
+		await test.step('1. cloudinary.api.ping()', async () => {
+			const ping = await cloudinary.api.ping();
+			expect(ping.status).toBe('ok');
+		});
+
 		const category = await createCatalogCategory();
 		const name = `e2e-cloudinary-${Date.now()}`;
 		let productId: string | null = null;
@@ -32,7 +45,7 @@ test.describe('Administration — Cloudinary', () => {
 			await signUpAndVerify(page, account);
 			await promoteToAdmin(account.email);
 
-			await test.step('1. Formulaire create + upload', async () => {
+			await test.step('2. Formulaire create + upload', async () => {
 				await page.goto('/admin/products/create');
 				await expect(page.getByText('Name', { exact: true })).toBeVisible();
 
@@ -52,7 +65,7 @@ test.describe('Administration — Cloudinary', () => {
 				await waitForPath(page, '/admin/products');
 			});
 
-			await test.step('2. L’image est une URL Cloudinary', async () => {
+			await test.step('3. L’image est une URL Cloudinary', async () => {
 				const product = await getProductByName(name);
 				expect(product).not.toBeNull();
 				productId = product!.id;

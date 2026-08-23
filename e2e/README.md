@@ -14,7 +14,10 @@ La suite Playwright couvre cinq domaines, exécutés en séquence (un seul worke
 - codes promo : CRUD admin (`e2e/promo/admin.spec.ts`) et validation
   (`e2e/promo/validate.spec.ts`) ;
 - contact : formulaire (`e2e/contact/form.spec.ts`) et lecture admin
-  (`e2e/contact/admin.spec.ts`).
+  (`e2e/contact/admin.spec.ts`) ;
+- services live : Brevo (`e2e/live/brevo.spec.ts`), Sendcloud
+  (`e2e/live/sendcloud.spec.ts`) et Cloudinary (`e2e/live/cloudinary.spec.ts`),
+  ignorés si les clés sont factices.
 
 ## Authentification
 
@@ -67,6 +70,11 @@ Playwright démarre son propre Vite sur le **port 2001**, avec `.env.test`
 (schéma `e2e`, SMTP local). `npm run dev` reste sur le **2000** et n'est pas
 arrêté. Ne lancez pas la suite contre le serveur de développement : les helpers
 Prisma écriraient dans `e2e` pendant que l'UI lirait `public`.
+
+`SMTP_HOST` / `SMTP_PORT` doivent rester le puits (`127.0.0.1:2525`). Les
+identifiants Brevo vont dans `SMTP_LIVE_*` : le spec `e2e/live/brevo.spec.ts`
+s'en sert sans changer le serveur Vite. Ne jamais pointer `SMTP_HOST` e2e vers
+`smtp-relay.brevo.com` : `waitForEmailCode` ne verrait plus rien.
 
 Le port e2e se surcharge avec `E2E_PORT` si 2001 est déjà pris.
 
@@ -150,7 +158,7 @@ compte est renvoyé à `/`.
 ### Catalogue admin — `e2e/products/admin.spec.ts`
 
 Les produits du CRUD courant sont posés en Prisma (`createCatalogProduct`).
-L'upload Cloudinary est un spec à part (`e2e/products/cloudinary.spec.ts`), joué
+L'upload Cloudinary est un spec live (`e2e/live/cloudinary.spec.ts`), joué
 seulement si `CLOUDINARY_*` n'est pas factice.
 
 | # | Étape | Geste | Preuve |
@@ -162,11 +170,6 @@ seulement si `CLOUDINARY_*` n'est pas factice.
 | 5 | Un produit commandé est refusé à la suppression | même geste sur un `OrderItem` | produit **encore** en base |
 
 Test à part : un CLIENT POST `?/deleteProduct` — le produit reste.
-
-### Catalogue Cloudinary — `e2e/products/cloudinary.spec.ts`
-
-Ignoré si les clés sont factices (`e2e`). Sinon : formulaire create, PNG 1×1,
-URL `res.cloudinary.com` en base.
 
 ### Auth adresses — `e2e/auth/address.spec.ts`
 
@@ -188,6 +191,44 @@ Le callback sans écran Google n'existe que si `GOOGLE_CLIENT_ID` est factice
 (`e2e-google-client-id`). Avec de vraies clés, l'écran de consentement Google
 reste manuel (ajoutez `http://localhost:2001/auth/login/google/callback` dans
 la console Google).
+
+### Live Brevo — `e2e/live/brevo.spec.ts`
+
+Ignoré si `SMTP_LIVE_HOST` / `USER` / `PASS` sont factices. Sinon :
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Auth SMTP | `transporter.verify()` vers `SMTP_LIVE_*` | Brevo accepte le login |
+| 2 | Envoi (si `E2E_LIVE_INBOX`) | `sendVerificationEmail` | `accepted` contient l'inbox |
+
+Sans `E2E_LIVE_INBOX`, le spec s'arrête après l'étape 1.
+
+Si `verify()` échoue en `525 Unauthorized IP`, l'adresse de la machine n'est
+pas dans la liste d'IPs autorisées du SMTP Brevo.
+
+### Live Cloudinary — `e2e/live/cloudinary.spec.ts`
+
+Ignoré si `CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET` sont factices
+(`e2e`). Sinon :
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Ping | `cloudinary.api.ping()` | `status: ok` |
+| 2 | Upload UI | create produit + PNG 1×1 | redirection liste admin |
+| 3 | URL | lecture Prisma | `res.cloudinary.com` |
+
+### Live Sendcloud — `e2e/live/sendcloud.spec.ts`
+
+Ignoré si `SENDCLOUD_PUBLIC_KEY` / `SECRET_KEY` / `INTEGRATION_ID` sont factices
+(`e2e` / `0`). Les étiquettes ne sont **pas** créées : le webhook Stripe skippe
+Sendcloud dès que `PUBLIC_ENV=test`.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Options | POST `/api/sendcloud/shipping-options` | `data` non vide |
+| 2 | Points relais | POST `/api/sendcloud/service-points` | au moins un point |
+| 3 | Checkout UI | adresse → options | « Options de livraison » |
+| 4 | Persistance | POST `?/checkout` (`shippingCost` 0) | `servicePointId` en base |
 
 ### Commerce panier — `e2e/commerce/cart.spec.ts`
 
@@ -297,8 +338,10 @@ Test à part : un CLIENT POST `?/deletePromo` — le code reste.
 
 Test à part : un CLIENT GET `/admin/contacts` → `/`.
 
-Hors périmètre encore : Checkout Stripe hébergé (carte réelle), Sendcloud.
+Hors périmètre encore : Checkout Stripe hébergé (carte réelle).
 `incrementUsage` n'est pas joué (il suit `stripe.checkout.sessions.create`).
+Sendcloud est couvert par `e2e/live/sendcloud.spec.ts` (options et relais, pas
+d'étiquette).
 
 ## Architecture des utilitaires
 
@@ -313,7 +356,8 @@ Hors périmètre encore : Checkout Stripe hébergé (carte réelle), Sendcloud.
   lise pas comme une régression.
 - **`smtp-sink.ts`** — serveur SMTP en mémoire qui capte les emails sortants et
   les expose sur une petite API HTTP (`SMTP_HTTP_PORT`). Aucun email ne sort de
-  la machine.
+  la machine. Les identifiants Brevo live sont `SMTP_LIVE_*`, lus seulement par
+  `e2e/live/brevo.spec.ts`.
 - **`mailbox.ts`** — lecture de cette boîte. `waitForEmailCode(adresse)` attend
   l'email destiné à une adresse, décode le corps _quoted-printable_ et en extrait
   le code à usage unique. Les codes sont donc relevés là où l'utilisateur les
@@ -414,7 +458,7 @@ relation `Order → User` est en `Restrict`.
 | `http://localhost:2001 is already used` ou `EADDRINUSE 2525` | Un Vite e2e ou le puits SMTP d'une exécution interrompue occupe le port. Libérer : `fuser -k 2001/tcp 2525/tcp 2526/tcp`. Ne pas tuer le 2000 (`npm run dev`). |
 | Vite refuse un fichier sous un autre dépôt (`Lezardoises`, `outside of Vite serving allow list`) | Un service worker PWA d'un autre projet est resté accroché à `localhost:2000`. Recharger une fois (le hook client le retire en dev) ou, dans Chrome : Application → Service Workers → Unregister. |
 | `Can't reach database server`                     | Neon en veille ou IPv6 capricieux sous WSL. Les lectures rejouent déjà ; relancer. |
-| Le test attend un code d'email indéfiniment       | La boîte SMTP n'a pas démarré : vérifier que `SMTP_HOST`/`SMTP_PORT` de `.env.test` visent bien le sink local. |
+| Le test attend un code d'email indéfiniment       | La boîte SMTP n'a pas démarré, ou `SMTP_HOST` de `.env.test` pointe vers Brevo au lieu de `127.0.0.1`. Les clés live vont dans `SMTP_LIVE_*`. |
 | « Too many requests » inattendu                   | Une tentative invalide a été ajoutée sans marge. Voir le tableau des limiteurs. |
 | Les données de dev sont modifiées                 | `DATABASE_URL` de `.env.test` ne contient pas `schema=e2e`, ou les guillemets manquent autour de l'URL. |
 | `strict mode violation` sur un message            | Message présent en toast et sous le champ : utiliser `expectMessage()`.         |

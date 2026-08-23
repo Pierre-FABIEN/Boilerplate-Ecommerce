@@ -17,3 +17,26 @@ export function hasLiveCloudinary(): boolean {
 		!isDummySecret(process.env.CLOUDINARY_API_SECRET)
 	);
 }
+
+export function hasLiveBrevo(): boolean {
+	const host = (process.env.SMTP_LIVE_HOST ?? '').trim().replace(/^['"]|['"]$/g, '');
+	if (!host || host === '127.0.0.1' || host === 'localhost') return false;
+	return (
+		!isDummySecret(host) &&
+		!isDummySecret(process.env.SMTP_LIVE_USER) &&
+		!isDummySecret(process.env.SMTP_LIVE_PASS)
+	);
+}
+
+export function hasLiveInbox(): boolean {
+	const inbox = (process.env.E2E_LIVE_INBOX ?? '').trim();
+	return inbox.includes('@') && !isDummySecret(inbox);
+}
+
+export function hasLiveSendcloud(): boolean {
+	return (
+		!isDummySecret(process.env.SENDCLOUD_PUBLIC_KEY) &&
+		!isDummySecret(process.env.SENDCLOUD_SECRET_KEY) &&
+		!isDummySecret(process.env.SENDCLOUD_INTEGRATION_ID)
+	);
+}

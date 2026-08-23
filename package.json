@@ -4,7 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"clean:vite": "rimraf node_modules/.vite .vite_cache",
-		"dev": "vite dev --port 2000 --strictPort",
+		"dev": "concurrently -n vite,studio -c cyan,magenta \"vite dev --port 2000 --strictPort\" \"prisma studio --port 5555 --browser none\"",
+		"dev:vite": "vite dev --port 2000 --strictPort",
 		"cacheclean": "npm cache clean --force",
 		"sync": "svelte-kit sync",
 		"build": "vite build",
