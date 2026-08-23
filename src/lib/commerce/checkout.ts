@@ -25,8 +25,9 @@ export async function assertOrderOwnedBy(orderId: string, userId: string) {
 /**
  * Coût de port accepté par le serveur.
  *
- * Sans revalidation Sendcloud, seuls 0 et `no_shipping` passent. Un montant
- * positif fourni par le navigateur est rejeté.
+ * `no_shipping` et les commandes custom sont à 0. Sinon un montant fini entre
+ * 0 et 200 € est accepté (devis Sendcloud affiché au client). Une revalidation
+ * Sendcloud côté serveur reste le durcissement suivant.
  */
 export function resolveTrustedShippingCost(options: {
 	hasCustomItems: boolean;
@@ -38,14 +39,11 @@ export function resolveTrustedShippingCost(options: {
 	}
 
 	const requested = parseFloat(options.shippingCost || '0');
-	if (!Number.isFinite(requested) || requested < 0) {
-		throw new InvalidShippingError();
-	}
-	if (requested > 0) {
+	if (!Number.isFinite(requested) || requested < 0 || requested > 200) {
 		throw new InvalidShippingError();
 	}
 
-	return 0;
+	return Math.round(requested * 100) / 100;
 }
 
 export async function markOrderPaid(orderId: string) {

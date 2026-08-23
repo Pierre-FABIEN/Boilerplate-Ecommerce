@@ -2,8 +2,8 @@
  * Tunnel de paiement.
  *
  * COMMERCE-PLUGIN : login obligatoire, la commande doit appartenir au visiteur,
- * les frais de port client non nuls sont refusés (pas de revalidation Sendcloud
- * dans ce lot). PROMO-PLUGIN : `validatePromo` / `incrementUsage` restent ici
+ * les frais de port Sendcloud (0–200 €) sont acceptés pour créer la session
+ * Stripe. PROMO-PLUGIN : `validatePromo` / `incrementUsage` restent ici
  * pour que le checkout compile ; ce n'est pas le périmètre du module.
  */
 import { zod } from 'sveltekit-superforms/adapters';

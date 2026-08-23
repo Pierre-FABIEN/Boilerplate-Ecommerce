@@ -53,8 +53,8 @@ Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
 - Prix des lignes = `Product.price`, jamais le JSON client ni le panier invité.
 - Invité : `localStorage` seulement ; fusion au compte à signup / login
   (même `productId` → quantités additionnées, plafonnées au stock).
-- `?/checkout` : même propriétaire ; un `shippingCost` client **non nul** est
-  refusé tant que Sendcloud n'est pas revalidé côté serveur.
+- `?/checkout` : même propriétaire ; un `shippingCost` Sendcloud entre 0 et
+  200 € est accepté pour créer la session Stripe.
 - Webhook : crée la `Transaction` et passe l'`Order` en `PAID`. Un nouveau
   panier PENDING peut naître ensuite (c'est voulu).
 

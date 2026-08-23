@@ -151,7 +151,17 @@
 	let createPayment = superForm(data.IOrderSchema, {
 		validators: zodClient(OrderSchema),
 		id: 'createPayment',
-		resetForm: true
+		resetForm: false,
+		onUpdated({ form }) {
+			if (form.valid) return;
+			const first = Object.values(form.errors)
+				.flat()
+				.find((message) => typeof message === 'string' && message.length > 0);
+			if (first) toast.error(first);
+		},
+		onError({ result }) {
+			toast.error(result.error.message || 'Le paiement n’a pas pu démarrer.');
+		}
 	});
 
 	const { form: createPaymentData, enhance: createPaymentEnhance } = createPayment;
@@ -418,34 +428,30 @@
 
 
 	function handleCheckout(event: Event) {
-		// Empêche le comportement par défaut de la soumission
-		event.preventDefault();
+		const pendingId = data.pendingOrder?.id;
+		if (pendingId) $createPaymentData.orderId = pendingId;
+		if (selectedAddressId) $createPaymentData.addressId = selectedAddressId;
 
-		if (!selectedAddressId) {
+		if (!selectedAddressId || !$createPaymentData.orderId) {
+			event.preventDefault();
 			toast.error('Veuillez choisir une adresse.');
 			return;
 		}
-		// Pour les commandes personnalisées, on accepte 'no_shipping' comme option valide
 		if (!selectedShippingOption && !hasCustomItems) {
+			event.preventDefault();
 			toast.error('Veuillez choisir un mode de livraison.');
 			return;
 		}
-
-		// Vérification si un point relais est requis
 		if (showMap && !selectedPoint && !hasCustomItems) {
+			event.preventDefault();
 			toast.error('Veuillez sélectionner un point relais.');
 			return;
 		}
 
-		// Mise à jour des données du superform
 		$createPaymentData.shippingCost = shippingCost.toString();
 		$createPaymentData.shippingOption = selectedShippingOption || undefined;
 		$createPaymentData.promoCode = promoCode || undefined;
 		$createPaymentData.discountAmount = discountAmount ? discountAmount.toString() : '0';
-
-		// Si tout est OK, on peut procéder au checkout
-		// Le formulaire sera soumis automatiquement par l'action du serveur
-		console.log('✅ Validation OK, soumission du formulaire...');
 	}
 
 	// permet de récupérer l'id de la commande en cours
