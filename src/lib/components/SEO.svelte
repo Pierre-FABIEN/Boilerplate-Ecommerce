@@ -66,9 +66,9 @@
 		},
 		description: seoConfig.site.description,
 		sameAs: [
-			"https://www.instagram.com/xplicitdrink/?hl=fr",
-			"https://www.facebook.com/xplicitdrink/?locale=fr_FR",
-			"https://www.linkedin.com/company/grg-groupe-sarl/"
+			"https://www.instagram.com/madeindiamonds/",
+			"https://www.facebook.com/madeindiamonds/",
+			"https://www.linkedin.com/company/madeindiamonds/"
 		]
 	};
 	

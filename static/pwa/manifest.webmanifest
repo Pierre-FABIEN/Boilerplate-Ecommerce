@@ -1,7 +1,7 @@
 {
-	"name": "Mon App",
-	"short_name": "App",
-	"description": "Description de mon app",
+	"name": "MadeInDiamonds",
+	"short_name": "MadeInDiamonds",
+	"description": "Studio web — sites, e-commerce et identités digitales.",
 	"icons": [
 		{
 			"src": "./favicon/icon-192x192.png",

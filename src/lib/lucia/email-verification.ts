@@ -106,7 +106,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
 	try {
 		const mailOptions = {
-			from: '"Xplicit Drink Website" <xplicitdrink.dev@gmail.com>',
+			from: '"MadeInDiamonds" <contact@madeindiamonds.com>',
 			to: email,
 			subject: 'Your Verification Code',
 			text: `Your verification code is: ${code}`,
@@ -114,7 +114,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Xplicit Drink - Verification Code</title>
+  <title>MadeInDiamonds - Verification Code</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- Inline styling for a simple responsive design -->
   <style>
@@ -167,18 +167,18 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     <tr>
       <td align="center" style="padding: 20px;">
         <!-- Logo at the top -->
-        <img src="https://example.com/logo.png" alt="Xplicit Drink Logo" />
+        <img src="https://example.com/logo.png" alt="MadeInDiamonds Logo" />
 
         <!-- Main email container -->
         <div class="container">
           <h1 class="title">Your Verification Code</h1>
-          <p>Thank you for using Xplicit Drink! Please use the verification code below to complete your signup process:</p>
+          <p>Thank you for using MadeInDiamonds! Please use the verification code below to complete your signup process:</p>
           <p class="code">${code}</p>
           <p>This code will expire in 10 minutes.</p>
           
           <div class="footer">
             <p>If you did not request this code, please ignore this email.</p>
-            <p>— The Xplicit Drink Team</p>
+            <p>— The MadeInDiamonds Team</p>
           </div>
         </div>
       </td>

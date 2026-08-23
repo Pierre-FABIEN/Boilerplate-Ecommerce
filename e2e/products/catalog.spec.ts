@@ -14,7 +14,7 @@ test.describe('Catalogue — vitrine', () => {
 			await test.step('1. La liste affiche le nom Prisma', async () => {
 				await page.goto('/products');
 				await waitForPath(page, '/products');
-				await expect(page.getByRole('heading', { name: 'Catalogue' })).toBeVisible();
+				await expect(page.getByRole('heading', { name: 'Offres' })).toBeVisible();
 				await expect(page.getByRole('heading', { name: product.name })).toBeVisible();
 				await expect(page.getByRole('link', { name: category.name })).toBeVisible();
 			});

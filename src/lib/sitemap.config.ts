@@ -1,7 +1,7 @@
 // Configuration du sitemap
 export const sitemapConfig = {
 	// URL de base du site
-	site: 'https://xplicitdrink.com', // Domaine XPLICITDRINK®
+	site: 'https://madeindiamonds.com', // Domaine MadeInDiamonds
 	
 	// Routes à exclure du sitemap (routes privées, admin, auth)
 	excludedRoutes: [
@@ -17,10 +17,8 @@ export const sitemapConfig = {
 	routeConfig: {
 		'/': { priority: '1.0', changefreq: 'daily' },
 		'/products': { priority: '0.9', changefreq: 'weekly' }, // PRODUCT-PLUGIN
-		'/catalogue': { priority: '0.9', changefreq: 'weekly' },
 		'/blog': { priority: '0.8', changefreq: 'weekly' }, // BLOG-PLUGIN
-		'/contact': { priority: '0.7', changefreq: 'monthly' }, // CONTACT-PLUGIN
-		'/atelier': { priority: '0.8', changefreq: 'weekly' }
+		'/contact': { priority: '0.7', changefreq: 'monthly' } // CONTACT-PLUGIN
 	},
 	
 	// Configuration par défaut pour les routes non configurées

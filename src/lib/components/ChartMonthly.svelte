@@ -1,60 +1,59 @@
 <script lang="ts">
-	let chartElement = $state<HTMLElement>();
-	let chartInstance = $state<any>();
+	import * as Chart from '$lib/components/shadcn/ui/chart/index.js';
+	import { AreaChart } from 'layerchart';
 
-	let { data = [], options = {} } = $props();
+	type Point = {
+		x: number | string;
+		y: number;
+	};
 
-	$effect(async () => {
-		if (typeof window === 'undefined') return;
+	let {
+		data = [],
+		title = 'Cumul mensuel'
+	}: {
+		data?: Point[];
+		title?: string;
+	} = $props();
 
-		const ApexCharts = (await import('apexcharts')).default;
+	const points = $derived(
+		(Array.isArray(data) ? data : []).map((item) => ({
+			day: String(item.x),
+			value: Number(item.y) || 0
+		}))
+	);
 
-		const defaultOptions = {
-			chart: { type: 'line', height: '100%' },
-			series: data
-		};
-
-		const mergedOptions = {
-			...defaultOptions,
-			...options,
-			chart: {
-				...defaultOptions.chart,
-				...options.chart
-			}
-		};
-
-		if (chartInstance) {
-			chartInstance.destroy();
-			chartInstance = undefined;
+	const chartConfig = {
+		value: {
+			label: 'Cumul',
+			color: 'var(--chart-2)'
 		}
-
-		chartInstance = new ApexCharts(chartElement, mergedOptions);
-		await chartInstance.render();
-
-		return () => {
-			if (chartInstance) {
-				chartInstance.destroy();
-				chartInstance = undefined;
-			}
-		};
-	});
+	} satisfies Chart.ChartConfig;
 </script>
 
-<div class="chart-container">
-	<div bind:this={chartElement} class="chartCSS"></div>
+<div class="flex h-full w-full flex-col">
+	{#if title}
+		<p class="mb-2 text-center text-sm font-medium">{title}</p>
+	{/if}
+	{#if points.length === 0}
+		<p class="text-muted-foreground m-auto text-sm">Aucune donnée</p>
+	{:else}
+		<Chart.Container config={chartConfig} class="aspect-auto h-full min-h-[180px] w-full">
+			<AreaChart
+				data={points}
+				x="day"
+				axis="x"
+				series={[
+					{
+						key: 'value',
+						label: chartConfig.value.label,
+						color: chartConfig.value.color
+					}
+				]}
+			>
+				{#snippet tooltip()}
+					<Chart.Tooltip />
+				{/snippet}
+			</AreaChart>
+		</Chart.Container>
+	{/if}
 </div>
-
-<style>
-	.chart-container {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		width: 100%;
-		height: 100%;
-	}
-
-	.chartCSS {
-		width: 80%;
-		height: 80%;
-	}
-</style>

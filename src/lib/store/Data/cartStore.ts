@@ -48,8 +48,8 @@ export const cart = writable<CartState>({
 });
 
 /**
- * Calcule le prix unitaire pour les canettes personnalisées selon la quantité
- * @param quantity - Quantité de canettes
+ * Calcule le prix unitaire pour les projets sur-mesure selon le volume
+ * @param quantity - Volume de la prestation
  * @returns Prix unitaire en euros
  */
 function getCustomCanPrice(quantity: number): number {

@@ -33,11 +33,11 @@
 
 	// Options de quantité pour les articles personnalisés
 	let customQuantityOptions = $state([
-		{ label: '24 packs de 24 canettes (576 unités)', value: 576 },
-		{ label: '1/4 de palette : 30 packs (720 unités)', value: 720 },
-		{ label: '1/2 palette : 60 packs (1 440 unités)', value: 1440 },
-		{ label: '1 palette : 120 packs (2 880 unités)', value: 2880 },
-		{ label: '3 palettes : 360 packs (8 640 unités)', value: 8640 }
+		{ label: 'Offre Essentielle', value: 576 },
+		{ label: 'Offre Studio', value: 720 },
+		{ label: 'Offre Agence', value: 1440 },
+		{ label: 'Offre Premium', value: 2880 },
+		{ label: 'Offre Entreprise', value: 8640 }
 	]);
 
 	// Calculer le total des quantités pour les commandes non-personnalisées
@@ -55,7 +55,7 @@
 		return (otherItemsQuantity + newQuantity) <= 72;
 	}
 
-	// Fonction pour calculer le prix des canettes personnalisées
+	// Fonction pour calculer le prix des projets sur-mesure
 	function getCustomCanPrice(quantity: number): number {
 		switch (quantity) {
 			case 576:
@@ -111,7 +111,7 @@
 		discountAmount = discount;
 	}
 
-	// Détecter si la commande contient des canettes personnalisées
+	// Détecter si la commande contient des projets sur-mesure
 	let hasCustomItems = $derived($cartStore.items.some(item => item.custom?.length > 0));
 	
 	// Si la commande contient des personnalisations, on désactive la livraison

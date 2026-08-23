@@ -10,7 +10,7 @@
 </script>
 
 <div class="relative box-border min-h-screen w-full px-8 pt-24 pb-8">
-	<h1 class="mb-6 text-center text-[1.75rem] font-light tracking-tight">Catalogue</h1>
+	<h1 class="mb-6 text-center text-[1.75rem] font-light tracking-tight">Offres</h1>
 
 	<nav class="mb-8 flex flex-wrap items-center justify-center gap-3" aria-label="Filtrer par catégorie">
 		<Button
@@ -34,7 +34,7 @@
 	</nav>
 
 	{#if products.length === 0}
-		<p class="p-8 text-center text-muted-foreground">Aucun produit dans cette catégorie.</p>
+		<p class="p-8 text-center text-muted-foreground">Aucune offre dans cette catégorie.</p>
 	{:else}
 		<div class="mx-auto grid max-w-[1000px] grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
 			{#each products as product (product.id)}

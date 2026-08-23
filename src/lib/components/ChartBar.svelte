@@ -1,35 +1,33 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/shadcn/ui/chart/index.js';
-	import { AreaChart } from 'layerchart';
+	import { BarChart } from 'layerchart';
 
 	type Point = {
-		label: string;
-		value: number;
+		x: string;
+		y: number;
 	};
 
 	let {
 		data = [],
-		title = 'Transactions',
-		valueLabel = 'Montant'
+		title = 'Produits vendus'
 	}: {
 		data?: Point[];
 		title?: string;
-		valueLabel?: string;
 	} = $props();
 
 	const points = $derived(
 		(Array.isArray(data) ? data : []).map((item) => ({
-			label: item.label,
-			value: Number(item.value) || 0
+			product: item.x,
+			quantity: Number(item.y) || 0
 		}))
 	);
 
-	const chartConfig = $derived({
-		value: {
-			label: valueLabel,
-			color: 'var(--chart-1)'
+	const chartConfig = {
+		quantity: {
+			label: 'Quantité',
+			color: 'var(--chart-3)'
 		}
-	} satisfies Chart.ChartConfig);
+	} satisfies Chart.ChartConfig;
 </script>
 
 <div class="flex h-full w-full flex-col">
@@ -40,22 +38,23 @@
 		<p class="text-muted-foreground m-auto text-sm">Aucune donnée</p>
 	{:else}
 		<Chart.Container config={chartConfig} class="aspect-auto h-full min-h-[180px] w-full">
-			<AreaChart
+			<BarChart
 				data={points}
-				x="label"
+				x="product"
 				axis="x"
+				bandPadding={0.25}
 				series={[
 					{
-						key: 'value',
-						label: chartConfig.value.label,
-						color: chartConfig.value.color
+						key: 'quantity',
+						label: chartConfig.quantity.label,
+						color: chartConfig.quantity.color
 					}
 				]}
 			>
 				{#snippet tooltip()}
 					<Chart.Tooltip />
 				{/snippet}
-			</AreaChart>
+			</BarChart>
 		</Chart.Container>
 	{/if}
 </div>

@@ -28,16 +28,16 @@
 		const doc = new jsPDF();
 
 		// Charger le logo
-		const logoBase64 = await getBase64Image('/Logo-xplicit.png'); // Utilisation du chemin dans `static/`
+		const logoBase64 = await getBase64Image('/apple-touch-icon.png'); // Utilisation du chemin dans `static/`
 
 		// ------------------------------
 		// 📌 Définition des valeurs
 		// ------------------------------
-		const companyName = 'Xplicit Web';
+		const companyName = 'MadeInDiamonds';
 		const companyAddress = '123 Rue des Affaires';
 		const companyCity = '75000 Paris, France';
 		const companyPhone = '+33 1 23 45 67 89';
-		const companyEmail = 'contact@xplicitweb.com';
+		const companyEmail = 'contact@madeindiamonds.com';
 		const companyVAT = 'FR123456789';
 
 		const customerName = transaction.customer_details_name || 'N/A';

@@ -4,16 +4,17 @@
 	import '@fontsource-variable/raleway';
 	import '../app.css';
 
-	import { initializeLayoutState, setupNavigationEffect, isClient } from './layout.svelte';
+	import { initializeLayoutState, isClient } from './layout.svelte';
 
 	import { ModeWatcher } from 'mode-watcher';
 	import Toaster from '$lib/components/shadcn/ui/sonner/sonner.svelte';
 
 	import SmoothScrollBar from '$lib/components/smoothScrollBar/SmoothScrollBar.svelte';
+	import Loader from '$lib/components/loader/Loader.svelte';
 	import {
+		bootstrapInitialLoad,
 		firstLoadComplete,
-		setFirstOpen,
-		setRessourceToValide
+		setDomLoaded
 	} from '$lib/store/initialLoaderStore';
 	import { page } from '$app/stores';
 
@@ -60,15 +61,15 @@
 	}
 
 	$effect(() => {
-		const unsubscribe = page.subscribe((currentPage) => {
-			initializeLayoutState(currentPage);
+		const unsubscribe = page.subscribe(() => {
+			initializeLayoutState();
 		});
-		setupNavigationEffect();
+		const stopLoad = bootstrapInitialLoad();
 
-		setFirstOpen(true);
-		setRessourceToValide(true);
-
-		return unsubscribe;
+		return () => {
+			unsubscribe();
+			stopLoad();
+		};
 	});
 
 	// COMMERCE-PLUGIN : invité = localStorage ; compte = Order PENDING.
@@ -162,16 +163,11 @@
 	});
 
 	let contentRef: HTMLElement | null = $state(null);
-	let contentHeight = $state(0);
 
 	$effect(() => {
 		if (!contentRef) return;
 
 		const observer = new ResizeObserver(() => {
-			if (contentRef) {
-				contentHeight = contentRef.clientHeight;
-			}
-
 			updateSmoothScroll();
 		});
 		observer.observe(contentRef);
@@ -192,6 +188,8 @@
 	}
 </script>
 
+<svelte:document onDOMContentLoaded={() => setDomLoaded(true)} />
+
 <svelte:head>
 	<link rel="icon" href="/favicon.ico" />
 	<meta name="viewport" content="width=device-width" />
@@ -200,7 +198,7 @@
 </svelte:head>
 
 {#if !$firstLoadComplete}
-	<!-- <Loader /> -->
+	<Loader />
 {/if}
 {#if $isClient}
 	<div>

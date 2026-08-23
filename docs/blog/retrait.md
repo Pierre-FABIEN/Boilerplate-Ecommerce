@@ -19,7 +19,7 @@ Les étapes 1 et 2 sont communes.
 ```bash
 rm -rf src/lib/blog src/routes/blog src/routes/admin/blog
 rm -rf src/lib/prisma/blogPost src/lib/schema/BlogPost
-rm -f src/lib/server/blog.ts prisma/seed-data/blog.js
+rm -f prisma/seed-data/blog.js
 rm -rf e2e/blog docs/blog
 ```
 

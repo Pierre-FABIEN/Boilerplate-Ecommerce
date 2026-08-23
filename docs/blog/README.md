@@ -39,8 +39,7 @@ module.
 | `/blog` | liste des articles publiés, filtre optionnel `?categorie=` |
 | `/blog/[slug]` | fiche ; 404 si le slug est inconnu **ou** si l'article n'est pas publié |
 
-Les données viennent de Prisma. Le fichier `src/lib/server/blog.ts` est un
-reste statique : la vitrine ne l'utilise plus.
+Les données viennent de Prisma.
 
 Un brouillon n'apparaît ni dans la liste ni à l'URL de son slug.
 

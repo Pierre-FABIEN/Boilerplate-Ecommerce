@@ -26,7 +26,7 @@
 
 <article class="mx-auto max-w-[960px] px-6 pt-24 pb-12">
 	<p class="mb-6">
-		<a href="/products" class="text-foreground">← Catalogue</a>
+		<a href="/products" class="text-foreground">← Offres</a>
 	</p>
 	<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
 		<div>

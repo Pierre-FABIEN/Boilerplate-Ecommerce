@@ -66,7 +66,7 @@ quels ; les marqueurs isolés demandent une décision. Inventaire :
 | `src/lib/components/Navigation.svelte`         | retirer le bouton « Se connecter »                                           |
 | `src/lib/components/cart/Cart.svelte`          | retirer le bloc compte, ne garder que « Checkout »                           |
 | `src/lib/components/checkout/AddressSelector.svelte` | remplacer le lien vers l'espace compte par un formulaire d'adresse dans le tunnel |
-| `src/lib/components/Facture/Facture.svelte`    | rediriger vers une page de suivi de commande publique                        |
+| `src/routes/auth/settings/factures/` et `src/routes/admin/sales/facture/` | rediriger vers une page de suivi de commande publique |
 | `src/routes/checkout/+page.server.ts`          | remplacer la garde `locals.user` (voir étape 4)                              |
 | `src/routes/admin/+page.server.ts`             | remplacer la garde d'accès **avant** de la supprimer                         |
 | `src/routes/admin/users/+page.server.ts`       | idem                                                                         |

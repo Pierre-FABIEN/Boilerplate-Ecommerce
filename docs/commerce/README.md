@@ -45,7 +45,7 @@ rg "COMMERCE-PLUGIN" src/ prisma/
 | Promo | `PROMO-PLUGIN` | champ checkout ; tests dans [docs/promo](../promo/README.md) |
 | Sendcloud | `SENDCLOUD` | options / points relais / étiquettes |
 
-Les canettes personnalisées (`Custom`, `no_shipping`) restent de la dette atelier.
+Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
 
 ## Contrat serveur
 

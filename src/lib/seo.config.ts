@@ -1,107 +1,102 @@
-// Configuration SEO pour XPLICITDRINK®
+// Configuration SEO pour MadeInDiamonds
 export const seoConfig = {
 	// Informations de base du site
 	site: {
-		name: 'XPLICITDRINK®',
-		url: 'https://xplicitdrink.com',
-		description: 'XPLICITDRINK® - Boissons énergisantes premium nées à Toulouse en 2007. Recettes gourmandes avec plus de jus, moins de sucre et des ingrédients de qualité.',
-		keywords: 'boisson énergisante, taurine, caféine, vitamines, Toulouse, premium, gourmand, moins de sucre, XPLICITDRINK',
-		author: 'XPLICITDRINK®',
+		name: 'MadeInDiamonds',
+		url: 'https://madeindiamonds.com',
+		description:
+			'MadeInDiamonds — studio web. Sites vitrines, e-commerce, identité visuelle et applications sur-mesure.',
+		keywords:
+			'studio web, agence web, site vitrine, e-commerce, identité visuelle, application web, MadeInDiamonds',
+		author: 'MadeInDiamonds',
 		locale: 'fr_FR'
 	},
-	
+
 	// Métadonnées par défaut
 	defaults: {
-		title: 'XPLICITDRINK® - Boissons énergisantes premium depuis 2007',
-		description: 'Découvrez XPLICITDRINK®, marque de boissons énergisantes premium née à Toulouse en 2007. Recettes gourmandes avec plus de jus, moins de sucre et des ingrédients de qualité.',
-		keywords: 'boisson énergisante, taurine, caféine, vitamines, Toulouse, premium, gourmand, moins de sucre, XPLICITDRINK',
+		title: 'MadeInDiamonds — Studio web & identités digitales',
+		description:
+			'Découvrez MadeInDiamonds, studio web spécialisé dans les sites vitrines, boutiques en ligne, identités visuelles et applications sur-mesure.',
+		keywords:
+			'studio web, agence web, site vitrine, e-commerce, identité visuelle, application web, MadeInDiamonds',
 		image: '/og-default.jpg',
 		type: 'website'
 	},
-	
+
 	// Configuration des pages principales
 	pages: {
 		home: {
-			title: 'XPLICITDRINK® - Boissons énergisantes premium depuis 2007',
-			description: 'Découvrez XPLICITDRINK®, marque de boissons énergisantes premium née à Toulouse en 2007. Recettes gourmandes avec plus de jus, moins de sucre et des ingrédients de qualité.',
-			keywords: 'boisson énergisante, taurine, caféine, vitamines, Toulouse, premium, gourmand, moins de sucre, XPLICITDRINK, 2007',
+			title: 'MadeInDiamonds — Studio web & identités digitales',
+			description:
+				'Découvrez MadeInDiamonds, studio web spécialisé dans les sites vitrines, boutiques en ligne, identités visuelles et applications sur-mesure.',
+			keywords:
+				'studio web, agence web, site vitrine, e-commerce, identité visuelle, MadeInDiamonds',
 			image: '/og-home.jpg'
 		},
 		blog: {
-			title: 'Blog - Actualités et conseils sur les boissons énergisantes',
-			description: 'Restez informé sur les dernières tendances des boissons énergisantes, conseils nutritionnels et actualités XPLICITDRINK®. Découvrez nos recettes premium.',
-			keywords: 'blog boisson énergisante, conseils nutrition, tendances énergisants, actualités XPLICITDRINK, recettes premium',
+			title: 'Blog — Design, produit et culture web',
+			description:
+				'Actualités, retours d’expérience et conseils du studio MadeInDiamonds sur le design, le développement et la stratégie digitale.',
+			keywords: 'blog studio web, design, UX, développement, actualités MadeInDiamonds',
 			image: '/og-blog.jpg'
 		},
 		catalogue: {
-			title: 'Catalogue - Nos boissons énergisantes premium',
-			description: 'Explorez notre gamme de boissons énergisantes premium XPLICITDRINK®. Des recettes gourmandes avec plus de jus, moins de sucre et des ingrédients de qualité.',
-			keywords: 'catalogue boissons énergisantes, gamme premium, recettes gourmandes, taurine, caféine, vitamines',
+			title: 'Offres — Prestations du studio MadeInDiamonds',
+			description:
+				'Explorez nos offres : site vitrine, e-commerce, identité visuelle, application web et maintenance.',
+			keywords: 'offres studio web, site vitrine, e-commerce, identité visuelle, application web',
 			image: '/og-catalogue.jpg'
 		},
-		atelier: {
-			title: 'Atelier - Personnalisez votre boisson XPLICITDRINK®',
-			description: 'Créez votre design personnalisé pour vos boissons XPLICITDRINK®. Interface intuitive pour personnaliser vos canettes et créer des designs uniques.',
-			keywords: 'atelier personnalisation, design canette, boisson personnalisée, XPLICITDRINK, création design',
-			image: '/og-atelier.jpg'
-		},
 		contact: {
-			title: 'Contact - Parlons de votre projet XPLICITDRINK®',
-			description: 'Contactez l\'équipe XPLICITDRINK® pour discuter de vos projets de boissons énergisantes, personnalisation ou partenariats. Basés à Toulouse depuis 2007.',
-			keywords: 'contact XPLICITDRINK, projet boisson énergisante, partenariat, Toulouse, équipe',
+			title: 'Contact — Parlons de votre projet MadeInDiamonds',
+			description:
+				'Contactez le studio MadeInDiamonds pour un site, une identité ou une application. Discutons de votre brief.',
+			keywords: 'contact studio web, devis, projet digital, MadeInDiamonds',
 			image: '/og-contact.jpg'
 		},
 		checkout: {
-			title: 'Commande - Finalisez votre commande XPLICITDRINK®',
-			description: 'Finalisez votre commande de boissons énergisantes XPLICITDRINK®. Paiement sécurisé et options de livraison disponibles.',
-			keywords: 'commande XPLICITDRINK, paiement sécurisé, livraison, boissons énergisantes, finalisation',
+			title: 'Commande — Finalisez votre projet MadeInDiamonds',
+			description:
+				'Finalisez votre commande de prestation MadeInDiamonds. Paiement sécurisé et confirmation par e-mail.',
+			keywords: 'commande studio web, paiement sécurisé, projet digital, MadeInDiamonds',
 			image: '/og-checkout.jpg'
 		},
 		checkoutSuccess: {
-			title: 'Commande confirmée - XPLICITDRINK®',
-			description: 'Votre commande XPLICITDRINK® a été confirmée avec succès. Merci pour votre confiance.',
-			keywords: 'commande confirmée, succès, XPLICITDRINK, confirmation commande',
+			title: 'Commande confirmée — MadeInDiamonds',
+			description: 'Votre commande MadeInDiamonds a été confirmée. Merci pour votre confiance.',
+			keywords: 'commande confirmée, succès, MadeInDiamonds',
 			image: '/og-checkout-success.jpg'
 		},
 		error: {
-			title: 'Page non trouvée - XPLICITDRINK®',
-			description: 'La page que vous recherchez n\'existe pas. Retournez à l\'accueil pour découvrir nos boissons énergisantes premium.',
-			keywords: 'page non trouvée, erreur 404, XPLICITDRINK, boissons énergisantes',
+			title: 'Page non trouvée — MadeInDiamonds',
+			description:
+				'La page que vous recherchez n’existe pas. Retournez à l’accueil pour découvrir le studio MadeInDiamonds.',
+			keywords: 'page non trouvée, erreur 404, MadeInDiamonds, studio web',
 			image: '/og-error.jpg'
 		},
 		auth: {
-			title: 'Authentification - XPLICITDRINK®',
-			description: 'Connectez-vous à votre compte XPLICITDRINK® pour accéder à vos commandes et personnalisations.',
-			keywords: 'connexion, authentification, compte, XPLICITDRINK, profil utilisateur',
+			title: 'Authentification — MadeInDiamonds',
+			description:
+				'Connectez-vous à votre compte MadeInDiamonds pour suivre vos projets et vos commandes.',
+			keywords: 'connexion, authentification, compte, MadeInDiamonds',
 			image: '/og-auth.jpg'
 		},
 		admin: {
-			title: 'Administration - XPLICITDRINK®',
-			description: 'Panneau d\'administration XPLICITDRINK®. Gérez vos produits, commandes et utilisateurs.',
-			keywords: 'administration, gestion, produits, commandes, utilisateurs, XPLICITDRINK',
+			title: 'Administration — MadeInDiamonds',
+			description: 'Panneau d’administration MadeInDiamonds. Gérez vos offres, commandes et utilisateurs.',
+			keywords: 'administration, gestion, offres, commandes, utilisateurs, MadeInDiamonds',
 			image: '/og-admin.jpg'
 		}
 	},
-	
+
 	// Configuration des réseaux sociaux
 	social: {
 		twitter: {
-			site: '@xplicitdrink',
-			creator: '@xplicitdrink'
+			site: '@madeindiamonds',
+			creator: '@madeindiamonds'
 		},
 		facebook: {
 			appId: 'votre-app-id-facebook'
 		}
-	},
-	
-	// Configuration des images Open Graph
-	images: {
-		default: '/og-default.jpg',
-		home: '/og-home.jpg',
-		blog: '/og-blog.jpg',
-		catalogue: '/og-catalogue.jpg',
-		atelier: '/og-atelier.jpg',
-		contact: '/og-contact.jpg',
-		article: '/og-article.jpg'
 	}
 };

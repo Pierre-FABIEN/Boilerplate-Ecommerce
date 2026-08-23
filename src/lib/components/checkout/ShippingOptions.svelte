@@ -195,7 +195,7 @@
 			<div class="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
 				<p class="text-sm text-blue-700 dark:text-blue-300">
 					📦 <strong>Commande personnalisée détectée</strong><br/>
-					Les commandes avec canettes personnalisées ne nécessitent pas de frais de livraison.
+					Les commandes de projets sur-mesure ne nécessitent pas de frais de livraison.
 					Votre commande sera traitée sans coût de transport supplémentaire.
 				</p>
 			</div>

@@ -1,46 +1,85 @@
-import { writable } from 'svelte/store';
+import { derived, writable } from 'svelte/store';
 
-// États de chargement individuels
-export const loadingStates = writable({
+export type LoadingStates = {
+	firstOpen: boolean;
+	domLoaded: boolean;
+	ressourceToValide: boolean;
+};
+
+/**
+ * Portes du splash initial. `firstLoadComplete` est dérivé : il passe à true
+ * uniquement quand les trois portes sont ouvertes. On ne le force plus à la
+ * main (c’est ce qui laissait l’écran bloqué quand le loader était commenté).
+ *
+ * - firstOpen : le shell client est monté
+ * - domLoaded : document prêt (DOMContentLoaded / complete)
+ * - ressourceToValide : polices prêtes (avec timeout de sécurité)
+ */
+export const loadingStates = writable<LoadingStates>({
 	firstOpen: false,
 	domLoaded: false,
 	ressourceToValide: false
 });
 
-// Store séparé pour firstLoadComplete
-export const firstLoadComplete = writable(false);
+export const firstLoadComplete = derived(
+	loadingStates,
+	($states) => $states.firstOpen && $states.domLoaded && $states.ressourceToValide
+);
 
-export function setFirstLoadComplete(value: boolean) {
-	firstLoadComplete.set(value);
-}
-
-// Fonctions pour mettre à jour les états de chargement
 export function setFirstOpen(value: boolean) {
-	loadingStates.update((states) => {
-		if (!states) return states;
-		return { ...states, firstOpen: value };
-	});
+	loadingStates.update((states) => ({ ...states, firstOpen: value }));
 }
 
 export function setDomLoaded(value: boolean) {
-	loadingStates.update((states) => {
-		if (!states) return states;
-		return { ...states, domLoaded: value };
-	});
+	loadingStates.update((states) => ({ ...states, domLoaded: value }));
 }
 
 export function setRessourceToValide(value: boolean) {
-	loadingStates.update((states) => {
-		if (!states) return states;
-		return { ...states, ressourceToValide: value };
-	});
+	loadingStates.update((states) => ({ ...states, ressourceToValide: value }));
 }
 
-// // Logs pour le débogage
-// loadingStates.subscribe(($loadingStates) => {
-// 	console.log('Loading States: ', $loadingStates);
-// });
+const LOAD_TIMEOUT_MS = 2500;
+const MIN_SPLASH_MS = 400;
 
-// firstLoadComplete.subscribe(($firstLoadComplete) => {
-// 	console.log('First Load Complete: ', $firstLoadComplete);
-// });
+/**
+ * Ouvre les portes depuis le layout (pas depuis le splash).
+ * Ainsi le chargement se termine même si le Loader n’est pas monté,
+ * et un timeout évite un écran bloqué si `document.fonts` ne résout jamais.
+ */
+export function bootstrapInitialLoad(): () => void {
+	setFirstOpen(true);
+
+	if (typeof document === 'undefined') {
+		return () => {};
+	}
+
+	if (document.readyState === 'complete' || document.readyState === 'interactive') {
+		setDomLoaded(true);
+	} else {
+		document.addEventListener('DOMContentLoaded', () => setDomLoaded(true), { once: true });
+	}
+
+	let cancelled = false;
+	const startedAt = Date.now();
+
+	const finishResources = () => {
+		if (cancelled) return;
+		const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - startedAt));
+		setTimeout(() => {
+			if (!cancelled) setRessourceToValide(true);
+		}, remaining);
+	};
+
+	const timeout = setTimeout(finishResources, LOAD_TIMEOUT_MS);
+	const fontsReady = document.fonts?.ready ?? Promise.resolve();
+
+	Promise.resolve(fontsReady).finally(() => {
+		clearTimeout(timeout);
+		finishResources();
+	});
+
+	return () => {
+		cancelled = true;
+		clearTimeout(timeout);
+	};
+}

@@ -3,4 +3,4 @@ User-agent: *
 Disallow:
 
 # Sitemap
-Sitemap: https://xplicitdrink.com/sitemap.xml
+Sitemap: https://madeindiamonds.com/sitemap.xml

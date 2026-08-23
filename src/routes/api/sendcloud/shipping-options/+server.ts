@@ -1,4 +1,4 @@
-// /home/pierre/XplicitWeb/XplicitWeb/src/routes/api/sendcloud/shipping-options/+server.ts
+// Options de livraison Sendcloud
 // Purpose: Simple, safe endpoint to fetch normalized shipping options from Sendcloud V3.
 //
 // Key features:

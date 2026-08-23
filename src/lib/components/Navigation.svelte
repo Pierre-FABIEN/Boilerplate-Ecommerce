@@ -13,7 +13,7 @@
 
 	const links = [
 		{ href: '/', label: 'Accueil' },
-		{ href: '/products', label: 'Catalogue' }, // PRODUCT-PLUGIN
+		{ href: '/products', label: 'Offres' }, // PRODUCT-PLUGIN
 		{ href: '/blog', label: 'Blog' }, // BLOG-PLUGIN
 		{ href: '/contact', label: 'Contact' } // CONTACT-PLUGIN
 	];
