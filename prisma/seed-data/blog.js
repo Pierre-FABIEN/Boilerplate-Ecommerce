@@ -1,3 +1,4 @@
+// BLOG-PLUGIN : articles injectés par prisma/seed.js
 export const blog = [
 	{
 		link: `L-Innovation-en-Boissons-Énergisantes-par-GRG-Groupe-Food&Beverage`,

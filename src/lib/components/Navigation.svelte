@@ -14,7 +14,7 @@
 	const links = [
 		{ href: '/', label: 'Accueil' },
 		{ href: '/products', label: 'Catalogue' }, // PRODUCT-PLUGIN
-		{ href: '/blog', label: 'Blog' },
+		{ href: '/blog', label: 'Blog' }, // BLOG-PLUGIN
 		{ href: '/contact', label: 'Contact' }
 	];
 

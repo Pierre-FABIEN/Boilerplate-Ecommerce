@@ -1,13 +1,15 @@
 # Tests end-to-end
 
-La suite Playwright couvre quatre domaines, exécutés en séquence (un seul worker) :
+La suite Playwright couvre cinq domaines, exécutés en séquence (un seul worker) :
 
 - authentification : un parcours unique, `e2e/auth/journey.spec.ts` ;
 - administration : accès (`e2e/admin/security.spec.ts`) et CRUD des comptes
   (`e2e/admin/users.spec.ts`) ;
 - catalogue : vitrine (`e2e/products/catalog.spec.ts`) et CRUD admin produits
   (`e2e/products/admin.spec.ts`) ;
-- commerce : panier (connecté + invité), checkout, ventes (`e2e/commerce/*.spec.ts`).
+- commerce : panier (connecté + invité), checkout, ventes (`e2e/commerce/*.spec.ts`) ;
+- blog : vitrine (`e2e/blog/catalog.spec.ts`) et CRUD admin articles
+  (`e2e/blog/admin.spec.ts`).
 
 ## Authentification
 
@@ -56,10 +58,12 @@ Prérequis :
 - la base Neon accessible. Les URL contenant `&` **doivent** rester entre
   guillemets dans `.env.test`.
 
-Playwright démarre Vite sur le **port 2000**, le même que `npm run dev`. Arrêtez
-le serveur de développement avant les tests (`fuser -k 2000/tcp`) : la suite
-doit injecter `.env.test` (schéma `e2e`, SMTP local). Si `npm run dev` reste
-ouvert, le port est pris et les emails partiraient vers Brevo.
+Playwright démarre son propre Vite sur le **port 2001**, avec `.env.test`
+(schéma `e2e`, SMTP local). `npm run dev` reste sur le **2000** et n'est pas
+arrêté. Ne lancez pas la suite contre le serveur de développement : les helpers
+Prisma écriraient dans `e2e` pendant que l'UI lirait `public`.
+
+Le port e2e se surcharge avec `E2E_PORT` si 2001 est déjà pris.
 
 Le serveur compile chaque route à la première visite, ce qui explique la
 première étape particulièrement lente — une cinquantaine de secondes pour neuf
@@ -69,8 +73,8 @@ pages jamais visitées. Ce n'est pas un blocage.
 
 Les titres numérotés sont ceux des `test.step(...)` dans les specs. Pour changer
 ce qui est testé : modifier cette liste, le `test.step` du même numéro, puis le
-code métier. Les copies par module sont dans `docs/auth`, `docs/admin` et
-`docs/products`.
+code métier. Les copies par module sont dans `docs/auth`, `docs/admin`, `docs/products`,
+`docs/commerce` et `docs/blog`.
 
 Chaque étape joue d'abord les cas refusés, puis le cas accepté. Un refus est
 confirmé par l'interface **et** par l'état en base.
@@ -187,7 +191,32 @@ Test à part : un CLIENT POST `?/deleteProduct` — le produit reste.
 | 2 | CLIENT GET `/admin/sales` | navigation | `/` |
 | 3 | Facture user : uniquement la sienne | GET facture d'un autre | 404 |
 
-Hors périmètre encore : CRUD blog, promo, contacts. Pas de Stripe réel, pas de Sendcloud.
+### Blog vitrine — `e2e/blog/catalog.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste affiche le titre Prisma | GET `/blog` | titres Blog + nom, lien catégorie |
+| 2 | La fiche s’ouvre par slug | GET `/blog/[slug]` | titre, auteur, ligne en base |
+| 3 | Un slug inconnu renvoie 404 | GET slug absent | statut 404 |
+| 4 | Un brouillon n’est pas public | GET slug `published=false` | 404, absent de la liste |
+| 5 | Pas d’UI d’édition admin | HTML de `/blog` | pas de `/admin/blog` ni `passwordHash` |
+
+### Blog admin — `e2e/blog/admin.spec.ts`
+
+La création UI (TinyMCE) n'est pas jouée. Les articles sont posés en Prisma
+(`createBlogPost`). L'édition du titre aussi (`updateBlogPostTitle`).
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste admin affiche les articles | GET `/admin/blog`, recherche | ligne du tableau Articles |
+| 2 | Création Prisma visible sur la vitrine | GET `/blog` | heading du titre + ligne en base |
+| 3 | Édition Prisma du titre | helper Prisma | DB + titre public |
+| 4 | Suppression | dialogue Continue | article absent en base |
+| 5 | Dépublier | `published=false` en Prisma | GET slug → 404 |
+
+Test à part : un CLIENT POST `?/deleteBlogPost` — l'article reste.
+
+Hors périmètre encore : promo, contacts. Pas de Stripe réel, pas de Sendcloud.
 
 ## Architecture des utilitaires
 
@@ -297,7 +326,7 @@ relation `Order → User` est en `Restrict`.
 
 | Symptôme                                          | Cause probable                                                                 |
 | ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `http://localhost:2000 is already used` ou `EADDRINUSE 2525` | `npm run dev` ou une exécution interrompue occupe le port. Libérer : `fuser -k 2000/tcp 2525/tcp 2526/tcp`. |
+| `http://localhost:2001 is already used` ou `EADDRINUSE 2525` | Un Vite e2e ou le puits SMTP d'une exécution interrompue occupe le port. Libérer : `fuser -k 2001/tcp 2525/tcp 2526/tcp`. Ne pas tuer le 2000 (`npm run dev`). |
 | Vite refuse un fichier sous un autre dépôt (`Lezardoises`, `outside of Vite serving allow list`) | Un service worker PWA d'un autre projet est resté accroché à `localhost:2000`. Recharger une fois (le hook client le retire en dev) ou, dans Chrome : Application → Service Workers → Unregister. |
 | `Can't reach database server`                     | Neon en veille ou IPv6 capricieux sous WSL. Les lectures rejouent déjà ; relancer. |
 | Le test attend un code d'email indéfiniment       | La boîte SMTP n'a pas démarré : vérifier que `SMTP_HOST`/`SMTP_PORT` de `.env.test` visent bien le sink local. |

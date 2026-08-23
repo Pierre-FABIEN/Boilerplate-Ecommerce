@@ -1,4 +1,7 @@
-// +page.server.ts
+/**
+ * BLOG-PLUGIN : liste et suppressions admin (articles, catégories, tags).
+ * Les gardes d'écriture sont celles de l'admin (`requireAdmin`).
+ */
 import type { PageServerLoad } from './$types';
 import { type Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';

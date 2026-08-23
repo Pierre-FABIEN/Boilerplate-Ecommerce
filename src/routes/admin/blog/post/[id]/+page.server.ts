@@ -1,3 +1,6 @@
+/**
+ * BLOG-PLUGIN : édition d'un article. Gardes = module admin.
+ */
 import type { PageServerLoad } from './$types';
 import type { Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';

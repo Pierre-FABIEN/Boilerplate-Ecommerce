@@ -39,6 +39,7 @@ rg "COMMERCE-PLUGIN" src/ prisma/
 | Module | Marqueur | Pourquoi |
 | ------ | -------- | -------- |
 | Catalogue | `PRODUCT-PLUGIN` | fournit `Product` et le prix à revalider |
+| Blog | `BLOG-PLUGIN` | articles Prisma, hors tunnel |
 | Auth | `AUTH-PLUGIN` | `locals.user`, adresses, factures compte |
 | Admin | `ADMIN-PLUGIN` | gardes de `/admin/sales` |
 | Promo | `PROMO-PLUGIN` | champ checkout conservé, **non testé** ici |

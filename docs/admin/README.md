@@ -79,7 +79,8 @@ Les listes d'utilisateurs n'exposent jamais `passwordHash`, `totpKey` ni
 
 L'authentification (`/auth`, sessions, 2FA) et le tunnel de commande
 (`/checkout`) sont des modules distincts. Le catalogue public (`/products`)
-est documenté à part : [docs/products](../products/README.md). Les ventes
+est documenté à part : [docs/products](../products/README.md). Le blog public
+(`/blog`) et son CRUD : [docs/blog](../blog/README.md). Les ventes
 (`/admin/sales`) sont la surface admin du commerce :
 [docs/commerce](../commerce/README.md). Un administrateur
 qui n'a pas validé sa 2FA est d'abord renvoyé vers `/auth/2fa` par `authHandle`,
@@ -114,7 +115,8 @@ Routes : `ADMIN_PATHS` dans `e2e/support/admin.ts`.
 À part : CLIENT GET `/admin/users/:id` d'un autre compte → `/`.
 
 Catalogue admin : [docs/products](../products/README.md). Ventes :
-[docs/commerce](../commerce/README.md). Blog / promo / contacts : pas encore.
+[docs/commerce](../commerce/README.md). Blog : [docs/blog](../blog/README.md).
+Promo / contacts : pas encore.
 
 ```bash
 npm run test:e2e

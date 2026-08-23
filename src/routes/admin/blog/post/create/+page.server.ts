@@ -1,4 +1,7 @@
-// In your +page.server.ts (actions)
+/**
+ * BLOG-PLUGIN : création d'article. AUTH-PLUGIN : `authorId` est aujourd'hui
+ * l'utilisateur connecté ; le modèle `BlogAuthor` n'est pas le `User`.
+ */
 import type { Actions } from '@sveltejs/kit';
 import { superValidate, fail, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';

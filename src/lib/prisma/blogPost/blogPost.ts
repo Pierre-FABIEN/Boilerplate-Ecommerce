@@ -1,5 +1,10 @@
 import { prisma } from '$lib/server';
 
+/**
+ * BLOG-PLUGIN : DAO Prisma des articles, catégories et tags. Les lectures
+ * publiques passent par `src/lib/blog/catalog.ts` (filtre `published`).
+ */
+
 export const getAllPosts = async () => {
 	try {
 		const posts = await prisma.blogPost.findMany({

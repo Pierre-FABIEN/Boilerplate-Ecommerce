@@ -1,3 +1,4 @@
+// BLOG-PLUGIN : contenu statique historique. La vitrine lit Prisma (`src/lib/blog`).
 export const blog = [
 	{
 		link: `L-Innovation-en-Boissons-Énergisantes-par-GRG-Groupe-Food&Beverage`,

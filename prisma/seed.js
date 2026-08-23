@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { createCipheriv, randomBytes } from 'crypto';
 import { decodeBase64 } from '@oslojs/encoding';
 import dotenv from 'dotenv';
-import { blog } from './seed-data/blog.js';
+import { blog } from './seed-data/blog.js'; // BLOG-PLUGIN
 
 dotenv.config();
 
@@ -84,12 +84,12 @@ const DESCRIPTION =
  */
 async function truncate() {
 	await prisma.$transaction([
-		prisma.blogPostTag.deleteMany(),
-		prisma.blogComment.deleteMany(),
-		prisma.blogPost.deleteMany(),
-		prisma.blogCategory.deleteMany(),
-		prisma.blogAuthor.deleteMany(),
-		prisma.blogTag.deleteMany(),
+		prisma.blogPostTag.deleteMany(), // BLOG-PLUGIN
+		prisma.blogComment.deleteMany(), // BLOG-PLUGIN
+		prisma.blogPost.deleteMany(), // BLOG-PLUGIN
+		prisma.blogCategory.deleteMany(), // BLOG-PLUGIN
+		prisma.blogAuthor.deleteMany(), // BLOG-PLUGIN
+		prisma.blogTag.deleteMany(), // BLOG-PLUGIN
 		prisma.custom.deleteMany(),
 		prisma.orderStatusHistory.deleteMany(),
 		prisma.orderItem.deleteMany(),
@@ -157,6 +157,7 @@ async function main() {
 	console.log(`${PRODUCTS.length} produits créés.`);
 	// PRODUCT-PLUGIN ▲
 
+	// BLOG-PLUGIN ▼
 	const author = await prisma.blogAuthor.create({
 		data: { name: adminUser.name ?? 'Admin User' }
 	});
@@ -181,6 +182,7 @@ async function main() {
 		});
 	}
 	console.log(`${blog.length} articles de blog créés.`);
+	// BLOG-PLUGIN ▲
 
 	await prisma.promoCode.createMany({
 		data: [

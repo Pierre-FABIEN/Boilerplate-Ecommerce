@@ -11,7 +11,9 @@ dns.setDefaultResultOrder('ipv4first');
 // `e2e` et sur le puits SMTP local, jamais sur les données de développement.
 dotenv.config({ path: '.env.test', override: true });
 
-const PORT = 2000;
+// Port distinct de `npm run dev` (2000) : les e2e ne tuent plus le serveur
+// de développement. La suite garde `.env.test` (schéma `e2e`, SMTP local).
+const PORT = Number(process.env.E2E_PORT ?? 2001);
 
 export default defineConfig({
 	testDir: 'e2e',
@@ -65,9 +67,9 @@ export default defineConfig({
 		// clair sur localhost.
 		command: `npx vite dev --port ${PORT} --strictPort`,
 		port: PORT,
-		// Toujours un Vite neuf avec `.env.test` : réutiliser `npm run dev` enverrait
-		// les emails vers Brevo et écrirait dans le schéma `public`.
-		reuseExistingServer: false,
+		// En local, réutiliser un Vite déjà sur 2001 (crash / run précédent).
+		// Jamais le `npm run dev` du port 2000 : ce n'est pas `.env.test`.
+		reuseExistingServer: !process.env.CI,
 		timeout: 180_000,
 		stdout: 'pipe',
 		stderr: 'pipe',

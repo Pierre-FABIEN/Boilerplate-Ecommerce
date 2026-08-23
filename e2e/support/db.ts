@@ -149,6 +149,89 @@ export async function getProductById(id: string) {
 	return resilient(() => db.product.findUnique({ where: { id } }));
 }
 
+/** Blog : article de test isolé (auteur + catégorie dédiés). */
+export async function createBlogPost(overrides?: {
+	title?: string;
+	slug?: string;
+	published?: boolean;
+}) {
+	const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const author = await resilient(() =>
+		db.blogAuthor.create({ data: { name: `e2e-blog-author-${stamp}` } })
+	);
+	const category = await resilient(() =>
+		db.blogCategory.create({
+			data: { name: `e2e-blog-cat-${stamp}`, description: 'Catégorie de test e2e.' }
+		})
+	);
+	const post = await resilient(() =>
+		db.blogPost.create({
+			data: {
+				title: overrides?.title ?? `e2e-post-${stamp}`,
+				slug: overrides?.slug ?? `e2e-post-${stamp}`,
+				content: '<p>Contenu de test e2e pour le blog.</p>',
+				published: overrides?.published ?? true,
+				authorId: author.id,
+				categoryId: category.id
+			}
+		})
+	);
+	return { post, author, category };
+}
+
+export async function getBlogPostBySlug(slug: string) {
+	return resilient(() => db.blogPost.findUnique({ where: { slug } }));
+}
+
+export async function getBlogPostById(id: string) {
+	return resilient(() => db.blogPost.findUnique({ where: { id } }));
+}
+
+export async function setBlogPostPublished(id: string, published: boolean) {
+	return resilient(() => db.blogPost.update({ where: { id }, data: { published } }));
+}
+
+export async function updateBlogPostTitle(id: string, title: string) {
+	return resilient(() => db.blogPost.update({ where: { id }, data: { title } }));
+}
+
+export async function deleteBlogPost(postId: string) {
+	const post = await resilient(() =>
+		db.blogPost.findUnique({
+			where: { id: postId }
+		})
+	);
+	if (!post) return;
+
+	await resilient(() => db.blogPostTag.deleteMany({ where: { postId } }));
+	await resilient(() => db.blogComment.deleteMany({ where: { postId } }));
+	await resilient(() => db.blogPost.deleteMany({ where: { id: postId } }));
+
+	const remainingForAuthor = await resilient(() =>
+		db.blogPost.count({ where: { authorId: post.authorId } })
+	);
+	if (remainingForAuthor === 0) {
+		await resilient(() =>
+			db.blogAuthor.deleteMany({
+				where: { id: post.authorId, name: { startsWith: 'e2e-blog-author-' } }
+			})
+		);
+	}
+
+	if (post.categoryId) {
+		const remainingForCategory = await resilient(() =>
+			db.blogPost.count({ where: { categoryId: post.categoryId } })
+		);
+		if (remainingForCategory === 0) {
+			await resilient(() =>
+				db.blogCategory.deleteMany({
+					where: { id: post.categoryId, name: { startsWith: 'e2e-blog-cat-' } }
+				})
+			);
+		}
+	}
+}
+
 /** Relie un produit à une commande, pour vérifier le refus de suppression. */
 export async function linkProductToOrder(userId: string, productId: string) {
 	const order = await resilient(() => db.order.create({ data: { userId } }));
