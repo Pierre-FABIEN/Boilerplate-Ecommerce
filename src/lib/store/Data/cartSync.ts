@@ -1,62 +1,80 @@
 import { cart } from './cartStore';
 import { get } from 'svelte/store';
+import { storeItemsToGuest, writeGuestCart } from '$lib/commerce/guestCart';
 
 let lastSynced = 0;
-let isSyncing = false; // Verrou pour empêcher des appels multiples
+let isSyncing = false;
+let authenticated = false;
+let started = false;
 
-const syncCart = async () => {
+const persistCart = async () => {
 	const currentCart = get(cart);
 
-	// console.log('lastModified:', currentCart.lastModified);
-	// console.log('lastSynced:', lastSynced);
-
 	if (isSyncing) {
-		// console.log('Sync already in progress. Skipping this call.');
+		return;
+	}
+
+	if (!authenticated) {
+		if (lastSynced === 0) {
+			lastSynced = currentCart.lastModified;
+			return;
+		}
+		if (currentCart.lastModified > lastSynced) {
+			writeGuestCart({ items: storeItemsToGuest(currentCart.items) });
+			lastSynced = currentCart.lastModified;
+		}
+		return;
+	}
+
+	if (!currentCart.id) {
 		return;
 	}
 
 	if (lastSynced === 0) {
-		// Initialisation du verrou au premier appel
 		lastSynced = currentCart.lastModified;
-		// console.log('Initialized lastSynced to', lastSynced);
 		return;
 	}
 
 	if (currentCart.lastModified > lastSynced) {
-		isSyncing = true; // Active le verrou
-		//console.log('Synchronizing cart...');
+		isSyncing = true;
 		try {
 			const response = await fetch('/api/save-cart', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(currentCart)
+				body: JSON.stringify({ id: currentCart.id, items: currentCart.items })
 			});
 
 			if (!response.ok) {
 				throw new Error('Failed to save cart');
 			}
 
-			// Met à jour `lastSynced` uniquement après une synchronisation réussie
 			lastSynced = currentCart.lastModified;
-
-			//console.log(response, 'iiiiiiiiiiiiiiiiii');
-		} catch (error) {
-			//console.error('Failed to sync cart:', error);
+		} catch {
+			// Le prochain changement de `lastModified` retentera.
 		} finally {
-			isSyncing = false; // Libère le verrou
+			isSyncing = false;
 		}
-	} else {
-		//console.log('No sync needed. Cart is already up-to-date.');
 	}
 };
 
-const startSync = () => {
+/**
+ * COMMERCE-PLUGIN : un seul abonnement. Anonyme → localStorage.
+ * Connecté → `/api/save-cart`.
+ */
+export function startSync(options: { authenticated: boolean }) {
+	authenticated = options.authenticated;
+	if (started) {
+		return;
+	}
+	started = true;
 	cart.subscribe(() => {
-		// Appeler syncCart chaque fois que le store change
-		setTimeout(syncCart, 50);
+		setTimeout(persistCart, 50);
 	});
-};
+}
 
-export { startSync };
+export function setCartSyncAuthenticated(value: boolean) {
+	authenticated = value;
+	lastSynced = 0;
+}

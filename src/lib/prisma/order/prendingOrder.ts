@@ -1,5 +1,12 @@
+/**
+ * Accès Prisma aux commandes en cours.
+ *
+ * COMMERCE-PLUGIN : `findPendingOrder` ne voit que `PENDING`. Les prix des
+ * lignes sont toujours relus depuis `Product` — jamais ceux du JSON client.
+ */
 import { prisma } from '$lib/server';
 import cloudinary from '$lib/server/cloudinary';
+import { UnknownProductError } from '$lib/commerce/errors';
 
 export const findPendingOrder = async (userId: string) => {
 	return await prisma.order.findFirst({
@@ -56,6 +63,19 @@ export async function updateOrderItems(orderId: string, incomingItems: any[]) {
 		// Étape 3: Boucle sur chaque item entrant (upsert)
 		for (const newItem of incomingItems) {
 			const matchingExisting = existingOrderItems.find((oi) => oi.id === newItem.id);
+			const productId = newItem.product?.id ?? newItem.productId;
+			if (!productId) {
+				throw new UnknownProductError();
+			}
+			const catalogProduct = await prisma.product.findUnique({
+				where: { id: productId },
+				select: { id: true, price: true }
+			});
+			if (!catalogProduct) {
+				throw new UnknownProductError(productId);
+			}
+			const catalogPrice = catalogProduct.price;
+			const quantity = Math.max(1, Math.trunc(Number(newItem.quantity) || 1));
 
 			// Normaliser newItem.custom en tableau
 			const newCustomArray = Array.isArray(newItem.custom)
@@ -69,9 +89,9 @@ export async function updateOrderItems(orderId: string, incomingItems: any[]) {
 				await prisma.orderItem.update({
 					where: { id: matchingExisting.id },
 					data: {
-						quantity: newItem.quantity,
-						price: newItem.price,
-						productId: newItem.product?.id
+						quantity,
+						price: catalogPrice,
+						productId: catalogProduct.id
 					}
 				});
 
@@ -82,7 +102,7 @@ export async function updateOrderItems(orderId: string, incomingItems: any[]) {
 
 				if (newCustomArray.length > 0) {
 					await prisma.custom.createMany({
-						data: newCustomArray.map((c) => ({
+						data: newCustomArray.map((c: { image?: string; userMessage?: string }) => ({
 							image: c.image,
 							userMessage: c.userMessage,
 							orderItemId: matchingExisting.id
@@ -96,15 +116,15 @@ export async function updateOrderItems(orderId: string, incomingItems: any[]) {
 				const createdOrderItem = await prisma.orderItem.create({
 					data: {
 						orderId,
-						productId: newItem.product?.id,
-						quantity: newItem.quantity,
-						price: newItem.price
+						productId: catalogProduct.id,
+						quantity,
+						price: catalogPrice
 					}
 				});
 
 				if (newCustomArray.length > 0) {
 					await prisma.custom.createMany({
-						data: newCustomArray.map((c) => ({
+						data: newCustomArray.map((c: { image?: string; userMessage?: string }) => ({
 							image: c.image,
 							userMessage: c.userMessage,
 							orderItemId: createdOrderItem.id
@@ -209,6 +229,10 @@ async function maybeDeleteImageOnCloudinary(imageUrl: string) {
 /**
  * Extrait le public_id d'une URL Cloudinary.
  */
+function extractPublicId(imageUrl: string): string {
+	const file = imageUrl.split('/').pop() ?? '';
+	return file.replace(/\.[^.]+$/, '');
+}
 
 export async function updateOrder(
 	orderId: string,
@@ -273,7 +297,8 @@ export async function getOrderById(orderId: string) {
 		include: {
 			items: {
 				include: {
-					product: true
+					product: true,
+					custom: true
 				}
 			}
 		}

@@ -23,6 +23,8 @@ npm run dev
 | Retirer l'administration     | [docs/admin/retrait.md](./docs/admin/retrait.md)    |
 | Catalogue produits           | [docs/products/README.md](./docs/products/README.md) |
 | Retirer le catalogue         | [docs/products/retrait.md](./docs/products/retrait.md) |
+| Commerce                     | [docs/commerce/README.md](./docs/commerce/README.md) |
+| Retirer le commerce          | [docs/commerce/retrait.md](./docs/commerce/retrait.md) |
 | Tests end-to-end            | [e2e/README.md](./e2e/README.md)                    |
 
 ## Structure
@@ -31,6 +33,7 @@ npm run dev
 src/lib/lucia/        module d'authentification (retirable, voir docs/auth)
 src/lib/admin/        gardes du back-office (retirable, voir docs/admin)
 src/lib/products/     lecture publique du catalogue (retirable, voir docs/products)
+src/lib/commerce/     panier / checkout (retirable, voir docs/commerce)
 src/lib/prisma/       accès aux données, un dossier par domaine
 src/lib/components/   composants partagés, dont shadcn-svelte
 src/lib/server/       utilitaires serveur (Stripe, Cloudinary, quotas de débit)
@@ -45,7 +48,7 @@ e2e/                  parcours Playwright
 ```bash
 npm run dev                 # serveur de développement
 npm run build               # build de production
-npm run test:e2e            # parcours Playwright (auth + admin + produits)
+npm run test:e2e            # parcours Playwright (auth + admin + produits + commerce)
 npm run check               # vérification des types
 npm run db:studio           # explorateur de base de données
 ```

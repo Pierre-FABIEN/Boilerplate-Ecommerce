@@ -9,6 +9,7 @@ import {
 	sessionCookie,
 	setUpTotp,
 	signOut,
+	signOutFromCart,
 	submitCode,
 	validSetupCode,
 	waitForPath,
@@ -23,6 +24,7 @@ import {
 	occupyEmail,
 	requireUser
 } from '../support/db';
+import { signUpAndVerify } from '../support/admin';
 
 /**
  * Parcours d'authentification complet en une seule session, pour produire une
@@ -411,5 +413,20 @@ test.describe('Parcours complet', () => {
 		// L'adresse a changé en cours de route : la fixture ne nettoierait que
 		// l'adresse d'origine.
 		await deleteUser(currentEmail);
+	});
+
+	test('déconnexion depuis le panier', async ({ page, account }) => {
+		test.setTimeout(6 * 60_000);
+
+		await signUpAndVerify(page, account);
+		expect(await sessionCookie(page)).not.toBeNull();
+		expect(await countSessions(account.email)).toBe(1);
+
+		await signOutFromCart(page);
+
+		expect(await sessionCookie(page)).toBeNull();
+		expect(await countSessions(account.email)).toBe(0);
+		await page.goto('/auth/settings');
+		await waitForPath(page, '/auth/login');
 	});
 });

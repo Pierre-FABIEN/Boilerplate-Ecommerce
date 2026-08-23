@@ -1,3 +1,4 @@
+/** COMMERCE-PLUGIN : liste brute pour `/admin/sales`. */
 import { prisma } from '$lib/server';
 export const getAllTransactions = async () => {
 	try {

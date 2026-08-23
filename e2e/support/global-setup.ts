@@ -26,13 +26,21 @@ async function withRetry<T>(operation: () => Promise<T>, attempts = 5): Promise<
 }
 
 export default async function globalSetup() {
-	execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
-		env: {
-			...process.env,
-			DATABASE_URL: process.env.DATABASE_URL,
-			DIRECT_URL: process.env.DIRECT_URL
-		},
-		stdio: 'pipe'
+	// Réveille le compute Neon via le pooler (DATABASE_URL) avant migrate,
+	// qui parle au host direct (DIRECT_URL) et échoue à froid.
+	await withRetry(() => db.$queryRawUnsafe('SELECT 1'));
+
+	const nodeOptions = `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`.trim();
+	await withRetry(async () => {
+		execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
+			env: {
+				...process.env,
+				NODE_OPTIONS: nodeOptions,
+				DATABASE_URL: process.env.DATABASE_URL,
+				DIRECT_URL: process.env.DIRECT_URL
+			},
+			stdio: 'pipe'
+		});
 	});
 
 	// Neon met la base en veille après inactivité : la première connexion peut
@@ -45,11 +53,13 @@ export default async function globalSetup() {
 	);
 	if (stale.length > 0) {
 		const ids = stale.map((u) => u.id);
-		// Les paniers bloquent la suppression des comptes (`Order → User` en Restrict).
+		await db.transaction.deleteMany({ where: { userId: { in: ids } } });
 		await db.order.deleteMany({ where: { userId: { in: ids } } });
 		await db.user.deleteMany({ where: { id: { in: ids } } });
 		console.log(`[e2e] ${stale.length} compte(s) résiduel(s) purgé(s).`);
 	}
+
+	await db.transaction.deleteMany({ where: { stripePaymentId: { startsWith: 'e2e-' } } });
 
 	const staleProducts = await withRetry(() =>
 		db.product.findMany({

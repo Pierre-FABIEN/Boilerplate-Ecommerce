@@ -93,7 +93,7 @@
 				<Options />
 			</div>
 			<div>
-				<Cart {data} />
+				<Cart {data} /> <!-- COMMERCE-PLUGIN -->
 			</div>
 		</div>
 	</nav>

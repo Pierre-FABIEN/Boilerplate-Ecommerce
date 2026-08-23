@@ -17,9 +17,7 @@
 	import * as Sheet from '$shadcn/sheet/index.js';
 	import { Trash, ShoppingCart } from 'lucide-svelte';
 	import Input from '../shadcn/ui/input/input.svelte';
-	import { toast } from 'svelte-sonner';
-
-	import { goto, invalidateAll } from '$app/navigation';
+	import { enhance, type SubmitFunction } from '$app/forms';
 
 	/*  👉 le store 'mode'  */
 	import { mode as modeStore } from 'mode-watcher';
@@ -50,14 +48,16 @@
 	------------------------------------------------------------------ */
 	let { data } = $props();
 
-	let user = $state<typeof data.user | null>(null);
+	let user = $derived(data.user ?? null);
 	let sidebarOpen = $state(false);
 
 	/*  Valeur dérivée et réactive du store mode  */
 	let currentMode = $derived(modeStore); // ✅ pas de $
 
 	/*  true si aucune personnalisation dans le panier  */
-	let isNativeOrder = $state(false);
+	let isNativeOrder = $derived(
+		$cart.items.every((i) => !i.custom || (Array.isArray(i.custom) && i.custom.length === 0))
+	);
 
 	/*  Options de quantité (simplifiées) */
 	let quantityOptions = $state([24, 48, 72]);
@@ -87,17 +87,6 @@
 	}
 
 	/* ------------------------------------------------------------------
-	   RÉACTIONS
-	------------------------------------------------------------------ */
-	$effect(() => {
-		user = data?.user ?? null;
-	});
-
-	$effect(() => {
-		isNativeOrder = $cart.items.every((i) => !i.custom || (Array.isArray(i.custom) && i.custom.length === 0));
-	});
-
-	/* ------------------------------------------------------------------
 	   ACTIONS
 	------------------------------------------------------------------ */
 	function handleRemoveFromCart(id: string, customId?: string) {
@@ -111,24 +100,17 @@
 	/**
 	 * Déconnexion depuis le panier.
 	 *
-	 * AUTH-PLUGIN : à supprimer avec le module. `invalidateAll()` force le
-	 * rechargement des données de layout pour que l'interface repasse en état
-	 * anonyme, et le panier local est vidé car il appartenait au compte.
+	 * AUTH-PLUGIN : POST vers l'action `?/signout` de `/auth` (formulaire, pas
+	 * `fetch`) pour que la protection CSRF de SvelteKit laisse passer la requête.
+	 * Le panier local est vidé avant la redirection vers `/auth/login`.
 	 */
-	async function handleSignOut() {
-		const res = await fetch('/auth/signout', { method: 'POST' });
-		if (!res.ok) {
-			toast.error('Échec de la déconnexion');
-			return;
-		}
-
-		resetCart();
-		user = null;
-		await invalidateAll();
-		sidebarOpen = false;
-		toast.success('Vous avez été déconnecté.');
-		goto('/');
-	}
+	const enhanceSignOut: SubmitFunction = () => {
+		return async ({ update }) => {
+			resetCart();
+			sidebarOpen = false;
+			await update();
+		};
+	};
 </script>
 
 <!-- ----------------------------------------------------------------- -->
@@ -271,6 +253,7 @@
 						-->
 						{#if user}
 							<div class="ccc">
+								<!-- COMMERCE-PLUGIN -->
 								<Button class="w-full m-2" href="/checkout" onclick={() => (sidebarOpen = false)}>
 									Checkout
 								</Button>
@@ -283,16 +266,18 @@
 								</Button>
 
 								<!-- ADMIN-PLUGIN ▼ lien vers le back-office, visible aux seuls administrateurs. -->
-								{#if data.user.role === 'ADMIN'}
+								{#if user.role === 'ADMIN'}
 									<Button class="w-full m-2" href="/admin" onclick={() => (sidebarOpen = false)}>
 										Dashboard
 									</Button>
 								{/if}
 								<!-- ADMIN-PLUGIN ▲ -->
 
-								<Button class="w-full m-2" variant="destructive" onclick={handleSignOut}>
-									Se déconnecter
-								</Button>
+								<form method="POST" action="/auth?/signout" use:enhance={enhanceSignOut}>
+									<Button type="submit" class="w-full m-2" variant="destructive">
+										Se déconnecter
+									</Button>
+								</form>
 							</div>
 						{:else}
 							<div class="text-center mt-4">

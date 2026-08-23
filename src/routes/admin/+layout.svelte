@@ -14,7 +14,7 @@
 				title: 'Dashboard',
 				items: [
 					{ title: 'Accueil', url: '/admin' },
-					{ title: 'ventes', url: '/admin/sales' },
+					{ title: 'ventes', url: '/admin/sales' }, // COMMERCE-PLUGIN
 					{ title: 'utilisateurs', url: '/admin/users' },
 					{ title: 'produits', url: '/admin/products' }, // PRODUCT-PLUGIN
 					{ title: 'blog', url: '/admin/blog' },

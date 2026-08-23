@@ -1,4 +1,5 @@
 import type { LayoutServerLoad } from './$types';
+import { toPublicCart } from '$lib/commerce/cart';
 
 /**
  * Données partagées par toutes les pages.
@@ -24,11 +25,13 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 					isMfaEnabled: locals.user.isMfaEnabled,
 					registered2FA: locals.user.registered2FA
 				}
-			: null
+			: null,
 		// AUTH-PLUGIN ▲
 
-		// Panier serveur : décommenter pour hydrater le panier client depuis la
-		// commande en cours et activer la synchronisation (`+layout.svelte`).
-		// pendingOrder: locals.pendingOrder
+		// COMMERCE-PLUGIN ▼ hydratation du panier client depuis la commande PENDING.
+		pendingOrder: locals.pendingOrder
+			? toPublicCart(locals.pendingOrder as Parameters<typeof toPublicCart>[0])
+			: null
+		// COMMERCE-PLUGIN ▲
 	};
 };

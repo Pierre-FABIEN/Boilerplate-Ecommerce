@@ -28,8 +28,8 @@ rg "PRODUCT-PLUGIN" src/ prisma/
 ```
 
 Le catalogue n'est **pas** le tunnel de commande. Panier, checkout, Stripe et
-Sendcloud relèvent d'un futur module commerce. Un bouton « ajouter au panier »
-n'existe volontairement pas sur la fiche.
+Sendcloud relèvent du module commerce : [docs/commerce](../commerce/README.md).
+Le bouton « Ajouter au panier » sur la fiche est un accrochage COMMERCE.
 
 ## Vitrine
 
@@ -54,8 +54,33 @@ raison de fusionner les deux modules.
 
 ## Tests
 
-- `e2e/products/catalog.spec.ts` : liste publique, fiche, 404
-- `e2e/products/admin.spec.ts` : CRUD admin, contrainte FK, CLIENT ne mute pas
+Les numéros sont ceux des `test.step`. Changer la procédure ici, puis le spec,
+puis le code (`src/lib/products`, `/products`, `/admin/products`). Index :
+[../../e2e/README.md](../../e2e/README.md).
+
+### Vitrine — `e2e/products/catalog.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste affiche le nom Prisma | GET `/products` | titres + lien catégorie |
+| 2 | La fiche s’ouvre par slug | GET `/products/[slug]` | nom, prix, ligne en base |
+| 3 | Un slug inconnu renvoie 404 | GET slug absent | statut 404 |
+| 4 | Pas d’UI d’édition admin | HTML de `/products` | pas de `/admin/products` ni `passwordHash` |
+
+### Admin — `e2e/products/admin.spec.ts`
+
+Création UI Cloudinary **non** jouée (`.env.test` sans upload). Les produits
+sont créés en Prisma (`createCatalogProduct`), le reste passe par l'UI.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Liste admin | GET `/admin/products`, recherche | ligne du tableau Produits |
+| 2 | Création Prisma visible sur la vitrine | GET `/products` | heading + base |
+| 3 | Édition prix et stock | fiche → 9,99 / 7 → Save | DB + « 9.99 € » / « Stock : 7 » |
+| 4 | Suppression sans commande | dialogue Continue | produit absent en base |
+| 5 | Produit commandé : suppression refusée | même geste si `OrderItem` | produit **encore** en base |
+
+À part : CLIENT POST `?/deleteProduct` — le produit reste.
 
 ```bash
 npm run test:e2e

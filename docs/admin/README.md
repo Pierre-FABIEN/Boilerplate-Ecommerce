@@ -79,18 +79,42 @@ Les listes d'utilisateurs n'exposent jamais `passwordHash`, `totpKey` ni
 
 L'authentification (`/auth`, sessions, 2FA) et le tunnel de commande
 (`/checkout`) sont des modules distincts. Le catalogue public (`/products`)
-est documenté à part : [docs/products](../products/README.md). Un administrateur
+est documenté à part : [docs/products](../products/README.md). Les ventes
+(`/admin/sales`) sont la surface admin du commerce :
+[docs/commerce](../commerce/README.md). Un administrateur
 qui n'a pas validé sa 2FA est d'abord renvoyé vers `/auth/2fa` par `authHandle`,
 avant même d'atteindre `/admin`.
 
 ## Tests
 
-- `e2e/admin/security.spec.ts` : anonyme et CLIENT refusés partout (GET et POST)
-- `e2e/admin/users.spec.ts` : CRUD des comptes, absence de fuites dans le HTML
-- `e2e/products/admin.spec.ts` : CRUD catalogue (voir [docs/products](../products/README.md))
+Les numéros sont ceux des `test.step`. Changer la procédure ici, puis le spec,
+puis le code. Index commun : [../../e2e/README.md](../../e2e/README.md).
 
-Le CRUD blog / promo / ventes / contacts n'est pas encore couvert ; voir
-`e2e/README.md`.
+### Accès — `e2e/admin/security.spec.ts`
+
+Routes : `ADMIN_PATHS` dans `e2e/support/admin.ts`.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Anonyme renvoyé à la connexion | GET chaque path | `/auth/login` |
+| 2 | CLIENT renvoyé à l’accueil | inscription + GET | `/` |
+| 3 | CLIENT ne mute pas | POST `?/deleteUser`, `?/deletePromo` | lignes encore en base |
+| 4 | ADMIN entre | `promoteToAdmin` + GET `/admin`, `/admin/users` | titres visibles |
+
+### Utilisateurs — `e2e/admin/users.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Liste sans secret | recherche emails | 3 cellules ; pas de hash / totp / recovery |
+| 2 | Promotion CLIENT → ADMIN | fiche → ADMIN → Save | `role` en base |
+| 3 | Rôle hors enum refusé | POST `SUPERUSER` | reste `CLIENT` |
+| 4 | MFA depuis la fiche | checkbox + Save | `isMfaEnabled` |
+| 5 | Suppression d’un CLIENT | dialogue Continue | disparu UI + base |
+
+À part : CLIENT GET `/admin/users/:id` d'un autre compte → `/`.
+
+Catalogue admin : [docs/products](../products/README.md). Ventes :
+[docs/commerce](../commerce/README.md). Blog / promo / contacts : pas encore.
 
 ```bash
 npm run test:e2e

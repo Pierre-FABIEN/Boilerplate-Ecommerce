@@ -1,9 +1,27 @@
 <script lang="ts">
+	import { addToCart } from '$lib/store/Data/cartStore';
+	import Button from '$shadcn/button/button.svelte';
+
 	let { data } = $props();
 	let product = $derived(data.product);
 	let categoryNames = $derived(
 		product.categories.map((link) => link.category.name).filter(Boolean)
 	);
+
+	function handleAddToCart() {
+		addToCart({
+			id: crypto.randomUUID(),
+			product: {
+				id: product.id,
+				name: product.name,
+				price: product.price,
+				images: product.images[0] ?? '',
+				stock: product.stock
+			},
+			quantity: 1,
+			price: product.price
+		});
+	}
 </script>
 
 <article class="product">
@@ -22,6 +40,8 @@
 			<p class="price">{product.price.toFixed(2)} €</p>
 			<p class="stock">Stock : {product.stock}</p>
 			<p class="description">{product.description}</p>
+			<!-- COMMERCE-PLUGIN : entrée du tunnel depuis le catalogue. -->
+			<Button type="button" onclick={handleAddToCart}>Ajouter au panier</Button>
 		</div>
 	</div>
 </article>

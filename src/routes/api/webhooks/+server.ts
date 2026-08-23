@@ -5,7 +5,15 @@ import dotenv from 'dotenv';
 import { getUserIdByOrderId } from '$lib/prisma/order/prendingOrder';
 import { createSendcloudOrder } from '$lib/sendcloud/order';
 import { createSendcloudLabel } from '$lib/sendcloud/label';
-import { resetCart } from '$lib/store/Data/cartStore';
+
+/**
+ * Webhook Stripe.
+ *
+ * COMMERCE-PLUGIN : crée la `Transaction` et passe la commande en `PAID`.
+ * SENDCLOUD : order + label après paiement — hors périmètre de ce lot, conservé.
+ * Le store panier client n'est pas réinitialisé ici (no-op hors navigateur) :
+ * `/checkout/success` s'en charge.
+ */
 
 dotenv.config();
 
@@ -70,7 +78,7 @@ async function getShippingMethodData(shippingOption: string, weightBracket: numb
 		let matchingMethod = null;
 		if (methodsData.shipping_methods && Array.isArray(methodsData.shipping_methods)) {
 			// Log de quelques méthodes pour debug
-			console.log('📋 Exemples de méthodes disponibles:', methodsData.shipping_methods.slice(0, 3).map(m => ({
+			console.log('📋 Exemples de méthodes disponibles:', methodsData.shipping_methods.slice(0, 3).map((m: { id?: unknown; name?: unknown; carrier?: unknown }) => ({
 				id: m.id,
 				name: m.name,
 				carrier: m.carrier
@@ -410,6 +418,11 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				data: transactionData
 			});
 
+			await prismaTx.order.update({
+				where: { id: orderId },
+				data: { status: 'PAID' }
+			});
+
 			console.log('✅ Transaction créée avec succès:', {
 				id: newTx.id,
 				stripePaymentId: newTx.stripePaymentId,
@@ -446,14 +459,6 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 			console.log('✅ Étiquette Sendcloud créée avec succès');
 		} catch (error) {
 			console.error('❌ Erreur lors de la création de l\'étiquette Sendcloud:', error);
-		}
-
-		try {
-			console.log('🛒 Réinitialisation du panier...');
-			resetCart();
-			console.log('✅ Panier réinitialisé');
-		} catch (error) {
-			console.error('❌ Erreur lors de la réinitialisation du panier:', error);
 		}
 	} else {
 		console.log('⚠️ Statut de paiement non "paid", pas d\'appel Sendcloud. Statut:', createdTransaction?.status);

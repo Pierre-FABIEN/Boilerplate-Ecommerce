@@ -165,6 +165,7 @@ model Address {
   @@map("addresses")
 }
 
+// COMMERCE-PLUGIN : commande PENDING (panier) puis PAID après webhook Stripe.
 model Order {
   id             String      @id @default(cuid())
   userId         String
@@ -215,8 +216,9 @@ model OrderItem {
   updatedAt DateTime @updatedAt
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  // PRODUCT-PLUGIN / COMMERCE : Restrict — un produit déjà commandé ne doit
-  // pas pouvoir détruire l'historique de vente.
+  // PRODUCT-PLUGIN / COMMERCE-PLUGIN : Restrict — un produit déjà commandé ne
+  // doit pas pouvoir détruire l'historique de vente. OrderItem.productId est
+  // le couplage catalogue → tunnel.
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
@@ -267,6 +269,7 @@ model Custom {
   @@map("customizations")
 }
 
+// COMMERCE-PLUGIN : écriture permanente après paiement. Surface admin `/admin/sales`.
 model Transaction {
   id              String  @id @default(cuid())
   stripePaymentId String  @unique

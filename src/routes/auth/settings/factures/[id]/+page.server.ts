@@ -1,21 +1,26 @@
 import type { PageServerLoad } from './$types';
-import { getTransactionById } from '$lib/prisma/transaction/getTransactionById';
+import { error, redirect } from '@sveltejs/kit';
+import { getTransactionByIdForUser } from '$lib/prisma/transaction/getTransactionById';
 
-export const load = (async ({ params }) => {
-	// Récupérer l'ID depuis l'URL
-	const transactionId = params.id;
-
-	// Vérifier si l'ID est valide
-	if (!transactionId) {
-		throw new Error('Transaction ID is missing');
+/**
+ * Facture du compte.
+ *
+ * COMMERCE-PLUGIN / AUTH-PLUGIN : uniquement la transaction du visiteur connecté.
+ */
+export const load = (async ({ params, locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		throw redirect(302, '/auth/login');
 	}
 
-	// Récupérer la transaction
-	const transaction = await getTransactionById(transactionId);
+	const transactionId = params.id;
+	if (!transactionId) {
+		error(400, 'Transaction ID is missing');
+	}
 
-	// Vérifier si la transaction existe
+	const transaction = await getTransactionByIdForUser(transactionId, userId);
 	if (!transaction) {
-		throw new Error(`No transaction found for ID: ${transactionId}`);
+		error(404, 'Facture introuvable');
 	}
 
 	return {

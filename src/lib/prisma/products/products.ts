@@ -4,8 +4,8 @@ import { prisma } from '$lib/server';
  * Accès Prisma aux produits.
  *
  * PRODUCT-PLUGIN : ces fonctions alimentent la vitrine (`src/lib/products`) et
- * le CRUD admin. Ne pas les appeler depuis le panier ou le checkout sans
- * marqueur COMMERCE : le prix affiché ici n'est pas encore revalidé à l'achat.
+ * le CRUD admin. COMMERCE-PLUGIN : le prix catalogue est relui à l'écriture
+ * du panier (`updateOrderItems`).
  */
 
 /** Un produit déjà commandé ne peut pas être effacé : l'historique de vente reste. */

@@ -20,7 +20,7 @@ declare global {
 			registered2FA: boolean;
 			// AUTH-PLUGIN ▲
 
-			/** Commande en cours du visiteur connecté (panier serveur). */
+			/** Commande en cours du visiteur connecté (panier serveur). COMMERCE-PLUGIN */
 			pendingOrder: import('@prisma/client').Order | null;
 		}
 		// interface PageData {}

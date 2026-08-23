@@ -111,6 +111,15 @@ export async function signOut(page: Page) {
 	await waitForPath(page, '/auth/login');
 }
 
+/** Se déconnecte depuis le tiroir panier (pas le formulaire de `/auth`). */
+export async function signOutFromCart(page: Page) {
+	await page.goto('/');
+	await page.locator('.cartButton button').first().click();
+	await expect(page.getByRole('heading', { name: 'Votre panier' })).toBeVisible();
+	await page.getByRole('button', { name: 'Se déconnecter' }).click();
+	await waitForPath(page, '/auth/login');
+}
+
 /**
  * Configure la 2FA sur la page `/auth/2fa/setup`.
  *

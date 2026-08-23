@@ -93,8 +93,8 @@ async function truncate() {
 		prisma.custom.deleteMany(),
 		prisma.orderStatusHistory.deleteMany(),
 		prisma.orderItem.deleteMany(),
-		prisma.transaction.deleteMany(),
-		prisma.order.deleteMany(),
+		prisma.transaction.deleteMany(), // COMMERCE-PLUGIN
+		prisma.order.deleteMany(), // COMMERCE-PLUGIN
 		prisma.address.deleteMany(),
 		prisma.productCategory.deleteMany(),
 		prisma.product.deleteMany(),

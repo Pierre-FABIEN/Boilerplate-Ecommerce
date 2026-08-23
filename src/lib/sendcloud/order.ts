@@ -1,3 +1,5 @@
+// SENDCLOUD : création de commande après paiement. COMMERCE-PLUGIN y fait appel
+// depuis le webhook ; retirer Sendcloud n'empêche pas d'enregistrer la Transaction.
 // $lib/sendcloud/order-v3.ts
 import dotenv from 'dotenv';
 dotenv.config();

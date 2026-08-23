@@ -201,10 +201,119 @@ export async function countSessions(email: string): Promise<number> {
  * page, et la relation `Order → User` est en `Restrict`. Le reste (sessions,
  * demandes de vérification, sessions de réinitialisation) part en cascade.
  */
+export async function getPendingOrder(userId: string) {
+	return resilient(() =>
+		db.order.findFirst({
+			where: { userId, status: 'PENDING' },
+			include: { items: true }
+		})
+	);
+}
+
+export async function getOrderById(orderId: string) {
+	return resilient(() =>
+		db.order.findUnique({
+			where: { id: orderId },
+			include: { items: true }
+		})
+	);
+}
+
+export async function createUserAddress(userId: string) {
+	return resilient(() =>
+		db.address.create({
+			data: {
+				userId,
+				first_name: 'E2e',
+				last_name: 'Tester',
+				phone: '+33600000000',
+				street_number: '1',
+				street: 'Rue des Tests',
+				city: 'Toulouse',
+				county: 'Haute-Garonne',
+				state: 'Occitanie',
+				stateLetter: 'FR',
+				state_code: 'OC',
+				zip: '31000',
+				country: 'France',
+				country_code: 'FR',
+				ISO_3166_1_alpha_3: 'FRA',
+				type: 'SHIPPING'
+			}
+		})
+	);
+}
+
+/** Paiement simulé : Transaction + Order PAID, sans Stripe. */
+export async function simulatePaidOrder(orderId: string, userId: string, email: string) {
+	const stamp = `${Date.now()}`;
+	const transaction = await resilient(() =>
+		db.transaction.create({
+			data: {
+				stripePaymentId: `e2e-stripe-${stamp}`,
+				orderId,
+				userId,
+				amount: 12.5,
+				currency: 'eur',
+				customer_details_email: email,
+				customer_details_name: 'E2e Tester',
+				status: 'paid',
+				shippingOption: 'no_shipping',
+				shippingCost: 0,
+				shippingMethodId: 0,
+				shippingMethodName: 'e2e',
+				package_length: 10,
+				package_width: 10,
+				package_height: 10,
+				package_dimension_unit: 'cm',
+				package_weight: 1,
+				package_weight_unit: 'kg',
+				package_volume: 1000,
+				package_volume_unit: 'cm3',
+				address_first_name: 'E2e',
+				address_last_name: 'Tester',
+				address_phone: '+33600000000',
+				address_street_number: '1',
+				address_street: 'Rue des Tests',
+				address_city: 'Toulouse',
+				address_county: 'Haute-Garonne',
+				address_state: 'Occitanie',
+				address_stateLetter: 'FR',
+				address_state_code: 'OC',
+				address_zip: '31000',
+				address_country: 'France',
+				address_country_code: 'FR',
+				address_ISO_3166_1_alpha_3: 'FRA',
+				address_type: 'SHIPPING',
+				products: []
+			}
+		})
+	);
+	await resilient(() => db.order.update({ where: { id: orderId }, data: { status: 'PAID' } }));
+	return transaction;
+}
+
+export async function getTransactionById(id: string) {
+	return resilient(() => db.transaction.findUnique({ where: { id } }));
+}
+
+export async function deleteTransaction(id: string) {
+	await resilient(() => db.transaction.deleteMany({ where: { id } }));
+}
+
+/**
+ * Nettoyage en fin de test.
+ *
+ * Les commandes doivent partir en premier : l'application crée un panier
+ * (commande au statut PENDING) dès qu'un utilisateur authentifié charge une
+ * page, et la relation `Order → User` est en `Restrict`. Le reste (sessions,
+ * demandes de vérification, sessions de réinitialisation) part en cascade.
+ */
 export async function deleteUser(email: string) {
 	const user = await getUser(email);
 	if (!user) return;
 
+	await resilient(() => db.transaction.deleteMany({ where: { userId: user.id } }));
 	await resilient(() => db.order.deleteMany({ where: { userId: user.id } }));
 	await resilient(() => db.user.delete({ where: { id: user.id } }));
 }

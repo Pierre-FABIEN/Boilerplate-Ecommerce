@@ -1,26 +1,40 @@
-import { updateOrderItems } from '$lib/prisma/order/prendingOrder';
-import { json } from '@sveltejs/kit';
+/**
+ * Persistance du panier.
+ *
+ * COMMERCE-PLUGIN : authentifié, propriétaire de la commande PENDING, prix
+ * relus depuis le catalogue. Sans ça, n'importe qui qui connaît un `orderId`
+ * réécrit le panier d'un autre compte.
+ */
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { saveCartForUser } from '$lib/commerce/cart';
+import { CartForbiddenError, UnknownProductError } from '$lib/commerce/errors';
 
-export const POST = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		error(401, 'Unauthorized');
+	}
+
 	try {
-		const { id, items } = await request.json();
+		const body = await request.json();
+		const orderId = body?.id as string | undefined;
+		const items = Array.isArray(body?.items) ? body.items : null;
 
-		// Validation de l'ID
-		if (!id) {
-			console.error('Error updating order: Order ID is missing');
+		if (!orderId || !items) {
 			return json({ error: 'Order ID is missing' }, { status: 400 });
 		}
 
-		// console.log('Updating order:', id);
-		// console.log('New items:', items);
-
-		const updatedOrder = await updateOrderItems(id, items);
-
-		return new Response(JSON.stringify(updatedOrder), {
-			status: 200
-		});
-	} catch (error) {
-		console.error('Error updating order:', error);
-		return new Response(JSON.stringify({ error: 'Failed to update order items' }), { status: 500 });
+		const updatedOrder = await saveCartForUser(userId, orderId, items);
+		return json(updatedOrder);
+	} catch (err) {
+		if (err instanceof CartForbiddenError) {
+			error(403, err.message);
+		}
+		if (err instanceof UnknownProductError) {
+			return json({ error: err.message }, { status: 400 });
+		}
+		console.error('Error updating order:', err);
+		return json({ error: 'Failed to update order items' }, { status: 500 });
 	}
 };

@@ -7,7 +7,7 @@ export const sitemapConfig = {
 	excludedRoutes: [
 		'/auth', // AUTH-PLUGIN : à retirer si le module d'authentification disparaît
 		'/admin', // ADMIN-PLUGIN : à retirer si le module d'administration disparaît
-		'/checkout',
+		'/checkout', // COMMERCE-PLUGIN
 		'/sitemap.xml',
 		'/api',
 		'/+page.svelte' // Fichier technique

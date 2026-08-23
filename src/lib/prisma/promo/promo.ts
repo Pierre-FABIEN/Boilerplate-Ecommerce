@@ -1,3 +1,8 @@
+/**
+ * Codes promo.
+ *
+ * PROMO-PLUGIN : hors COMMERCE. `validatePromo` est encore appelé au checkout.
+ */
 import { prisma } from '$lib/server';
 import type { PromoType } from '@prisma/client';
 

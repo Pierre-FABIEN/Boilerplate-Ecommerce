@@ -1,4 +1,5 @@
 <script lang="ts">
+	// COMMERCE-PLUGIN : UI du tunnel. SENDCLOUD = carte / options. PROMO = champ code.
 	import maplibregl from 'maplibre-gl';
 
 	import * as Card from '$shadcn/card/index.js';

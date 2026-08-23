@@ -1,4 +1,5 @@
 <script lang="ts">
+	// PROMO-PLUGIN : hors COMMERCE. Conservé pour que le checkout compile.
 	import * as Card from '$shadcn/card/index.js';
 	import { Input } from '$shadcn/input';
 	import { Button } from '$shadcn/button';

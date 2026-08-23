@@ -1,12 +1,13 @@
 # Tests end-to-end
 
-La suite Playwright couvre trois domaines, exécutés en séquence (un seul worker) :
+La suite Playwright couvre quatre domaines, exécutés en séquence (un seul worker) :
 
 - authentification : un parcours unique, `e2e/auth/journey.spec.ts` ;
 - administration : accès (`e2e/admin/security.spec.ts`) et CRUD des comptes
   (`e2e/admin/users.spec.ts`) ;
 - catalogue : vitrine (`e2e/products/catalog.spec.ts`) et CRUD admin produits
-  (`e2e/products/admin.spec.ts`).
+  (`e2e/products/admin.spec.ts`) ;
+- commerce : panier (connecté + invité), checkout, ventes (`e2e/commerce/*.spec.ts`).
 
 ## Authentification
 
@@ -64,39 +65,129 @@ Le serveur compile chaque route à la première visite, ce qui explique la
 première étape particulièrement lente — une cinquantaine de secondes pour neuf
 pages jamais visitées. Ce n'est pas un blocage.
 
-## Ce qui est vérifié, étape par étape
+## Procédures — ce que font les tests
+
+Les titres numérotés sont ceux des `test.step(...)` dans les specs. Pour changer
+ce qui est testé : modifier cette liste, le `test.step` du même numéro, puis le
+code métier. Les copies par module sont dans `docs/auth`, `docs/admin` et
+`docs/products`.
 
 Chaque étape joue d'abord les cas refusés, puis le cas accepté. Un refus est
-confirmé à la fois par l'interface et par l'état en base : un message d'erreur
-affiché alors que la donnée a changé quand même ne peut pas passer inaperçu.
+confirmé par l'interface **et** par l'état en base.
 
-| Étape     | Cas refusés vérifiés                                                     | Cas accepté                                   |
-| --------- | ------------------------------------------------------------------------ | --------------------------------------------- |
-| 1         | 9 pages protégées visitées anonymement                                   | redirection vers connexion / mot de passe oublié |
-| 2–3       | pseudo trop court, adresse mal formée, 5 règles de mot de passe          | compte créé, non vérifié, mot de passe haché  |
-| 4–5       | code trop court, code inexistant, code périmé par un renvoi              | adresse vérifiée                              |
-| 6–7       | nouveau mot de passe trop court, mot de passe courant erroné            | mot de passe changé, sessions révoquées       |
-| 8–9       | compte inconnu, ancien mot de passe, mot de passe erroné                | connexion avec le nouveau mot de passe        |
-| 10–11     | adresse déjà utilisée, adresse inchangée avant saisie du code            | adresse migrée après validation du code       |
-| 12–13     | adresse inconnue, code erroné, accès direct au formulaire, mot de passe faible | mot de passe réinitialisé               |
-| 14–15     | code TOTP trop court, code TOTP erroné                                   | 2FA configurée, code de secours délivré       |
-| 16        | code TOTP erroné, page du compte visitée sans second facteur validé      | session promue après saisie du code           |
-| 17        | code de secours trop court, code de secours erroné                       | 2FA retirée, code de secours renouvelé        |
-| 18        | code TOTP calculé sur une clé de configuration périmée                    | 2FA reconfigurée, déconnexion complète        |
+### Auth — `e2e/auth/journey.spec.ts`
 
-## Administration
+Un seul scénario continu (les états s'enchaînent).
 
-`e2e/admin/security.spec.ts` vérifie que `/admin` est fermé : un visiteur
-anonyme est renvoyé à la connexion, un `CLIENT` à l'accueil, y compris pour les
-POST (`?/deleteUser`, `?/deletePromo`). Un `ADMIN` atteint le tableau de bord
-et la liste des comptes.
+| # | Étape | Refusé | Accepté |
+| - | ----- | ------ | ------- |
+| 1 | Les pages protégées sont fermées aux visiteurs anonymes | 9 routes `GUARDED_PAGES` | redirection login / mot de passe oublié |
+| 2 | Inscription : les saisies invalides sont refusées | pseudo court, email HTML, 5 règles MDP | reste sur `/auth/signup`, pas de session |
+| 3 | Inscription : le compte est créé, non vérifié | — | session, `emailVerified=false`, hash argon |
+| 4 | Vérification de l'adresse : les codes invalides sont rejetés | code trop court, code inexistant | `emailVerified` reste faux |
+| 5 | Vérification de l'adresse : un renvoi invalide le code précédent | ancien code après « Renvoyer » | nouveau code → `/auth`, vérifié |
+| 6 | Mot de passe : un mot de passe courant erroné ne change rien | MDP trop court, courant faux | hash inchangé |
+| 7 | Mot de passe : le changement révoque les autres sessions | — | 1 session, cookie conservé |
+| 8 | Connexion : les identifiants erronés sont refusés | compte inconnu, ancien MDP, MDP faux | pas de cookie |
+| 9 | Connexion : le nouveau mot de passe est accepté | — | redirection `/` |
+| 10 | Changement d'email : une adresse déjà prise est refusée | email occupé | email du compte inchangé |
+| 11 | Changement d'email : effectif après validation du code | avant le code, email encore l'ancien | code reçu sur la **nouvelle** adresse |
+| 12 | Mot de passe oublié : demande et code invalides | email inconnu, code faux, GET `/reset-password` | reste sur verify-email |
+| 13 | Mot de passe oublié : réinitialisation avec le bon code | MDP trop court | 1 session, `/auth` |
+| 14 | 2FA : un code de configuration invalide n’enregistre rien | TOTP court / faux | `totpKey` reste null |
+| 15 | 2FA : configuration acceptée et code de secours délivré | — | code affiché = code chiffré en base |
+| 16 | 2FA : la session reste bridée jusqu’à la saisie du code | TOTP faux, GET `/auth/settings` | après Verify → `/auth` |
+| 17 | Code de secours : refusé s’il est faux, à usage unique sinon | trop court, faux | 2FA retirée, nouveau recovery |
+| 18 | Reconfiguration de la 2FA puis déconnexion complète | TOTP calculé sur une clé périmée | setup OK, `signOut`, 0 session |
 
-`e2e/admin/users.spec.ts` couvre le CRUD des utilisateurs : liste sans fuite de
-secrets, promotion de rôle, refus d'un rôle hors enum, bascule MFA, suppression.
+Test à part : déconnexion depuis le tiroir panier (`signOutFromCart`) — cookie
+absent, 0 session, GET `/auth/settings` → `/auth/login`.
 
-`e2e/products/catalog.spec.ts` et `e2e/products/admin.spec.ts` couvrent la
-vitrine Prisma et le CRUD admin des produits. Le CRUD blog / promo / ventes /
-contacts reste reporté.
+Constantes du spec à ajuster en même temps : `GUARDED_PAGES`, `WEAK_PASSWORDS`.
+
+### Admin accès — `e2e/admin/security.spec.ts`
+
+Routes fermées : `ADMIN_PATHS` dans `e2e/support/admin.ts`.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Un visiteur anonyme est renvoyé à la connexion | GET chaque `ADMIN_PATHS` | `/auth/login` |
+| 2 | Un CLIENT est renvoyé à l’accueil | inscription + GET chaque path | `/` |
+| 3 | Un CLIENT ne peut pas muter (users, promo) | POST `?/deleteUser`, `?/deletePromo` | lignes encore en base |
+| 4 | Un ADMIN atteint le tableau de bord et les comptes | `promoteToAdmin` + GET `/admin`, `/admin/users` | titres Accueil / Utilisateurs |
+
+### Admin utilisateurs — `e2e/admin/users.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste affiche les emails, sans secret | recherche dans le tableau | 3 emails visibles ; pas de hash / totp / recovery |
+| 2 | Promotion CLIENT → ADMIN | fiche → menu ADMIN → Save | `role === ADMIN` en base |
+| 3 | Un rôle hors enum est refusé | POST `SUPERUSER` | `role` reste `CLIENT` |
+| 4 | La MFA se bascule depuis la fiche | checkbox + Save | `isMfaEnabled === true` |
+| 5 | Suppression d’un CLIENT | dialogue Continue | disparu du tableau **et** de la base |
+
+Test à part (sans numéro) : un CLIENT qui GET `/admin/users/:id` d'un autre
+compte est renvoyé à `/`.
+
+### Catalogue vitrine — `e2e/products/catalog.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste affiche le nom Prisma | GET `/products` | titres Catalogue + nom, lien catégorie |
+| 2 | La fiche s’ouvre par slug | GET `/products/[slug]` | nom, prix, ligne en base |
+| 3 | Un slug inconnu renvoie 404 | GET slug absent | statut 404 |
+| 4 | Pas d’UI d’édition admin sur la vitrine | HTML de `/products` | pas de `/admin/products` ni `passwordHash` |
+
+### Catalogue admin — `e2e/products/admin.spec.ts`
+
+La création UI (Cloudinary) n'est pas jouée : `.env.test` n'a pas d'upload réel.
+Les produits sont posés en Prisma (`createCatalogProduct`), puis le CRUD passe
+par l'interface.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | La liste admin affiche les produits | GET `/admin/products`, recherche | ligne du tableau Produits |
+| 2 | Création Prisma visible sur la vitrine | GET `/products` | heading du nom + ligne en base |
+| 3 | Édition prix et stock | fiche admin → 9,99 / 7 → Save | DB + fiche publique « 9.99 € », « Stock : 7 » |
+| 4 | Suppression d’un produit sans commande | dialogue Continue | produit absent en base |
+| 5 | Un produit commandé est refusé à la suppression | même geste sur un `OrderItem` | produit **encore** en base |
+
+Test à part : un CLIENT POST `?/deleteProduct` — le produit reste.
+
+### Commerce panier — `e2e/commerce/cart.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Fiche : ajouter au panier | bouton « Ajouter au panier » | UI + `OrderItem` |
+| 2 | save-cart d'une autre commande | POST id étranger | 403 |
+| 3 | Prix posté ≠ catalogue | POST `price: 0.01` | persisté = catalogue |
+
+### Commerce panier invité — `e2e/commerce/guest.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Anonyme : ajouter puis recharger | bouton puis reload | item encore visible |
+| 2 | Anonyme puis inscription | signup après add | `OrderItem` en base, localStorage vide |
+| 3 | Compte + invité (autre produit) | login après add invité | les deux lignes en base |
+
+### Commerce checkout — `e2e/commerce/checkout.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Anonyme GET `/checkout` | navigation | `/auth/login` |
+| 2 | CLIENT avec panier | `/checkout` | sélecteur d'adresse |
+| 3 | POST sans adresse / sans être proprio | `?/checkout` | 400 / 403 |
+| 4 | Paiement simulé | helper Prisma | order payée n'est plus `PENDING` |
+
+### Commerce ventes — `e2e/commerce/sales.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | ADMIN voit la transaction | `/admin/sales` | cellule email |
+| 2 | CLIENT GET `/admin/sales` | navigation | `/` |
+| 3 | Facture user : uniquement la sienne | GET facture d'un autre | 404 |
+
+Hors périmètre encore : CRUD blog, promo, contacts. Pas de Stripe réel, pas de Sendcloud.
 
 ## Architecture des utilitaires
 

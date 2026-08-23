@@ -1,6 +1,6 @@
 // src/lib/store/Data/cartStore.ts
-// COMMERCE : le panier consomme des Product (id, nom, prix, stock, images).
-// PRODUCT-PLUGIN : `addToCart` n'est pas encore branché depuis la vitrine.
+// COMMERCE-PLUGIN : le panier consomme des Product (id, nom, prix, stock).
+// Les prix persistés sont revalidés serveur dans `updateOrderItems`.
 import { toast } from 'svelte-sonner';
 import { writable } from 'svelte/store';
 

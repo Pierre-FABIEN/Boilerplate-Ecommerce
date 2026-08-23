@@ -207,11 +207,34 @@ code reste consultable en base pendant sa durée de validité.
 
 ## Tests
 
-Le parcours complet est couvert par un test end-to-end unique,
-`e2e/auth/journey.spec.ts`, qui enchaîne inscription, vérification, changements de
-mot de passe et d'adresse, réinitialisation, 2FA, code de secours et déconnexion,
-en vérifiant à chaque étape le refus des cas invalides puis l'état réel en base.
-Voir [../../e2e/README.md](../../e2e/README.md).
+Un seul scénario : `e2e/auth/journey.spec.ts`. Les numéros sont ceux des
+`test.step`. Pour changer la procédure : cette liste → le step du spec → le
+code sous `/auth`. Détail (limiteurs, `fillStable`, hors périmètre) :
+[../../e2e/README.md](../../e2e/README.md).
+
+| # | Étape | Refusé | Accepté |
+| - | ----- | ------ | ------- |
+| 1 | Pages protégées fermées aux anonymes | 9 routes `GUARDED_PAGES` | redirection login / forgot-password |
+| 2 | Inscription : saisies invalides | pseudo court, email HTML, 5 règles MDP | pas de session |
+| 3 | Inscription : compte créé, non vérifié | — | hash argon, `emailVerified=false` |
+| 4 | Vérif email : codes invalides | trop court, inexistant | toujours non vérifié |
+| 5 | Vérif email : renvoi invalide l'ancien code | ancien code | nouveau code → `/auth` |
+| 6 | MDP : courant erroné | trop court, courant faux | hash inchangé |
+| 7 | MDP : changement révoque les autres sessions | — | 1 session |
+| 8 | Connexion : identifiants erronés | inconnu, ancien MDP, MDP faux | pas de cookie |
+| 9 | Connexion : nouveau MDP accepté | — | `/` |
+| 10 | Email déjà pris | adresse occupée | email inchangé |
+| 11 | Email changé après le code | avant le code, encore l'ancien | code sur la **nouvelle** adresse |
+| 12 | MDP oublié : demande / code invalides | inconnu, code faux, GET reset | reste sur verify |
+| 13 | MDP oublié : bon code | MDP trop court | réinitialisé |
+| 14 | 2FA setup invalide | TOTP court / faux | `totpKey` null |
+| 15 | 2FA configurée + code de secours | — | code UI = base |
+| 16 | Session bridée sans TOTP | TOTP faux, GET settings | Verify → `/auth` |
+| 17 | Code de secours | trop court, faux | 2FA retirée, recovery renouvelé |
+| 18 | Reconfig 2FA puis déconnexion | TOTP sur clé périmée | 0 session, `/auth/` → login |
+
+Test à part : déconnexion depuis le tiroir panier — cookie absent, 0 session,
+GET `/auth/settings` → login.
 
 ```bash
 npm run test:e2e          # exécution simple

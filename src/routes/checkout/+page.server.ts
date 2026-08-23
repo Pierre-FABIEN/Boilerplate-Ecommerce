@@ -1,15 +1,25 @@
+/**
+ * Tunnel de paiement.
+ *
+ * COMMERCE-PLUGIN : login obligatoire, la commande doit appartenir au visiteur,
+ * les frais de port client non nuls sont refusés (pas de revalidation Sendcloud
+ * dans ce lot). PROMO-PLUGIN : `validatePromo` / `incrementUsage` restent ici
+ * pour que le checkout compile ; ce n'est pas le périmètre du module.
+ */
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
 
-import { json, redirect, type Actions } from '@sveltejs/kit';
+import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 import { getOrderById, updateOrder } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
 import { validatePromo, incrementUsage } from '$lib/prisma/promo/promo';
+import { assertOrderOwnedBy, resolveTrustedShippingCost } from '$lib/commerce/checkout';
+import { CartForbiddenError, InvalidShippingError } from '$lib/commerce/errors';
 
 dotenv.config();
 
@@ -24,9 +34,7 @@ export const load = (async ({ locals }) => {
 		throw redirect(302, '/auth/login');
 	}
 	// AUTH-PLUGIN ▲
-	// Préparer la validation Superform
 	const IOrderSchema = await superValidate(zod(OrderSchema));
-	// Charger les adresses
 	const addresses = await getUserAddresses(userId);
 
 	return {
@@ -36,13 +44,15 @@ export const load = (async ({ locals }) => {
 }) satisfies PageServerLoad;
 
 export const actions: Actions = {
-	checkout: async ({ request }) => {
+	checkout: async ({ request, locals }) => {
+		const userId = locals.user?.id;
+		if (!userId) {
+			throw redirect(302, '/auth/login');
+		}
+
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(OrderSchema));
 
-		// console.log('Form data validated =>', form);
-
-		// 1) Extract fields
 		const {
 			orderId,
 			addressId,
@@ -58,55 +68,66 @@ export const actions: Actions = {
 			servicePointExtraShopRef
 		} = form.data;
 
-		// Basic checks
 		if (!orderId || !addressId) {
-			return json({ error: 'Veuillez sélectionner une option de livraison.' }, { status: 400 });
+			error(400, 'Veuillez sélectionner une adresse.');
 		}
 
-		// Vérifier si la commande contient des personnalisations
+		try {
+			await assertOrderOwnedBy(orderId, userId);
+		} catch (err) {
+			if (err instanceof CartForbiddenError) {
+				error(403, err.message);
+			}
+			throw err;
+		}
+
 		const order = await getOrderById(orderId);
 		if (!order) {
-			return json({ error: 'Commande introuvable' }, { status: 404 });
-		}
-		
-		const hasCustomItems = order.items.some(item => (item as any).custom && (item as any).custom.length > 0);
-		
-		// Pour les commandes personnalisées, on accepte des valeurs par défaut
-		const finalShippingOption = hasCustomItems ? 'no_shipping' : (shippingOption || '');
-		const finalShippingCost = hasCustomItems ? '0' : (shippingCost || '0');
-		
-		// Validation pour les commandes non-personnalisées
-		if (!hasCustomItems && (!finalShippingOption || !finalShippingCost)) {
-			return json({ error: 'Veuillez sélectionner une option de livraison.' }, { status: 400 });
+			error(404, 'Commande introuvable');
 		}
 
-		const userId = order.userId;
+		const hasCustomItems = order.items.some((item) => item.custom.length > 0);
 
-		// 2bis) Validation du code promo côté serveur (source de vérité).
-		// La remise s'applique sur le total TTC des produits (hors frais de port).
+		let trustedShippingCost: number;
+		try {
+			trustedShippingCost = resolveTrustedShippingCost({
+				hasCustomItems,
+				shippingOption,
+				shippingCost
+			});
+		} catch (err) {
+			if (err instanceof InvalidShippingError) {
+				error(400, err.message);
+			}
+			throw err;
+		}
+
+		const finalShippingOption = hasCustomItems ? 'no_shipping' : shippingOption || 'no_shipping';
+		const finalShippingCost = String(trustedShippingCost);
+
 		const tvaRate = 0.055;
 		const productTotalTTC = parseFloat(
 			order.items
-				.reduce((sum, item) => sum + item.price * (1 + tvaRate) * item.quantity, 0)
+				.reduce((sum, item) => sum + item.product.price * (1 + tvaRate) * item.quantity, 0)
 				.toFixed(2)
 		);
 
+		// PROMO-PLUGIN ▼ hors périmètre commerce ; conservé pour que le tunnel compile.
 		const promoResult = await validatePromo(promoCode, productTotalTTC);
 		const appliedDiscount = promoResult.valid ? promoResult.discountAmount : 0;
 		const appliedPromoCode = promoResult.valid ? promoResult.promo?.code ?? null : null;
+		// PROMO-PLUGIN ▲
 
-		// Facteur de remise proportionnel appliqué aux produits uniquement
 		const discountFactor =
 			appliedDiscount > 0 && productTotalTTC > 0
 				? (productTotalTTC - appliedDiscount) / productTotalTTC
 				: 1;
 
-		// 3) Update the order in DB with shipping info + remise
 		const updatedOrder = await updateOrder(
 			orderId,
 			addressId,
 			finalShippingOption,
-			finalShippingCost, // ex: "16.76"
+			finalShippingCost,
 			servicePointId,
 			servicePointPostNumber,
 			servicePointLatitude,
@@ -119,9 +140,7 @@ export const actions: Actions = {
 		);
 
 		const lineItems = order.items.map((item) => {
-			// item.price = 10 => c'est du HT
-			const ttcPrice = item.price * (1 + tvaRate); // 10 * 1.055 = 10.55
-			// On applique la remise proportionnellement sur le prix unitaire TTC
+			const ttcPrice = item.product.price * (1 + tvaRate);
 			const discountedUnitAmount = Math.round(ttcPrice * 100 * discountFactor);
 
 			return {
@@ -134,7 +153,6 @@ export const actions: Actions = {
 			};
 		});
 
-		// 5) Add a single lineItem for shipping if shippingCost > 0
 		const shippingCostFloat = parseFloat((updatedOrder.shippingCost || 0).toString());
 		if (shippingCostFloat > 0 && !hasCustomItems) {
 			lineItems.push({
@@ -143,13 +161,12 @@ export const actions: Actions = {
 					product_data: {
 						name: 'Frais de port'
 					},
-					unit_amount: Math.round(shippingCostFloat * 100) // shippingCost is TTC => just multiply by 100
+					unit_amount: Math.round(shippingCostFloat * 100)
 				},
 				quantity: 1
 			});
 		}
 
-		// 6) Create the Stripe Checkout Session
 		const session = await stripe.checkout.sessions.create({
 			payment_method_types: ['card'],
 			line_items: lineItems,
@@ -171,7 +188,6 @@ export const actions: Actions = {
 			}
 		});
 
-		// 6bis) Incrémenter le compteur d'utilisation du code promo si appliqué
 		if (promoResult.valid && promoResult.promo) {
 			try {
 				await incrementUsage(promoResult.promo.id);
@@ -180,7 +196,6 @@ export const actions: Actions = {
 			}
 		}
 
-		// 7) Redirect user to Stripe checkout
 		throw redirect(303, session.url || '/');
 	}
 };

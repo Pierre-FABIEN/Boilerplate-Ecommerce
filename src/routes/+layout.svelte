@@ -17,12 +17,48 @@
 	} from '$lib/store/initialLoaderStore';
 	import { page } from '$app/stores';
 
-	import { setCart } from '$lib/store/Data/cartStore';
-	import { startSync } from '$lib/store/Data/cartSync';
+	import { resetCart, setCart } from '$lib/store/Data/cartStore';
+	import { setCartSyncAuthenticated, startSync } from '$lib/store/Data/cartSync';
+	import {
+		clearGuestCart,
+		guestToMergeLines,
+		guestToStoreItems,
+		mergeItems,
+		publicItemsToMergeLines,
+		readGuestCart,
+		serverOrderToStore,
+		toSaveCartItems,
+		totalsFromItems
+	} from '$lib/commerce/guestCart';
+	import { toast } from 'svelte-sonner';
+	import { untrack } from 'svelte';
 	import SmoothScrollBarStore from '$lib/store/SmoothScrollBarStore';
 
 	let { children, data } = $props();
-	let cartInitialized = $state(false);
+
+	/** Dernière identité pour laquelle le panier a été hydraté (`guest` ou user id). */
+	let hydratedFor: string | null = null;
+	let hydratingCart = false;
+
+	function applyStoreCart(cart: {
+		id: string;
+		userId: string;
+		items: Parameters<typeof setCart>[2];
+		subtotal: number;
+		tax: number;
+		shippingCost: number;
+	}) {
+		setCart(
+			cart.id,
+			cart.userId,
+			cart.items,
+			cart.subtotal,
+			cart.tax,
+			cart.shippingCost,
+			parseFloat((cart.shippingCost * 0.055).toFixed(2))
+		);
+	}
+
 	$effect(() => {
 		const unsubscribe = page.subscribe((currentPage) => {
 			initializeLayoutState(currentPage);
@@ -32,24 +68,97 @@
 		setFirstOpen(true);
 		setRessourceToValide(true);
 
-		// Hydratation du panier serveur pour un visiteur connecté.
-		// AUTH-PLUGIN : dépend de `data.user` et de `data.pendingOrder`, ce dernier
-		// n'étant pas exposé par défaut (voir `+layout.server.ts`). Sans
-		// authentification, le panier reste purement client.
-		if (data.user) {
-			const items = data.pendingOrder;
-
-			if (!cartInitialized && items) {
-				setCart(items.id, items.userId, items.items, items.subtotal, items.tax, items.total);
-				cartInitialized = true;
-			}
-
-			if (items) {
-				startSync();
-			}
-		}
-
 		return unsubscribe;
+	});
+
+	// COMMERCE-PLUGIN : invité = localStorage ; compte = Order PENDING.
+	// AUTH-PLUGIN : la fusion part dès que `data.user` apparaît (signup / login).
+	$effect(() => {
+		const userId = data.user?.id ?? null;
+		const pending = untrack(() => data.pendingOrder);
+		const sessionKey = userId ?? 'guest';
+		let cancelled = false;
+
+		(async () => {
+			if (hydratedFor === sessionKey) {
+				startSync({ authenticated: Boolean(userId) });
+				setCartSyncAuthenticated(Boolean(userId));
+				return;
+			}
+			if (hydratingCart) return;
+			hydratingCart = true;
+
+			try {
+				if (!userId) {
+					if (hydratedFor && hydratedFor !== 'guest') {
+						resetCart();
+						clearGuestCart();
+					}
+					const guest = readGuestCart();
+					if (guest.items.length) {
+						const items = guestToStoreItems(guest);
+						const { subtotal, tax } = totalsFromItems(items);
+						applyStoreCart({
+							id: '',
+							userId: '',
+							items,
+							subtotal,
+							tax,
+							shippingCost: 0
+						});
+					}
+					startSync({ authenticated: false });
+					setCartSyncAuthenticated(false);
+					hydratedFor = 'guest';
+					return;
+				}
+
+				const guest = readGuestCart();
+				if (guest.items.length && pending) {
+					const merged = mergeItems(
+						publicItemsToMergeLines(pending.items),
+						guestToMergeLines(guest)
+					);
+					try {
+						const response = await fetch('/api/save-cart', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								id: pending.id,
+								items: toSaveCartItems(merged)
+							})
+						});
+						if (cancelled) return;
+						if (!response.ok) {
+							toast.error('Impossible d’enregistrer le panier sur le compte.');
+							applyStoreCart(pending);
+						} else {
+							const order = await response.json();
+							clearGuestCart();
+							applyStoreCart(serverOrderToStore(order));
+						}
+					} catch {
+						if (!cancelled) {
+							toast.error('Impossible d’enregistrer le panier sur le compte.');
+							applyStoreCart(pending);
+						}
+					}
+				} else if (pending) {
+					applyStoreCart(pending);
+				}
+
+				if (cancelled) return;
+				startSync({ authenticated: true });
+				setCartSyncAuthenticated(true);
+				hydratedFor = sessionKey;
+			} finally {
+				hydratingCart = false;
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	let contentRef: HTMLElement | null = $state(null);
