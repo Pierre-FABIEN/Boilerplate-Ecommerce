@@ -55,11 +55,12 @@ e2e/                  parcours Playwright
 ## Commandes
 
 ```bash
-npm run dev                 # Vite (http://localhost:2000) + Prisma Studio (http://localhost:5555)
-npm run dev:vite            # Vite seul, sans Studio
+npm run dev                 # Vite (:2000) + Prisma Studio (:5555) + stripe listen (webhooks)
+npm run dev:vite            # Vite seul
 npm run build               # build de production
 npm run test:e2e            # parcours Playwright (auth + admin + produits + commerce + blog + promo + contact)
 npm run check               # vérification des types
 npm run db:studio           # Prisma Studio seul (schéma de dev, http://localhost:5555)
 npm run db:studio:e2e       # Prisma Studio (schéma e2e, http://localhost:5556)
+npm run stripe:listen       # CLI Stripe → POST http://localhost:2000/api/webhooks
 ```

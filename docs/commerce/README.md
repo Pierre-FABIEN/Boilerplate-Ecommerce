@@ -65,8 +65,13 @@ puis le code. Index : [../../e2e/README.md](../../e2e/README.md).
 
 Stripe n'est **pas** appelé pour créer une session Checkout : le paiement
 simulé en Prisma (`simulatePaidOrder`) reste pour le spec checkout. Le webhook
-est couvert à part : corps signé localement (`generateTestHeaderString`), sans
-carte ni API Stripe.
+e2e est couvert à part : corps signé localement (`generateTestHeaderString`),
+sans carte ni API Stripe.
+
+En **dev** (`npm run dev`), `stripe listen` relaie les événements Stripe vers
+`http://localhost:2000/api/webhooks`. Copier le `whsec_…` affiché par le CLI
+dans `STRIPE_WEBHOOK_SECRET` du `.env`, puis relancer Vite. Une fois :
+`stripe login`. Hors `npm run dev` : `npm run stripe:listen`.
 
 ### Panier — `e2e/commerce/cart.spec.ts`
 
