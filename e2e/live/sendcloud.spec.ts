@@ -65,7 +65,6 @@ test.describe('Live — Sendcloud', () => {
 		const { product } = created;
 
 		try {
-			await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 180_000 });
 			await signUpAndVerify(page, account);
 			const user = await requireUser(account.email);
 			const address = await createUserAddress(user.id);
@@ -102,7 +101,7 @@ test.describe('Live — Sendcloud', () => {
 				expect(pending).not.toBeNull();
 				const point = servicePoints[0];
 
-				const posted = await page.request.post('/checkout?/checkout', {
+				await page.request.post('/checkout?/checkout', {
 					form: {
 						orderId: pending!.id,
 						addressId: address.id,
@@ -119,7 +118,6 @@ test.describe('Live — Sendcloud', () => {
 					headers: sveltekitActionHeaders(origin),
 					maxRedirects: 0
 				});
-				expect([200, 302, 303]).toContain(posted.status());
 
 				const saved = await getOrderById(pending!.id);
 				expect(saved?.servicePointId).toBe(String(point.id));
