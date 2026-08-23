@@ -99,11 +99,31 @@ export async function promoteToAdmin(email: string) {
 	await resilient(() => db.user.update({ where: { email }, data: { role: 'ADMIN' } }));
 }
 
-/** Code promo jetable, pour vérifier qu'un CLIENT ne peut pas le supprimer. */
-export async function createPromoCode(code: string) {
+/** Code promo jetable (admin, API de validation, checkout). */
+export async function createPromoCode(
+	code: string,
+	overrides?: {
+		type?: 'PERCENTAGE' | 'FIXED';
+		value?: number;
+		minAmount?: number | null;
+		usageLimit?: number | null;
+		usageCount?: number;
+		expiresAt?: Date | null;
+		active?: boolean;
+	}
+) {
 	return resilient(() =>
 		db.promoCode.create({
-			data: { code, type: 'PERCENTAGE', value: 10, active: true }
+			data: {
+				code,
+				type: overrides?.type ?? 'PERCENTAGE',
+				value: overrides?.value ?? 10,
+				minAmount: overrides?.minAmount ?? null,
+				usageLimit: overrides?.usageLimit ?? null,
+				usageCount: overrides?.usageCount ?? 0,
+				expiresAt: overrides?.expiresAt ?? null,
+				active: overrides?.active ?? true
+			}
 		})
 	);
 }
@@ -112,6 +132,42 @@ export async function deletePromoCode(id: string) {
 	await resilient(async () => {
 		await db.promoCode.deleteMany({ where: { id } });
 	});
+}
+
+/** CONTACT-PLUGIN : message de test isolé. */
+export async function createContactMessage(overrides?: {
+	name?: string;
+	email?: string;
+	subject?: string;
+	message?: string;
+}) {
+	const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	return resilient(() =>
+		db.contactSubmission.create({
+			data: {
+				name: overrides?.name ?? `e2e-contact-${stamp}`,
+				email: overrides?.email ?? `e2e-contact-${stamp}@example.test`,
+				subject: overrides?.subject ?? `Sujet e2e ${stamp}`,
+				message: overrides?.message ?? `Message de test e2e ${stamp}.`
+			}
+		})
+	);
+}
+
+export async function deleteContactMessage(id: string) {
+	await resilient(async () => {
+		await db.contactSubmission.deleteMany({ where: { id } });
+	});
+}
+
+export async function deleteContactMessagesByEmail(email: string) {
+	await resilient(async () => {
+		await db.contactSubmission.deleteMany({ where: { email } });
+	});
+}
+
+export async function countContactMessagesByEmail(email: string) {
+	return resilient(() => db.contactSubmission.count({ where: { email } }));
 }
 
 export async function findPromoCode(id: string) {
@@ -298,6 +354,27 @@ export async function getOrderById(orderId: string) {
 		db.order.findUnique({
 			where: { id: orderId },
 			include: { items: true }
+		})
+	);
+}
+
+export async function attachOrderAddress(orderId: string, addressId: string) {
+	return resilient(() =>
+		db.order.update({
+			where: { id: orderId },
+			data: {
+				addressId,
+				shippingOption: 'no_shipping',
+				shippingCost: 0
+			}
+		})
+	);
+}
+
+export async function getTransactionByStripePaymentId(stripePaymentId: string) {
+	return resilient(() =>
+		db.transaction.findUnique({
+			where: { stripePaymentId }
 		})
 	);
 }

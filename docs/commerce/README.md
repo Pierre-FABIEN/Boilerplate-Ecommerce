@@ -42,7 +42,7 @@ rg "COMMERCE-PLUGIN" src/ prisma/
 | Blog | `BLOG-PLUGIN` | articles Prisma, hors tunnel |
 | Auth | `AUTH-PLUGIN` | `locals.user`, adresses, factures compte |
 | Admin | `ADMIN-PLUGIN` | gardes de `/admin/sales` |
-| Promo | `PROMO-PLUGIN` | champ checkout conservé, **non testé** ici |
+| Promo | `PROMO-PLUGIN` | champ checkout ; tests dans [docs/promo](../promo/README.md) |
 | Sendcloud | `SENDCLOUD` | options / points relais / étiquettes |
 
 Les canettes personnalisées (`Custom`, `no_shipping`) restent de la dette atelier.
@@ -63,7 +63,10 @@ Les canettes personnalisées (`Custom`, `no_shipping`) restent de la dette ateli
 Les numéros sont ceux des `test.step`. Changer la procédure ici, puis le spec,
 puis le code. Index : [../../e2e/README.md](../../e2e/README.md).
 
-Stripe n'est **pas** appelé : paiement simulé en Prisma (`simulatePaidOrder`).
+Stripe n'est **pas** appelé pour créer une session Checkout : le paiement
+simulé en Prisma (`simulatePaidOrder`) reste pour le spec checkout. Le webhook
+est couvert à part : corps signé localement (`generateTestHeaderString`), sans
+carte ni API Stripe.
 
 ### Panier — `e2e/commerce/cart.spec.ts`
 
@@ -89,6 +92,19 @@ Stripe n'est **pas** appelé : paiement simulé en Prisma (`simulatePaidOrder`).
 | 2 | CLIENT avec panier | `/checkout` | sélecteur d'adresse |
 | 3 | POST sans adresse / sans être proprio | `?/checkout` | 400 / 403 |
 | 4 | Paiement simulé | helper Prisma | l'order payée n'est plus `PENDING` |
+
+### Webhook Stripe — `e2e/commerce/stripe.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Signature invalide | POST `/api/webhooks` HMAC faux | 400, pas de `Transaction` |
+| 2 | `checkout.session.completed` | POST signé (`STRIPE_WEBHOOK_SECRET` e2e) | `Order` `PAID`, `Transaction` |
+| 3 | Facture compte | GET `/auth/settings/factures/[id]` | HTML contient l'id transaction |
+| 4 | Facture admin | GET `/admin/sales/facture/[id]` | HTML contient l'id |
+| 5 | Bordereau admin | GET `/admin/sales/bordereau/[id]` | HTML contient l'id |
+
+Pas de paiement carte. Sendcloud n'est pas appelé (`PUBLIC_ENV=test`).
+`incrementUsage` n'est pas joué : il suit `stripe.checkout.sessions.create`.
 
 ### Ventes — `e2e/commerce/sales.spec.ts`
 

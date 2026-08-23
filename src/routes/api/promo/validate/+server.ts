@@ -1,3 +1,7 @@
+/**
+ * PROMO-PLUGIN : validation JSON pour le checkout. Ouverte : le code est
+ * relu au `?/checkout`, un `discountAmount` client n'est jamais crédité.
+ */
 import { json } from '@sveltejs/kit';
 import { validatePromo } from '$lib/prisma/promo/promo';
 

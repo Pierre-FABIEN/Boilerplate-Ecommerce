@@ -90,7 +90,7 @@
 	</button>
 	<a
 		class="mt-[15px] text-sm tracking-normal transition-all duration-200 [font-family:'Open_Sans_Variable',sans-serif] hover:tracking-[1px]"
-		href="/catalogue"
+		href="/products"
 		transition:fly={{ x: -88, duration: 600 }}
 	>
 		Notre catalogue

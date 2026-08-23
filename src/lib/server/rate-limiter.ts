@@ -24,13 +24,7 @@ export function getClientIP(event: RequestEvent): string {
 /**
  * Limiteur de débit pour le formulaire de contact.
  *
- * Paramètres :
- * - `refillAmount`: 5 (jetons par intervalle)
- * - `refillInterval`: 60000 (1 minute)
- *
- * Permet 5 soumissions par minute par adresse IP.
+ * CONTACT-PLUGIN : 5 envois valides d'affilée par IP, puis 1 jeton toutes
+ * les 60 s. Le quota n'est consommé que si Zod a accepté le formulaire.
  */
-export const contactFormLimiter = new RefillingTokenBucket<string>(
-	5, // Capacité : 5 requêtes
-	5 / 60 // Taux : 5 requêtes par 60 secondes
-);
+export const contactFormLimiter = new RefillingTokenBucket<string>(5, 60);

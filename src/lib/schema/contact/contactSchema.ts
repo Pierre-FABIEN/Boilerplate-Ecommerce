@@ -1,3 +1,4 @@
+/** CONTACT-PLUGIN : schéma Zod du formulaire public. */
 import { z } from 'zod';
 
 export const contactSchema = z.object({

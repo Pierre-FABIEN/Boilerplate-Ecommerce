@@ -1,3 +1,8 @@
+/**
+ * Messages de contact.
+ *
+ * CONTACT-PLUGIN : DAO Prisma du formulaire public et de la lecture admin.
+ */
 import { prisma } from '$lib/server';
 import type { ContactSubmission } from '@prisma/client';
 

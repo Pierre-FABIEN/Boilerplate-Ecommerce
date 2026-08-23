@@ -1,3 +1,4 @@
+/** PROMO-PLUGIN : schémas Zod des formulaires admin. */
 import { z } from 'zod';
 
 // Type de remise : pourcentage ou montant fixe

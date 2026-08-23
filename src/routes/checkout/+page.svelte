@@ -11,7 +11,7 @@
 	import ShippingOptions from '$lib/components/checkout/ShippingOptions.svelte';
 	import ServicePointMap from '$lib/components/checkout/ServicePointMap.svelte';
 	import CartSummary from '$lib/components/checkout/CartSummary.svelte';
-	import PromoCodeInput from '$lib/components/checkout/PromoCodeInput.svelte';
+	import PromoCodeInput from '$lib/components/checkout/PromoCodeInput.svelte'; // PROMO-PLUGIN
 	import {
 		CreditCard
 	} from 'lucide-svelte';
@@ -515,6 +515,7 @@
 						onChangeQuantity={changeQuantity}
 					/>
 					{#if $cartStore.items.length > 0}
+						<!-- PROMO-PLUGIN -->
 						<PromoCodeInput
 							{productTotalTTC}
 							appliedCode={promoCode}

@@ -19,6 +19,29 @@ dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
+/** SENDCLOUD : pas d'appel réseau en e2e (`PUBLIC_ENV=test`) ni sans clés. */
+function shouldCallSendcloud(): boolean {
+	if (process.env.PUBLIC_ENV === 'test') return false;
+	const pub = process.env.SENDCLOUD_PUBLIC_KEY ?? '';
+	const sec = process.env.SENDCLOUD_SECRET_KEY ?? '';
+	return pub.length > 0 && sec.length > 0;
+}
+
+function fallbackShippingMethod(shippingOption: string, weightBracket: number) {
+	return {
+		id: 9999,
+		name: `Méthode: ${shippingOption}`,
+		length: weightBracket <= 3 ? 30 : weightBracket <= 6 ? 40 : 50,
+		width: weightBracket <= 3 ? 20 : weightBracket <= 6 ? 30 : 30,
+		height: weightBracket <= 3 ? 15 : weightBracket <= 6 ? 20 : 30,
+		unit: 'cm',
+		weight: weightBracket,
+		weightUnit: 'kg',
+		volume: weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000,
+		volumeUnit: 'cm3'
+	};
+}
+
 function deduceWeightBracket(order: any): number {
 	if (!order || !order.items || !Array.isArray(order.items)) {
 		console.warn("⚠️ Impossible de calculer le poids : 'order.items' est invalide.");
@@ -45,6 +68,10 @@ function deduceWeightBracket(order: any): number {
  * en utilisant l'API des méthodes d'expédition
  */
 async function getShippingMethodData(shippingOption: string, weightBracket: number, order: any) {
+	if (!shouldCallSendcloud()) {
+		return fallbackShippingMethod(shippingOption, weightBracket);
+	}
+
 	console.log(`\n🔍 === RECHERCHE MÉTHODE D'EXPÉDITION DYNAMIQUE ===`);
 	console.log(`📋 Paramètres:`, { shippingOption, weightBracket });
 	
@@ -139,43 +166,15 @@ async function getShippingMethodData(shippingOption: string, weightBracket: numb
 				carrier: m.carrier
 			})) || []);
 			
-			// Fallback avec ID temporaire
-			const fallbackMethod = {
-				id: Date.now(),
-				name: `Méthode: ${shippingOption}`,
-				length: weightBracket <= 3 ? 30 : weightBracket <= 6 ? 40 : 50,
-				width: weightBracket <= 3 ? 20 : weightBracket <= 6 ? 30 : 30,
-				height: weightBracket <= 3 ? 15 : weightBracket <= 6 ? 20 : 30,
-				unit: 'cm',
-				weight: weightBracket,
-				weightUnit: 'kg',
-				volume: weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000,
-				volumeUnit: 'cm3'
-			};
-			
-			console.log('⚠️ Utilisation de la méthode de fallback:', fallbackMethod);
-			return fallbackMethod;
+			console.log('⚠️ Utilisation de la méthode de fallback');
+			return fallbackShippingMethod(shippingOption, weightBracket);
 		}
 		
 	} catch (error) {
 		console.error(`❌ Erreur lors de la récupération des méthodes d'expédition:`, error);
 		
-		// Fallback en cas d'erreur
-		const fallbackMethod = {
-			id: Date.now(),
-			name: `Méthode: ${shippingOption}`,
-			length: weightBracket <= 3 ? 30 : weightBracket <= 6 ? 40 : 50,
-			width: weightBracket <= 3 ? 20 : weightBracket <= 6 ? 30 : 30,
-			height: weightBracket <= 3 ? 15 : weightBracket <= 6 ? 20 : 30,
-			unit: 'cm',
-			weight: weightBracket,
-			weightUnit: 'kg',
-			volume: weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000,
-			volumeUnit: 'cm3'
-		};
-		
-		console.log('⚠️ Utilisation de la méthode de fallback après erreur:', fallbackMethod);
-		return fallbackMethod;
+		console.log('⚠️ Utilisation de la méthode de fallback après erreur');
+		return fallbackShippingMethod(shippingOption, weightBracket);
 	} finally {
 		console.log('🏁 === FIN RECHERCHE MÉTHODE D\'EXPÉDITION DYNAMIQUE ===\n');
 	}
@@ -443,25 +442,32 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 	// (2) APPEL A SENDCLOUD en dehors de la transaction
 	if (createdTransaction && createdTransaction.status === 'paid') {
-		console.log('📦 Début des appels Sendcloud...');
-		
-		try {
-			console.log('🔄 Création de la commande Sendcloud...');
-			await createSendcloudOrder(createdTransaction);
-			console.log('✅ Commande Sendcloud créée avec succès');
-		} catch (error) {
-			console.error('❌ Erreur lors de la création de la commande Sendcloud:', error);
-		}
+		if (!shouldCallSendcloud()) {
+			console.log('📦 Sendcloud ignoré (PUBLIC_ENV=test ou clés absentes)');
+		} else {
+			console.log('📦 Début des appels Sendcloud...');
 
-		try {
-			console.log('🏷️ Création de l\'étiquette Sendcloud...');
-			await createSendcloudLabel(createdTransaction);
-			console.log('✅ Étiquette Sendcloud créée avec succès');
-		} catch (error) {
-			console.error('❌ Erreur lors de la création de l\'étiquette Sendcloud:', error);
+			try {
+				console.log('🔄 Création de la commande Sendcloud...');
+				await createSendcloudOrder(createdTransaction);
+				console.log('✅ Commande Sendcloud créée avec succès');
+			} catch (error) {
+				console.error('❌ Erreur lors de la création de la commande Sendcloud:', error);
+			}
+
+			try {
+				console.log("🏷️ Création de l'étiquette Sendcloud...");
+				await createSendcloudLabel(createdTransaction);
+				console.log('✅ Étiquette Sendcloud créée avec succès');
+			} catch (error) {
+				console.error("❌ Erreur lors de la création de l'étiquette Sendcloud:", error);
+			}
 		}
 	} else {
-		console.log('⚠️ Statut de paiement non "paid", pas d\'appel Sendcloud. Statut:', createdTransaction?.status);
+		console.log(
+			'⚠️ Statut de paiement non "paid", pas d\'appel Sendcloud. Statut:',
+			createdTransaction?.status
+		);
 	}
 
 	console.log('🏁 === FIN TRAITEMENT WEBHOOK CHECKOUT ===\n');

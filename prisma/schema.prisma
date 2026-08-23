@@ -21,6 +21,7 @@ enum OrderStatus {
   CANCELLED
 }
 
+// PROMO-PLUGIN
 enum PromoType {
   PERCENTAGE
   FIXED
@@ -372,6 +373,7 @@ model Category {
   @@map("categories")
 }
 
+// PROMO-PLUGIN : remises checkout. Hors COMMERCE (Order.promoCode reste une colonne du tunnel).
 model PromoCode {
   id         String    @id @default(cuid())
   code       String    @unique
@@ -464,6 +466,7 @@ model BlogPostTag {
   @@map("blog_post_tags")
 }
 
+// CONTACT-PLUGIN : messages du formulaire public `/contact`.
 model ContactSubmission {
   id        String   @id @default(cuid())
   name      String

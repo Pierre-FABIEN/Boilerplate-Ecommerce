@@ -193,7 +193,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href="/favicon.png" />
+	<link rel="icon" href="/favicon.ico" />
 	<meta name="viewport" content="width=device-width" />
 	<link rel="manifest" href="/pwa/manifest.webmanifest" />
 	<meta name="theme-color" content="#4285f4" />

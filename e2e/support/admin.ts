@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { fillSignupForm, submitCode, waitForPath } from './flows';
 import { clearMailbox, waitForEmailCode } from './mailbox';
 import type { Account } from './account';
@@ -40,6 +40,9 @@ export const ADMIN_PATHS = [
 /** Inscrit le compte, confirme l'adresse, et s'arrête sur l'espace connecté. */
 export async function signUpAndVerify(page: Page, account: Account) {
 	await page.goto('/auth/signup');
+	await expect(page.getByRole('heading', { name: 'Créer un compte' })).toBeVisible({
+		timeout: 60_000
+	});
 	await clearMailbox();
 	await fillSignupForm(page, {
 		username: account.username,
@@ -57,4 +60,16 @@ export async function signUpAndVerify(page: Page, account: Account) {
 /** Origine courante, pour les POST same-origin (contrôle CSRF de SvelteKit). */
 export function pageOrigin(page: Page): string {
 	return new URL(page.url()).origin;
+}
+
+/**
+ * En-têtes d'une action SvelteKit (`use:enhance`). Sans eux, `fail(400)`
+ * re-rend la page en 200 HTML au lieu de renvoyer le statut de l'action.
+ */
+export function sveltekitActionHeaders(origin: string) {
+	return {
+		Origin: origin,
+		'x-sveltekit-action': 'true',
+		Accept: 'application/json'
+	};
 }

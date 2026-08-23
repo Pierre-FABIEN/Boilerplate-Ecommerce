@@ -99,8 +99,8 @@ async function truncate() {
 		prisma.productCategory.deleteMany(),
 		prisma.product.deleteMany(),
 		prisma.category.deleteMany(),
-		prisma.promoCode.deleteMany(),
-		prisma.contactSubmission.deleteMany(),
+		prisma.promoCode.deleteMany(), // PROMO-PLUGIN
+		prisma.contactSubmission.deleteMany(), // CONTACT-PLUGIN
 		prisma.session.deleteMany(),
 		prisma.emailVerificationRequest.deleteMany(),
 		prisma.passwordResetSession.deleteMany(),
@@ -184,6 +184,7 @@ async function main() {
 	console.log(`${blog.length} articles de blog créés.`);
 	// BLOG-PLUGIN ▲
 
+	// PROMO-PLUGIN ▼
 	await prisma.promoCode.createMany({
 		data: [
 			{ code: 'WELCOME10', type: 'PERCENTAGE', value: 10, minAmount: 20, active: true },
@@ -191,6 +192,7 @@ async function main() {
 		]
 	});
 	console.log('2 codes promo créés.');
+	// PROMO-PLUGIN ▲
 }
 
 main()

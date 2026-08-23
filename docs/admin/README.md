@@ -116,7 +116,7 @@ Routes : `ADMIN_PATHS` dans `e2e/support/admin.ts`.
 
 Catalogue admin : [docs/products](../products/README.md). Ventes :
 [docs/commerce](../commerce/README.md). Blog : [docs/blog](../blog/README.md).
-Promo / contacts : pas encore.
+Promo : [docs/promo](../promo/README.md). Contact : [docs/contact](../contact/README.md).
 
 ```bash
 npm run test:e2e

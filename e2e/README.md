@@ -7,9 +7,14 @@ La suite Playwright couvre cinq domaines, exécutés en séquence (un seul worke
   (`e2e/admin/users.spec.ts`) ;
 - catalogue : vitrine (`e2e/products/catalog.spec.ts`) et CRUD admin produits
   (`e2e/products/admin.spec.ts`) ;
-- commerce : panier (connecté + invité), checkout, ventes (`e2e/commerce/*.spec.ts`) ;
+- commerce : panier (connecté + invité), checkout, webhook Stripe, ventes
+  (`e2e/commerce/*.spec.ts`) ;
 - blog : vitrine (`e2e/blog/catalog.spec.ts`) et CRUD admin articles
-  (`e2e/blog/admin.spec.ts`).
+  (`e2e/blog/admin.spec.ts`) ;
+- codes promo : CRUD admin (`e2e/promo/admin.spec.ts`) et validation
+  (`e2e/promo/validate.spec.ts`) ;
+- contact : formulaire (`e2e/contact/form.spec.ts`) et lecture admin
+  (`e2e/contact/admin.spec.ts`).
 
 ## Authentification
 
@@ -181,7 +186,17 @@ Test à part : un CLIENT POST `?/deleteProduct` — le produit reste.
 | 1 | Anonyme GET `/checkout` | navigation | `/auth/login` |
 | 2 | CLIENT avec panier | `/checkout` | sélecteur d'adresse |
 | 3 | POST sans adresse / sans être proprio | `?/checkout` | 400 / 403 |
-| 4 | Paiement simulé | helper Prisma | order payée n'est plus `PENDING` |
+| 4 | Paiement simulé | helper Prisma | l'order payée n'est plus `PENDING` |
+
+### Commerce webhook Stripe — `e2e/commerce/stripe.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Signature invalide | POST `/api/webhooks` HMAC faux | 400 |
+| 2 | `checkout.session.completed` | POST signé (secret e2e) | `Order` `PAID` + `Transaction` |
+| 3 | Facture compte | GET `/auth/settings/factures/[id]` | HTML contient l'id |
+| 4 | Facture admin | GET `/admin/sales/facture/[id]` | HTML contient l'id |
+| 5 | Bordereau admin | GET `/admin/sales/bordereau/[id]` | HTML contient l'id |
 
 ### Commerce ventes — `e2e/commerce/sales.spec.ts`
 
@@ -216,7 +231,48 @@ La création UI (TinyMCE) n'est pas jouée. Les articles sont posés en Prisma
 
 Test à part : un CLIENT POST `?/deleteBlogPost` — l'article reste.
 
-Hors périmètre encore : promo, contacts. Pas de Stripe réel, pas de Sendcloud.
+### Promo admin — `e2e/promo/admin.spec.ts`
+
+La création passe par Prisma. L'édition de la valeur et la suppression passent
+par l'UI.
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Liste admin | GET `/admin/promo`, recherche | ligne du code |
+| 2 | Édition de la valeur | fiche → 15 → Enregistrer | `value` en base |
+| 3 | Suppression | dialogue Continue | code absent en base |
+
+Test à part : un CLIENT POST `?/deletePromo` — le code reste.
+
+### Promo validation — `e2e/promo/validate.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ------ | ------ |
+| 1 | Pourcentage accepté | POST `/api/promo/validate` 10 % / 100 € | remise 10 |
+| 2 | Inconnu / inactif / expiré | POST | `valid: false` |
+| 3 | Montant min. et quota | POST sous le seuil / quota plein | `valid: false` |
+| 4 | Checkout : appliqué | UI « Appliquer » | toast + remise |
+| 5 | Checkout : refusé | code faux | champ encore vide |
+
+### Contact formulaire — `e2e/contact/form.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Envoi valide | remplir + Envoyer | toast + ligne en base |
+| 2 | Email invalide (serveur) | POST `?/send` | pas de ligne (400 ou `fail` Superforms) |
+| 3 | Limiteur | 5 envois valides puis un 6ᵉ | 5 lignes, 429 |
+
+### Contact admin — `e2e/contact/admin.spec.ts`
+
+| # | Étape | Geste | Preuve |
+| - | ----- | ----- | ------ |
+| 1 | Liste admin | GET `/admin/contacts`, recherche | ligne email |
+| 2 | Fiche | GET `/admin/contacts/view/[id]` | nom, sujet, message |
+
+Test à part : un CLIENT GET `/admin/contacts` → `/`.
+
+Hors périmètre encore : Checkout Stripe hébergé (carte réelle), Sendcloud.
+`incrementUsage` n'est pas joué (il suit `stripe.checkout.sessions.create`).
 
 ## Architecture des utilitaires
 
@@ -263,6 +319,7 @@ tableau ci-dessous donne les marges disponibles.
 | `reset-password/verify-email`               | 5 / 30 min      | compte     | 2                        |
 | `totpBucket`                                | 5 / 30 min      | compte     | 2                        |
 | `recoveryCodeBucket`                        | 3 / 60 min      | compte     | 2                        |
+| `contactFormLimiter` (`/contact?/send`)     | 5 valides, 1 / 60 s | IP     | 5 (puis 429, spec contact) |
 
 Le throttler de connexion impose une attente **croissante** entre deux échecs sur
 un même compte : `waitOutLoginThrottle()` la fait patienter explicitement. Sans

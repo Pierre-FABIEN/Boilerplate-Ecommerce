@@ -4,7 +4,8 @@
 	import Mail from 'lucide-svelte/icons/mail';
 	import Eye from 'lucide-svelte/icons/eye';
 
-	// Props
+	// CONTACT-PLUGIN : lecture des messages du formulaire public.
+
 	let { data } = $props();
 
 	// Define table columns
@@ -34,6 +35,8 @@
 		}
 	]);
 </script>
+
+<h1 class="m-5 text-4xl">Messages de contact</h1>
 
 <!-- UI Table -->
 <div class="ccc w-[100%]">
