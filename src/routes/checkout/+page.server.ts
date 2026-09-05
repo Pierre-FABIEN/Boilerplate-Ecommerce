@@ -8,22 +8,21 @@
  */
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
-import Stripe from 'stripe';
-import dotenv from 'dotenv';
 
 import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-import { getOrderById, updateOrder } from '$lib/prisma/order/prendingOrder';
+import { getOrderById } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
 import { validatePromo, incrementUsage } from '$lib/prisma/promo/promo';
-import { assertOrderOwnedBy, resolveTrustedShippingCost } from '$lib/commerce/checkout';
+import {
+	assertOrderOwnedBy,
+	createCheckoutSession,
+	resolveTrustedShippingCost,
+	TVA_RATE
+} from '$lib/commerce/checkout';
 import { CartForbiddenError, InvalidShippingError } from '$lib/commerce/errors';
-
-dotenv.config();
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export const load = (async ({ locals }) => {
 	// AUTH-PLUGIN ▼ le paiement est réservé aux comptes : la commande et les
@@ -102,89 +101,35 @@ export const actions: Actions = {
 			throw err;
 		}
 
-		const finalShippingOption = hasCustomItems ? 'no_shipping' : shippingOption || 'no_shipping';
-		const finalShippingCost = String(trustedShippingCost);
-
-		const tvaRate = 0.055;
+		// PROMO-PLUGIN ▼ hors périmètre commerce ; conservé pour que le tunnel compile.
 		const productTotalTTC = parseFloat(
 			order.items
-				.reduce((sum, item) => sum + item.product.price * (1 + tvaRate) * item.quantity, 0)
+				.reduce((sum, item) => sum + item.product.price * (1 + TVA_RATE) * item.quantity, 0)
 				.toFixed(2)
 		);
-
-		// PROMO-PLUGIN ▼ hors périmètre commerce ; conservé pour que le tunnel compile.
 		const promoResult = await validatePromo(promoCode, productTotalTTC);
 		const appliedDiscount = promoResult.valid ? promoResult.discountAmount : 0;
 		const appliedPromoCode = promoResult.valid ? promoResult.promo?.code ?? null : null;
 		// PROMO-PLUGIN ▲
 
-		const discountFactor =
-			appliedDiscount > 0 && productTotalTTC > 0
-				? (productTotalTTC - appliedDiscount) / productTotalTTC
-				: 1;
-
-		const updatedOrder = await updateOrder(
-			orderId,
+		const session = await createCheckoutSession({
+			order,
+			userId,
+			origin: request.headers.get('origin') ?? '',
 			addressId,
-			finalShippingOption,
-			finalShippingCost,
-			servicePointId,
-			servicePointPostNumber,
-			servicePointLatitude,
-			servicePointLongitude,
-			servicePointType,
-			servicePointExtraRefCab,
-			servicePointExtraShopRef,
-			appliedPromoCode,
-			appliedDiscount
-		);
-
-		const lineItems = order.items.map((item) => {
-			const ttcPrice = item.product.price * (1 + tvaRate);
-			const discountedUnitAmount = Math.round(ttcPrice * 100 * discountFactor);
-
-			return {
-				price_data: {
-					currency: 'eur',
-					product_data: { name: item.product.name },
-					unit_amount: discountedUnitAmount
-				},
-				quantity: item.quantity
-			};
-		});
-
-		const shippingCostFloat = parseFloat((updatedOrder.shippingCost || 0).toString());
-		if (shippingCostFloat > 0 && !hasCustomItems) {
-			lineItems.push({
-				price_data: {
-					currency: 'eur',
-					product_data: {
-						name: 'Frais de port'
-					},
-					unit_amount: Math.round(shippingCostFloat * 100)
-				},
-				quantity: 1
-			});
-		}
-
-		const session = await stripe.checkout.sessions.create({
-			payment_method_types: ['card'],
-			line_items: lineItems,
-			mode: 'payment',
-			success_url: `${request.headers.get('origin')}/checkout/success`,
-			cancel_url: `${request.headers.get('origin')}/auth`,
-			metadata: {
-				order_id: orderId,
-				shipping_option: finalShippingOption,
-				shipping_cost: (updatedOrder.shippingCost || 0).toString(),
-				promo_code: appliedPromoCode || '',
-				discount_amount: appliedDiscount.toString()
-			},
-			payment_intent_data: {
-				metadata: {
-					user_id: userId,
-					order_id: orderId
-				}
+			shippingOption: hasCustomItems ? 'no_shipping' : shippingOption || 'no_shipping',
+			trustedShippingCost,
+			hasCustomItems,
+			promoCode: appliedPromoCode,
+			discountAmount: appliedDiscount,
+			servicePoint: {
+				id: servicePointId,
+				postNumber: servicePointPostNumber,
+				latitude: servicePointLatitude,
+				longitude: servicePointLongitude,
+				type: servicePointType,
+				extraRefCab: servicePointExtraRefCab,
+				extraShopRef: servicePointExtraShopRef
 			}
 		});
 

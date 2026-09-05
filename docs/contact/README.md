@@ -16,7 +16,7 @@ Il est conçu pour être retirable d'un bloc. La procédure complète est dans
 | `src/lib/schema/contact/` | schéma Zod du formulaire |
 | `src/routes/contact/` | page publique |
 | `src/routes/admin/contacts/` | liste et fiche (gardes = module admin) |
-| `src/lib/server/rate-limiter.ts` | `contactFormLimiter` (5 envois valides / IP, 1 jeton / 60 s) |
+| `src/lib/server/rate-limit.ts` | `contactFormLimiter` (5 envois valides / IP, 1 jeton / 60 s ; Redis si configuré, sinon mémoire) |
 
 Contrairement à l'auth, le contact **n'a pas de hook** dans `hooks.server.ts`.
 Le point d'accroche, ce sont `/contact` et la section admin.

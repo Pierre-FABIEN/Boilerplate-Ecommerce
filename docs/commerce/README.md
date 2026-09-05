@@ -11,12 +11,14 @@ Il est conçu pour être retirable d'un bloc. La procédure complète est dans
 
 | Emplacement | Contenu |
 | ----------- | ------- |
-| `src/lib/commerce/` | gardes panier / checkout, chemins, panier invité (`guestCart.ts`) |
+| `src/lib/commerce/` | gardes panier / checkout, session Stripe (`checkout.ts`), chemins, panier invité (`guestCart.ts`) |
 | `src/lib/prisma/order/` et `src/lib/prisma/transaction/` | DAO Prisma |
 | `src/lib/store/Data/cartStore.ts` + `cartSync.ts` | panier client |
 | `src/routes/api/save-cart/` | persistance panier |
 | `src/routes/checkout/` | tunnel + succès |
 | `src/routes/api/webhooks/` | Stripe `checkout.session.completed` |
+| `src/lib/server/jobs/post-payment.ts` | facture + Sendcloud, hors du webhook (voir plus bas) |
+| `src/routes/api/jobs/post-payment/` | endpoint appelé par la queue (QStash) |
 | `src/routes/admin/sales/` | liste, facture, bordereau (double marqueur ADMIN) |
 
 Le point d'accroche est le hook `pendingOrderHandle` dans `src/hooks.server.ts`
@@ -55,8 +57,34 @@ Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
   (même `productId` → quantités additionnées, plafonnées au stock).
 - `?/checkout` : même propriétaire ; un `shippingCost` Sendcloud entre 0 et
   200 € est accepté pour créer la session Stripe.
-- Webhook : crée la `Transaction` et passe l'`Order` en `PAID`. Un nouveau
-  panier PENDING peut naître ensuite (c'est voulu).
+- Webhook : sous verrou (`stripe:checkout:<session id>`, `src/lib/server/lock.ts`)
+  pour tolérer une double livraison Stripe, crée la `Transaction` et passe
+  l'`Order` en `PAID`. Facture et Sendcloud partent ensuite dans un job
+  asynchrone (voir ci-dessous), pas dans la requête webhook. Un nouveau panier
+  PENDING peut naître ensuite (c'est voulu).
+
+## Job post-paiement (facture + Sendcloud)
+
+Une fois la `Transaction` écrite, le webhook enfile `enqueuePostPaymentJob`
+(`src/lib/server/qstash.ts`) au lieu d'appeler directement l'e-mail de facture
+et Sendcloud : un appel Sendcloud lent ne doit jamais faire traîner la réponse
+au webhook Stripe, au risque d'un timeout perçu côté Stripe (et donc d'une
+relivraison).
+
+- **QStash configuré** (`QSTASH_TOKEN` + une URL publique — `APP_URL`, ou à
+  défaut `VERCEL_URL` fourni par Vercel) : le job est publié vers
+  `/api/jobs/post-payment`, dont la signature est vérifiée
+  (`QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`) ; QStash gère les
+  retries en cas d'échec.
+- **QStash absent** (dev local, ou `.env.test`) : `runPostPaymentJob`
+  s'exécute directement, en synchrone, dans la requête webhook — mêmes
+  effets, sans file d'attente.
+
+Dans les deux cas, `runPostPaymentJob` (`src/lib/server/jobs/post-payment.ts`)
+tourne sous verrou (`post-payment:<transaction id>`) et ne rappelle jamais
+Sendcloud si `sendcloudOrderCreatedAt` / `sendcloudParcelId` sont déjà posés :
+une commande ou une étiquette Sendcloud a un coût réel, un retry ne doit
+jamais en recréer une seconde.
 
 ## Tests
 
@@ -110,6 +138,8 @@ dans `STRIPE_WEBHOOK_SECRET` du `.env`, puis relancer Vite. Une fois :
 
 Pas de paiement carte. Sendcloud n'est pas appelé (`PUBLIC_ENV=test`).
 `incrementUsage` n'est pas joué : il suit `stripe.checkout.sessions.create`.
+`.env.test` ne renseigne pas `QSTASH_TOKEN` : le job post-paiement (facture)
+s'exécute directement dans la requête webhook, sans file d'attente.
 
 ### Ventes — `e2e/commerce/sales.spec.ts`
 

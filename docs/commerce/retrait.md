@@ -24,11 +24,16 @@ rm -rf src/lib/store/Data/cartStore.ts src/lib/store/Data/cartSync.ts
 rm -rf src/lib/components/cart src/lib/components/checkout src/lib/components/Facture
 rm -rf src/routes/checkout src/routes/api/save-cart src/routes/api/webhooks
 rm -rf src/routes/admin/sales src/routes/auth/settings/factures
+rm -rf src/lib/server/jobs/post-payment.ts src/routes/api/jobs/post-payment
 rm -rf e2e/commerce docs/commerce
 ```
 
 Les adresses (`src/lib/prisma/addresses`) restent avec l'auth si le compte les
 expose encore.
+
+`src/lib/server/redis.ts`, `cache.ts`, `lock.ts` et `qstash.ts` sont des utilitaires
+partagés (comme `rate-limit.ts` pour l'auth) : ne pas les supprimer s'ils
+servent encore ailleurs (le cache catalogue de `PRODUCT-PLUGIN`, par exemple).
 
 ## 2. Traiter les points de couplage
 
@@ -57,7 +62,8 @@ ne font pas partie de ce module : les retirer à part.
 ## 3. Données et dépendances
 
 `STRIPE_*` et `VITE_STRIPE_PUBLISHABLE_KEY` ne servent plus. `SENDCLOUD_*` non
-plus si le shipping part avec.
+plus si le shipping part avec. `QSTASH_*` et `APP_URL` non plus, s'ils ne
+servaient qu'au job post-paiement.
 
 ## 4. Vérifier
 

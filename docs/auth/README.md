@@ -165,7 +165,13 @@ branché juste après, qui s'en charge.
 
 ### Quotas
 
-Tous les compteurs sont en mémoire du processus.
+Les compteurs utilisent Redis (Upstash) quand `UPSTASH_REDIS_REST_URL` /
+`UPSTASH_REDIS_REST_TOKEN` sont renseignées — un script Lua par algorithme
+garantit l'atomicité, partagée entre toutes les instances. Sans ces variables
+(dev local sans compte Upstash), repli automatique sur une `Map` en mémoire de
+process, comme avant : chaque instance applique alors son propre quota, réparti
+sur le nombre d'instances actives en production (voir `src/lib/server/redis.ts`,
+`src/lib/server/rate-limit.ts`).
 
 | Point d'entrée                     | Clé              | Quota                                    |
 | ---------------------------------- | ---------------- | ---------------------------------------- |
@@ -182,11 +188,6 @@ Tous les compteurs sont en mémoire du processus.
 | code TOTP                          | compte           | 5 essais par 30 min                      |
 | code de secours                    | compte           | 3 essais par heure                       |
 
-En déploiement sans état partagé (Vercel serverless), chaque instance applique son
-propre quota : la limite réelle est donc multipliée par le nombre d'instances
-actives. Pour une limite stricte, remplacer `src/lib/server/rate-limit.ts` par une
-implémentation adossée à Redis.
-
 ## Configuration
 
 | Variable                    | Rôle                                                       | Obligatoire      |
@@ -197,6 +198,7 @@ implémentation adossée à Redis.
 | `GOOGLE_CLIENT_ID`          | identifiant OAuth Google                                   | si Google activé |
 | `GOOGLE_CLIENT_SECRET`      | secret OAuth Google                                        | si Google activé |
 | `VITE_GOOGLE_REDIRECT_URI`  | URI de retour, identique à la console Google Cloud         | si Google activé |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | quotas partagés entre instances (voir Quotas) | non (repli mémoire) |
 
 `ENCRYPTION_KEY` est à sauvegarder comme un mot de passe de base de données : la
 perdre rend inutilisables toutes les 2FA existantes, qu'il faudrait alors

@@ -83,9 +83,8 @@ transactions et la modification des comptes — à n'importe quel visiteur. Pré
 un mécanisme d'accès (réseau privé, proxy authentifié, sous-domaine protégé)
 **avant** de retirer ces contrôles.
 
-`src/lib/server/rate-limit.ts` et `src/lib/server/rate-limiter.ts` ne relèvent pas
-de l'authentification : ils servent le hook global et le formulaire de contact, et
-restent en place.
+`src/lib/server/rate-limit.ts` ne relève pas de l'authentification : il sert le
+hook global et le formulaire de contact, et reste en place.
 
 ## 3. Base de données
 

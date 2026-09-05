@@ -40,6 +40,14 @@ Le bouton « Ajouter au panier » sur la fiche est un accrochage COMMERCE.
 
 Les données viennent de Prisma. Contentful n'est plus utilisé pour les produits.
 
+Les trois lectures publiques (`listProducts`, `getProductBySlug`,
+`listCategories` dans `src/lib/products/catalog.ts`) passent par un cache
+Redis de 60 s quand Upstash est configuré (`src/lib/server/cache.ts`),
+invalidé automatiquement à chaque écriture des DAO `src/lib/prisma/products` /
+`src/lib/prisma/categories` (un seul numéro de version pour tout le
+catalogue : `bumpCacheVersion('catalog')`). Sans Redis configuré, ces
+fonctions relisent Prisma à chaque appel, comme avant.
+
 ## Admin
 
 `/admin/products` : liste, création, édition, suppression, catégories. Accès

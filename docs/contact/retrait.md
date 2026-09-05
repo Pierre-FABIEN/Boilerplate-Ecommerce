@@ -22,9 +22,10 @@ rm -rf src/lib/prisma/contact src/lib/schema/contact
 rm -rf e2e/contact docs/contact
 ```
 
-`contactFormLimiter` et `getClientIP` dans `src/lib/server/rate-limiter.ts`
-peuvent rester si un autre formulaire les réutilise ; sinon retirer le fichier
-s'il n'a plus d'import.
+`contactFormLimiter` et `getClientIP` vivent dans `src/lib/server/rate-limit.ts`,
+aux côtés des limiteurs de l'auth (`RefillingTokenBucket`, etc.) : ne pas
+supprimer le fichier, seulement ces deux exports si plus aucun formulaire ne
+les utilise.
 
 ## 2. Traiter les points de couplage
 
