@@ -87,7 +87,7 @@ export const actions: Actions = {
 
 		if (!form.valid) {
 			log('❌ Form validation failed:', form.errors);
-			return fail(400, { 
+			return fail(400, {
 				message: 'Erreurs de validation. Vérifiez vos données.'
 			});
 		}
@@ -101,7 +101,7 @@ export const actions: Actions = {
 			log('❌ Email already exists:', email);
 			log('⚠️ About to return early with simple object');
 			// Retour d'un objet simple sérialisable pour test
-			return message(form , 'vous etes deja inscrit avec cette adresse email.')
+			return message(form, 'vous etes deja inscrit avec cette adresse email.');
 		}
 
 		/* Consommation réelle du token RL */

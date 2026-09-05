@@ -109,7 +109,7 @@ export const actions: Actions = {
 		);
 		const promoResult = await validatePromo(promoCode, productTotalTTC);
 		const appliedDiscount = promoResult.valid ? promoResult.discountAmount : 0;
-		const appliedPromoCode = promoResult.valid ? promoResult.promo?.code ?? null : null;
+		const appliedPromoCode = promoResult.valid ? (promoResult.promo?.code ?? null) : null;
 		// PROMO-PLUGIN ▲
 
 		const session = await createCheckoutSession({

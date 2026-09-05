@@ -162,7 +162,11 @@ redis.call('PEXPIRE', KEYS[1], ttlMs)
 return 1
 `;
 
-async function evalScript(script: string, keys: string[], args: (string | number)[]): Promise<number> {
+async function evalScript(
+	script: string,
+	keys: string[],
+	args: (string | number)[]
+): Promise<number> {
 	const result = await getRedis().eval(script, keys, args);
 	return Number(result);
 }

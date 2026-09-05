@@ -254,7 +254,7 @@ export async function runPostPaymentJob(transactionId: string): Promise<void> {
 			await createSendcloudLabel(transaction);
 			console.log('✅ Étiquette Sendcloud créée avec succès');
 		} else {
-			console.log("ℹ️ Étiquette Sendcloud déjà créée, appel ignoré");
+			console.log('ℹ️ Étiquette Sendcloud déjà créée, appel ignoré');
 		}
 	});
 }

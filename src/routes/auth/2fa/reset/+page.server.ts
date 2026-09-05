@@ -22,9 +22,9 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 	if (!event.locals.user.registered2FA) {
-				if (event.locals.user.isMfaEnabled) {
-		return redirect(302, '/auth/2fa/setup');
-	}
+		if (event.locals.user.isMfaEnabled) {
+			return redirect(302, '/auth/2fa/setup');
+		}
 	}
 	if (event.locals.session.twoFactorVerified) {
 		return redirect(302, '/auth/');

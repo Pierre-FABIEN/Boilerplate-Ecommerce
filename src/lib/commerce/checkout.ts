@@ -41,7 +41,11 @@ export function resolveTrustedShippingCost(options: {
 	shippingOption?: string;
 	shippingCost?: string;
 }): number {
-	if (options.hasCustomItems || !options.shippingOption || options.shippingOption === 'no_shipping') {
+	if (
+		options.hasCustomItems ||
+		!options.shippingOption ||
+		options.shippingOption === 'no_shipping'
+	) {
 		return 0;
 	}
 
@@ -92,8 +96,19 @@ export async function createCheckoutSession(params: {
 		extraShopRef?: string;
 	};
 }): Promise<Stripe.Checkout.Session> {
-	const { order, userId, origin, addressId, hasCustomItems, promoCode, discountAmount, servicePoint } = params;
-	const finalShippingOption = hasCustomItems ? 'no_shipping' : params.shippingOption || 'no_shipping';
+	const {
+		order,
+		userId,
+		origin,
+		addressId,
+		hasCustomItems,
+		promoCode,
+		discountAmount,
+		servicePoint
+	} = params;
+	const finalShippingOption = hasCustomItems
+		? 'no_shipping'
+		: params.shippingOption || 'no_shipping';
 
 	const productTotalTTC = parseFloat(
 		order.items
@@ -101,7 +116,9 @@ export async function createCheckoutSession(params: {
 			.toFixed(2)
 	);
 	const discountFactor =
-		discountAmount > 0 && productTotalTTC > 0 ? (productTotalTTC - discountAmount) / productTotalTTC : 1;
+		discountAmount > 0 && productTotalTTC > 0
+			? (productTotalTTC - discountAmount) / productTotalTTC
+			: 1;
 
 	const updatedOrder = await updateOrder(
 		order.id,

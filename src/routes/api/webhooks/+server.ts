@@ -31,7 +31,11 @@ export async function POST({ request }: { request: Request }) {
 	let event: Stripe.Event;
 
 	try {
-		event = stripe.webhooks.constructEvent(body, sig || '', process.env.STRIPE_WEBHOOK_SECRET || '');
+		event = stripe.webhooks.constructEvent(
+			body,
+			sig || '',
+			process.env.STRIPE_WEBHOOK_SECRET || ''
+		);
 		// console.log('✅ Webhook verified and received:', event);
 	} catch (err: any) {
 		console.error('⚠️ Webhook signature verification failed.', err.message);
@@ -93,7 +97,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 	console.log('🆔 Order ID extrait:', orderId);
 
 	// Récupération de l'utilisateur lié à la commande
-	console.log('👤 Récupération de l\'utilisateur pour la commande...');
+	console.log("👤 Récupération de l'utilisateur pour la commande...");
 	const user = await getUserIdByOrderId(orderId);
 	if (!user || !user.userId) {
 		console.error('❌ Utilisateur introuvable pour la commande:', orderId);
@@ -128,7 +132,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 					items: { include: { product: true, custom: true } }
 				}
 			});
-			
+
 			if (!order) {
 				console.error('❌ Commande introuvable:', orderId);
 				throw new Error(`⚠️ Order ${orderId} not found`);
@@ -153,10 +157,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 			const weightBracket = deduceWeightBracket(order);
 			// Dimensions de secours uniquement : aucun fetch Sendcloud ici.
-			const shippingMethodData = fallbackShippingMethod(
-				order.shippingOption || '',
-				weightBracket
-			);
+			const shippingMethodData = fallbackShippingMethod(order.shippingOption || '', weightBracket);
 
 			const invoiceNumber = await nextInvoiceNumber(prismaTx);
 			const invoiceTotals = snapshotInvoiceTotals({
@@ -197,7 +198,9 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				package_dimension_unit: shippingMethodData?.unit ?? 'cm',
 				package_weight: shippingMethodData?.weight ?? weightBracket, // Utilise le bracket de poids si null
 				package_weight_unit: shippingMethodData?.weightUnit ?? 'kg',
-				package_volume: shippingMethodData?.volume ?? (weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000), // Volume calculé si null
+				package_volume:
+					shippingMethodData?.volume ??
+					(weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000), // Volume calculé si null
 				package_volume_unit: shippingMethodData?.volumeUnit ?? 'cm3',
 
 				// Adresse
