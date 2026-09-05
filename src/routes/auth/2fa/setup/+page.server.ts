@@ -85,7 +85,7 @@ export const actions: Actions = {
 			console.warn('2FA déjà configurée pour l’utilisateur:', event.locals.user.id);
 			return message(form, 'Two-factor already set up');
 		}
-		if (!totpUpdateBucket.check(event.locals.user.id, 1)) {
+		if (!(await totpUpdateBucket.check(event.locals.user.id, 1))) {
 			console.warn('Trop de tentatives pour l’utilisateur:', event.locals.user.id);
 			return message(form, 'Too many requests');
 		}

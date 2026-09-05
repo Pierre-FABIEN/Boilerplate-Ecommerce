@@ -79,7 +79,7 @@ export const actions: Actions = {
 
 		/* ---------- 1. Rate-limit pré-check -------------------------------- */
 		const ip = event.request.headers.get('x-forwarded-for') ?? 'localhost';
-		if (!ipBucket.check(ip, 1)) return fail(429, { message: 'Too many requests' });
+		if (!(await ipBucket.check(ip, 1))) return fail(429, { message: 'Too many requests' });
 
 		/* ---------- 2. Validation Zod + Superforms ------------------------- */
 		const form = await superValidate(event, zod(signupSchema));
@@ -105,7 +105,7 @@ export const actions: Actions = {
 		}
 
 		/* Consommation réelle du token RL */
-		if (!ipBucket.consume(ip, 1)) return fail(429, { message: 'Too many requests' });
+		if (!(await ipBucket.consume(ip, 1))) return fail(429, { message: 'Too many requests' });
 
 		/* ---------- 4. Création de l’utilisateur --------------------------- */
 		const user = await createUser(email, username, password);

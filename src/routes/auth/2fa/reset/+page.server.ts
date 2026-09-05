@@ -50,7 +50,7 @@ export const actions: Actions = {
 		) {
 			return message(form, 'Forbidden');
 		}
-		if (!recoveryCodeBucket.check(event.locals.user.id, 1)) {
+		if (!(await recoveryCodeBucket.check(event.locals.user.id, 1))) {
 			return message(form, 'Too many requests');
 		}
 
@@ -60,14 +60,14 @@ export const actions: Actions = {
 		if (code === '') {
 			return message(form, 'Please enter your code');
 		}
-		if (!recoveryCodeBucket.consume(event.locals.user.id, 1)) {
+		if (!(await recoveryCodeBucket.consume(event.locals.user.id, 1))) {
 			return message(form, 'Too many requests');
 		}
 		const valid = await resetUser2FAWithRecoveryCode(event.locals.user.id, code);
 		if (!valid) {
 			return message(form, 'Invalid recovery code');
 		}
-		recoveryCodeBucket.reset(event.locals.user.id);
+		await recoveryCodeBucket.reset(event.locals.user.id);
 
 		// La 2FA vient d'être retirée : l'utilisateur doit la reconfigurer si elle
 		// reste exigée, sinon il peut rejoindre son espace directement.

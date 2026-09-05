@@ -1,10 +1,14 @@
 import { prisma } from '$lib/server';
+import { bumpCacheVersion } from '$lib/server/cache';
 
 /**
  * Accès Prisma aux catégories du catalogue produit (pas les catégories blog).
  *
  * PRODUCT-PLUGIN : retirer avec le module catalogue, ou les conserver si le
  * commerce continue d'afficher des rayons.
+ *
+ * `bumpCacheVersion('catalog')` invalide le cache de lecture publique
+ * (`$lib/products/catalog`) après chaque écriture — voir `src/lib/server/cache.ts`.
  */
 
 export const getAllcategories = async () => {
@@ -24,27 +28,35 @@ export const getCategoriesById = async (categoryId: string) => {
 };
 
 export const deleteCategoryById = async (categoryId: string) => {
-	return await prisma.category.delete({
+	const deleted = await prisma.category.delete({
 		where: { id: categoryId }
 	});
+	await bumpCacheVersion('catalog');
+	return deleted;
 };
 
 export const deleteProductCategories = async (productId: string) => {
-	return await prisma.productCategory.deleteMany({
+	const result = await prisma.productCategory.deleteMany({
 		where: { productId: productId }
 	});
+	await bumpCacheVersion('catalog');
+	return result;
 };
 
 export const createCategory = async (data: { name: string; description?: string }) => {
-	return await prisma.category.create({
+	const category = await prisma.category.create({
 		data
 	});
+	await bumpCacheVersion('catalog');
+	return category;
 };
 
 export async function deleteProductCategoriesByCategoryId(categoryId: string) {
-	return await prisma.productCategory.deleteMany({
+	const result = await prisma.productCategory.deleteMany({
 		where: { categoryId: categoryId }
 	});
+	await bumpCacheVersion('catalog');
+	return result;
 }
 
 export const updateCategory = async (data: { id: string; name: string }) => {
@@ -55,6 +67,7 @@ export const updateCategory = async (data: { id: string; name: string }) => {
 			where: { id: data.id },
 			data: { name: data.name }
 		});
+		await bumpCacheVersion('catalog');
 		// console.log('Category updated successfully:', updatedCategory);
 		return updatedCategory;
 	} catch (error) {

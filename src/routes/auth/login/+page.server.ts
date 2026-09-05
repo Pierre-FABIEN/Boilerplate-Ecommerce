@@ -45,7 +45,7 @@ export const actions: Actions = {
 	login: async (event: RequestEvent) => {
 		// TODO: Assumes X-Forwarded-For is always included.
 		const clientIP = event.request.headers.get('X-Forwarded-For');
-		if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
+		if (clientIP !== null && !(await ipBucket.check(clientIP, 1))) {
 			return fail(429, {
 				message: 'Too many requests',
 				email: ''
@@ -71,10 +71,10 @@ export const actions: Actions = {
 			return message(form, 'Connectez vous via Google OAuth');
 		}
 
-		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
+		if (clientIP !== null && !(await ipBucket.consume(clientIP, 1))) {
 			return message(form, 'Too many requests');
 		}
-		if (!throttler.consume(user.id)) {
+		if (!(await throttler.consume(user.id))) {
 			return message(form, 'Too many requests');
 		}
 		const passwordHash = await getUserPasswordHash(user.id ?? undefined, email);
@@ -89,7 +89,7 @@ export const actions: Actions = {
 		if (!validPassword) {
 			return message(form, 'Invalid password');
 		}
-		throttler.reset(user.id);
+		await throttler.reset(user.id);
 		const sessionFlags: SessionFlags = {
 			twoFactorVerified: false
 		};

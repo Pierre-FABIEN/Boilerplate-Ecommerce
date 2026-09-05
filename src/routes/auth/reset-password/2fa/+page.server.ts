@@ -64,7 +64,7 @@ async function totpAction(event: RequestEvent) {
 	if (!session.emailVerified || !user.registered2FA || session.twoFactorVerified) {
 		return message(form, 'Forbidden');
 	}
-	if (!totpBucket.check(session.userId, 1)) {
+	if (!(await totpBucket.check(session.userId, 1))) {
 		return message(form, 'Too many requests');
 	}
 
@@ -79,7 +79,7 @@ async function totpAction(event: RequestEvent) {
 	if (totpKey === null) {
 		return message(form, 'Forbidden');
 	}
-	if (!totpBucket.consume(session.userId, 1)) {
+	if (!(await totpBucket.consume(session.userId, 1))) {
 		return message(form, 'Too many requests');
 	}
 
@@ -93,7 +93,7 @@ async function totpAction(event: RequestEvent) {
 		return fail(500, { message: 'Internal server error', form });
 	}
 
-	totpBucket.reset(session.userId);
+	await totpBucket.reset(session.userId);
 	await setPasswordResetSessionAs2FAVerified(session.id);
 	redirect(302, '/auth/reset-password');
 }
@@ -111,7 +111,7 @@ async function recoveryCodeAction(event: RequestEvent) {
 		return message(form, 'Forbidden');
 	}
 
-	if (!recoveryCodeBucket.check(session.userId, 1)) {
+	if (!(await recoveryCodeBucket.check(session.userId, 1))) {
 		return message(form, 'Too many requests');
 	}
 
@@ -123,7 +123,7 @@ async function recoveryCodeAction(event: RequestEvent) {
 	if (code === '') {
 		return message(form, 'Please enter your code');
 	}
-	if (!recoveryCodeBucket.consume(session.userId, 1)) {
+	if (!(await recoveryCodeBucket.consume(session.userId, 1))) {
 		return message(form, 'Too many requests');
 	}
 
@@ -133,7 +133,7 @@ async function recoveryCodeAction(event: RequestEvent) {
 		return message(form, 'Invalid code');
 	}
 
-	recoveryCodeBucket.reset(session.userId);
+	await recoveryCodeBucket.reset(session.userId);
 
 	redirect(302, '/auth/reset-password');
 }

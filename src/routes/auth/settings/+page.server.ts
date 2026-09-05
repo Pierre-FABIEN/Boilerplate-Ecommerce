@@ -91,7 +91,7 @@ export const actions: Actions = {
 				return message(form, 'Forbidden', { status: 403 });
 			}
 		}
-		if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
+		if (!(await passwordUpdateBucket.check(event.locals.session.id, 1))) {
 			return message(form, 'Too many requests', { status: 429 });
 		}
 
@@ -107,7 +107,7 @@ export const actions: Actions = {
 			return message(form, 'Incorrect password', { status: 400 });
 		}
 
-		passwordUpdateBucket.reset(event.locals.session.id);
+		await passwordUpdateBucket.reset(event.locals.session.id);
 		await invalidateUserSessions(event.locals.user.id);
 		await updateUserPassword(event.locals.user.id, new_password);
 
@@ -132,7 +132,7 @@ export const actions: Actions = {
 				return message(form, 'Forbidden', { status: 403 });
 			}
 		}
-		if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
+		if (!(await sendVerificationEmailBucket.check(event.locals.user.id, 1))) {
 			return message(form, 'Too many requests', { status: 429 });
 		}
 

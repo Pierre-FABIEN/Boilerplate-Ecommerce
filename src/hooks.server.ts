@@ -78,7 +78,7 @@ const bucket = new RefillingTokenBucket<string>(100, 1);
 
 const rateLimit: Handle = async ({ event, resolve }) => {
 	const ip = clientIP(event);
-	if (!bucket.consume(ip, 1)) {
+	if (!(await bucket.consume(ip, 1))) {
 		log('WARN', 'RateLimit', 'Quota dépassé pour', ip);
 		return new Response('Too many requests', { status: 429 });
 	}

@@ -3,17 +3,19 @@ import Stripe from 'stripe';
 import { prisma } from '$lib/server/index';
 import dotenv from 'dotenv';
 import { getUserIdByOrderId } from '$lib/prisma/order/prendingOrder';
-import { createSendcloudOrder } from '$lib/sendcloud/order';
-import { createSendcloudLabel } from '$lib/sendcloud/label';
-import { sendInvoiceEmail } from '$lib/server/invoice/email';
 import { nextInvoiceNumber } from '$lib/server/invoice/number';
 import { snapshotInvoiceTotals } from '$lib/server/invoice/totals';
+import { withLock } from '$lib/server/lock';
+import { enqueuePostPaymentJob } from '$lib/server/qstash';
+import { deduceWeightBracket, fallbackShippingMethod } from '$lib/server/jobs/post-payment';
 
 /**
  * Webhook Stripe.
  *
  * COMMERCE-PLUGIN : crée la `Transaction` et passe la commande en `PAID`.
- * SENDCLOUD : order + label après paiement — hors périmètre de ce lot, conservé.
+ * SENDCLOUD : facture + commande + étiquette partent en job asynchrone après
+ * la transaction (`$lib/server/qstash.ts` → `$lib/server/jobs/post-payment.ts`),
+ * pour ne jamais faire traîner la réponse à Stripe derrière un appel externe lent.
  * Le store panier client n'est pas réinitialisé ici (no-op hors navigateur) :
  * `/checkout/success` s'en charge.
  */
@@ -21,181 +23,6 @@ import { snapshotInvoiceTotals } from '$lib/server/invoice/totals';
 dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
-
-/** SENDCLOUD : pas d'appel réseau en e2e (`PUBLIC_ENV=test`) ni sans clés. */
-function shouldCallSendcloud(): boolean {
-	if (process.env.PUBLIC_ENV === 'test') return false;
-	const pub = process.env.SENDCLOUD_PUBLIC_KEY ?? '';
-	const sec = process.env.SENDCLOUD_SECRET_KEY ?? '';
-	return pub.length > 0 && sec.length > 0;
-}
-
-function fallbackShippingMethod(shippingOption: string, weightBracket: number) {
-	return {
-		id: 9999,
-		name: `Méthode: ${shippingOption}`,
-		length: weightBracket <= 3 ? 30 : weightBracket <= 6 ? 40 : 50,
-		width: weightBracket <= 3 ? 20 : weightBracket <= 6 ? 30 : 30,
-		height: weightBracket <= 3 ? 15 : weightBracket <= 6 ? 20 : 30,
-		unit: 'cm',
-		weight: weightBracket,
-		weightUnit: 'kg',
-		volume: weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000,
-		volumeUnit: 'cm3'
-	};
-}
-
-function deduceWeightBracket(order: any): number {
-	if (!order || !order.items || !Array.isArray(order.items)) {
-		console.warn("⚠️ Impossible de calculer le poids : 'order.items' est invalide.");
-		return 3; // Valeur par défaut pour éviter que tout crashe
-	}
-
-	// Calcul du poids total
-	const totalWeight = order.items.reduce((acc: number, item: any) => {
-		const productWeight = item.product?.weight ?? 0.124; // Poids par défaut si non défini
-		const customExtra = item.custom?.length > 0 ? 0.666 : 0; // Poids supplémentaire si custom
-		return acc + productWeight * item.quantity + customExtra;
-	}, 0);
-
-	// console.log(`⚖️ Poids total calculé : ${totalWeight.toFixed(2)} kg`);
-
-	// Déterminer le bracket correspondant
-	if (totalWeight <= 3) return 3;
-	if (totalWeight <= 6) return 6;
-	return 9;
-}
-
-/**
- * Récupère l'objet { id, name } directement depuis Sendcloud
- * en utilisant l'API des méthodes d'expédition
- */
-async function getShippingMethodData(shippingOption: string, weightBracket: number, order: any) {
-	if (!shouldCallSendcloud()) {
-		return fallbackShippingMethod(shippingOption, weightBracket);
-	}
-
-	console.log(`\n🔍 === RECHERCHE MÉTHODE D'EXPÉDITION DYNAMIQUE ===`);
-	console.log(`📋 Paramètres:`, { shippingOption, weightBracket });
-	
-	console.log('🚀 Récupération des méthodes d\'expédition depuis Sendcloud...');
-	
-	try {
-		// 1. Récupérer toutes les méthodes d'expédition disponibles
-		const methodsResponse = await fetch('https://panel.sendcloud.sc/api/v2/shipping_methods', {
-			method: 'GET',
-			headers: {
-				'Authorization': `Basic ${Buffer.from(`${process.env.SENDCLOUD_PUBLIC_KEY || ''}:${process.env.SENDCLOUD_SECRET_KEY || ''}`).toString('base64')}`,
-				'Content-Type': 'application/json'
-			}
-		});
-
-		if (!methodsResponse.ok) {
-			throw new Error(`Sendcloud Methods API error: ${methodsResponse.status}`);
-		}
-
-		const methodsData = await methodsResponse.json();
-		console.log('📥 Méthodes d\'expédition reçues:', methodsData.shipping_methods?.length || 0);
-
-		// 2. Chercher la méthode correspondante au code de shipping option
-		console.log('🔍 Recherche de la méthode correspondante au code:', shippingOption);
-		
-		// Extraire le code de base (ex: "ups:standard" depuis "ups:standard/live_rates,home_address_only")
-		const baseCode = shippingOption.split('/')[0];
-		console.log('🔍 Code de base extrait:', baseCode);
-
-		// Chercher dans les méthodes d'expédition
-		let matchingMethod = null;
-		if (methodsData.shipping_methods && Array.isArray(methodsData.shipping_methods)) {
-			// Log de quelques méthodes pour debug
-			console.log('📋 Exemples de méthodes disponibles:', methodsData.shipping_methods.slice(0, 3).map((m: { id?: unknown; name?: unknown; carrier?: unknown }) => ({
-				id: m.id,
-				name: m.name,
-				carrier: m.carrier
-			})));
-
-			// Chercher par nom ou code de transporteur
-			matchingMethod = methodsData.shipping_methods.find((method: any) => {
-				// Essayer de faire correspondre par nom ou transporteur
-				const methodName = method.name?.toLowerCase() || '';
-				const methodCarrier = method.carrier?.toLowerCase() || '';
-				const optionCode = shippingOption.toLowerCase();
-				const baseCodeLower = baseCode.toLowerCase();
-
-				// Correspondance par transporteur (ex: "ups" dans "ups:standard")
-				if (methodCarrier && baseCodeLower.includes(methodCarrier)) {
-					return true;
-				}
-
-				// Correspondance par nom de méthode
-				if (methodName && optionCode.includes(methodName.replace(/\s+/g, ''))) {
-					return true;
-				}
-
-				return false;
-			});
-		}
-
-		if (matchingMethod) {
-			console.log('✅ Méthode trouvée dans Sendcloud:', {
-				id: matchingMethod.id,
-				name: matchingMethod.name,
-				carrier: matchingMethod.carrier,
-				min_weight: matchingMethod.min_weight,
-				max_weight: matchingMethod.max_weight
-			});
-			
-			// Créer un objet de méthode d'expédition avec l'ID réel de Sendcloud
-			const dynamicMethod = {
-				id: matchingMethod.id, // ID réel de Sendcloud !
-				name: `${matchingMethod.carrier || 'Unknown'} - ${matchingMethod.name || 'Unknown'}`,
-				length: weightBracket <= 3 ? 30 : weightBracket <= 6 ? 40 : 50,
-				width: weightBracket <= 3 ? 20 : weightBracket <= 6 ? 30 : 30,
-				height: weightBracket <= 3 ? 15 : weightBracket <= 6 ? 20 : 30,
-				unit: 'cm',
-				weight: weightBracket,
-				weightUnit: 'kg',
-				volume: weightBracket <= 3 ? 9000 : weightBracket <= 6 ? 24000 : 45000,
-				volumeUnit: 'cm3'
-			};
-			
-			console.log('🎯 Méthode d\'expédition dynamique créée avec ID Sendcloud:', dynamicMethod);
-			return dynamicMethod;
-		} else {
-			console.log('❌ Aucune méthode correspondante trouvée');
-			console.log('📋 Méthodes disponibles:', methodsData.shipping_methods?.map((m: any) => ({
-				id: m.id,
-				name: m.name,
-				carrier: m.carrier
-			})) || []);
-			
-			console.log('⚠️ Utilisation de la méthode de fallback');
-			return fallbackShippingMethod(shippingOption, weightBracket);
-		}
-		
-	} catch (error) {
-		console.error(`❌ Erreur lors de la récupération des méthodes d'expédition:`, error);
-		
-		console.log('⚠️ Utilisation de la méthode de fallback après erreur');
-		return fallbackShippingMethod(shippingOption, weightBracket);
-	} finally {
-		console.log('🏁 === FIN RECHERCHE MÉTHODE D\'EXPÉDITION DYNAMIQUE ===\n');
-	}
-}
-
-/**
- * Génère un ID dynamique basé sur l'option de livraison et le bracket de poids
- */
-function generateDynamicId(shippingOption: string, weightBracket: number) {
-	// Hash simple pour générer un ID unique
-	let hash = 0;
-	for (let i = 0; i < shippingOption.length; i++) {
-		const char = shippingOption.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
-		hash = hash & hash; // Convert to 32bit integer
-	}
-	return Math.abs(hash) + weightBracket * 1000;
-}
 
 export async function POST({ request }: { request: Request }) {
 	const sig = request.headers.get('stripe-signature');
@@ -216,7 +43,11 @@ export async function POST({ request }: { request: Request }) {
 		case 'checkout.session.completed': {
 			const session = event.data.object as Stripe.Checkout.Session;
 			// console.log('✅ Checkout session completed:', session);
-			await handleCheckoutSession(session);
+			// Verrou distribué : Stripe peut livrer le même webhook deux fois en
+			// parallèle, ce qui laisserait passer les deux appels au travers du
+			// `findUnique` de `handleCheckoutSession` avant que l'un des deux
+			// n'ait eu le temps d'écrire la transaction.
+			await withLock(`stripe:checkout:${session.id}`, 30, () => handleCheckoutSession(session));
 			break;
 		}
 
@@ -466,75 +297,10 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 	console.log('🎉 Transaction en base créée avec succès:', createdTransaction?.id);
 
-	if (createdTransaction && createdTransaction.status === 'paid') {
-		try {
-			await sendInvoiceEmail(createdTransaction);
-		} catch (error) {
-			console.error('❌ Envoi de la facture par e-mail impossible:', error);
-		}
-	}
-
-	// (2) APPEL A SENDCLOUD en dehors de la transaction (la facture existe déjà)
-	if (createdTransaction && createdTransaction.status === 'paid') {
-		if (!shouldCallSendcloud()) {
-			console.log('📦 Sendcloud ignoré (PUBLIC_ENV=test ou clés absentes)');
-		} else {
-			console.log('📦 Début des appels Sendcloud...');
-
-			try {
-				const orderForShipping = await prisma.order.findUnique({
-					where: { id: orderId },
-					include: { items: { include: { product: true, custom: true } } }
-				});
-				const weightBracket = deduceWeightBracket(orderForShipping);
-				const shippingMethodData = await getShippingMethodData(
-					createdTransaction.shippingOption || '',
-					weightBracket,
-					orderForShipping
-				);
-
-				if (shippingMethodData?.id && shippingMethodData.id !== createdTransaction.shippingMethodId) {
-					createdTransaction = await prisma.transaction.update({
-						where: { id: createdTransaction.id },
-						data: {
-							shippingMethodId: shippingMethodData.id,
-							shippingMethodName: shippingMethodData.name,
-							package_length: shippingMethodData.length,
-							package_width: shippingMethodData.width,
-							package_height: shippingMethodData.height,
-							package_dimension_unit: shippingMethodData.unit,
-							package_weight: shippingMethodData.weight,
-							package_weight_unit: shippingMethodData.weightUnit,
-							package_volume: shippingMethodData.volume,
-							package_volume_unit: shippingMethodData.volumeUnit
-						}
-					});
-				}
-			} catch (error) {
-				console.error('❌ Erreur lors de la résolution de la méthode Sendcloud:', error);
-			}
-
-			try {
-				console.log('🔄 Création de la commande Sendcloud...');
-				await createSendcloudOrder(createdTransaction);
-				console.log('✅ Commande Sendcloud créée avec succès');
-			} catch (error) {
-				console.error('❌ Erreur lors de la création de la commande Sendcloud:', error);
-			}
-
-			try {
-				console.log("🏷️ Création de l'étiquette Sendcloud...");
-				await createSendcloudLabel(createdTransaction);
-				console.log('✅ Étiquette Sendcloud créée avec succès');
-			} catch (error) {
-				console.error("❌ Erreur lors de la création de l'étiquette Sendcloud:", error);
-			}
-		}
-	} else {
-		console.log(
-			'⚠️ Statut de paiement non "paid", pas d\'appel Sendcloud. Statut:',
-			createdTransaction?.status
-		);
+	// Facture + Sendcloud partent en job asynchrone (QStash si configuré,
+	// sinon exécution directe équivalente en dev) : voir $lib/server/jobs/post-payment.ts.
+	if (createdTransaction) {
+		await enqueuePostPaymentJob(createdTransaction.id);
 	}
 
 	console.log('🏁 === FIN TRAITEMENT WEBHOOK CHECKOUT ===\n');

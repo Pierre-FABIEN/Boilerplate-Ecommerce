@@ -59,7 +59,7 @@ export const actions: Actions = {
 			return message(form, 'Forbidden');
 		}
 
-		if (!totpBucket.check(locals.user.id, 1)) {
+		if (!(await totpBucket.check(locals.user.id, 1))) {
 			return message(form, 'Too many requests');
 		}
 
@@ -70,7 +70,7 @@ export const actions: Actions = {
 		if (code === '') {
 			return message(form, 'Please enter your code');
 		}
-		if (!totpBucket.consume(locals.user.id, 1)) {
+		if (!(await totpBucket.consume(locals.user.id, 1))) {
 			return message(form, 'Too many requests');
 		}
 
@@ -97,7 +97,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'Internal server error', form });
 		}
 
-		totpBucket.reset(locals.user.id);
+		await totpBucket.reset(locals.user.id);
 		await setSessionAs2FAVerified(locals.session.id);
 
 		// Invalider la session actuelle de Lucia

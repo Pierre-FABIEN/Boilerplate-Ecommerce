@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { bumpCacheVersion } from '$lib/server/cache';
 
 /**
  * Accès Prisma aux produits.
@@ -6,6 +7,9 @@ import { prisma } from '$lib/server';
  * PRODUCT-PLUGIN : ces fonctions alimentent la vitrine (`src/lib/products`) et
  * le CRUD admin. COMMERCE-PLUGIN : le prix catalogue est relui à l'écriture
  * du panier (`updateOrderItems`).
+ *
+ * `bumpCacheVersion('catalog')` invalide le cache de lecture publique
+ * (`$lib/products/catalog`) après chaque écriture — voir `src/lib/server/cache.ts`.
  */
 
 /** Un produit déjà commandé ne peut pas être effacé : l'historique de vente reste. */
@@ -25,9 +29,11 @@ export const createProduct = async (productData: {
 	slug: string;
 	colorProduct: string;
 }) => {
-	return prisma.product.create({
+	const product = await prisma.product.create({
 		data: productData
 	});
+	await bumpCacheVersion('catalog');
+	return product;
 };
 
 export const getProductById = async (productId: string) => {
@@ -60,18 +66,22 @@ export const deleteProductById = async (productId: string) => {
 		where: { productId }
 	});
 
-	return prisma.product.delete({
+	const deleted = await prisma.product.delete({
 		where: { id: productId }
 	});
+	await bumpCacheVersion('catalog');
+	return deleted;
 };
 
 export const connectProductToCategories = async (productId: string, categoryIds: string[]) => {
-	return prisma.productCategory.createMany({
+	const result = await prisma.productCategory.createMany({
 		data: categoryIds.map((categoryId) => ({
 			productId,
 			categoryId
 		}))
 	});
+	await bumpCacheVersion('catalog');
+	return result;
 };
 
 export const getAllProducts = async () => {
@@ -103,8 +113,10 @@ export const updateProductById = async (
 		colorProduct?: string;
 	}
 ) => {
-	return await prisma.product.update({
+	const product = await prisma.product.update({
 		where: { id: productId },
 		data
 	});
+	await bumpCacheVersion('catalog');
+	return product;
 };

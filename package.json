@@ -160,6 +160,8 @@
 		"@threlte/xr": "^1.0.5",
 		"@tinymce/tinymce-svelte": "^3.0.0",
 		"@types/three": "^0.176.0",
+		"@upstash/qstash": "^2.11.3",
+		"@upstash/redis": "^1.38.4",
 		"arctic": "^3.7.0",
 		"argon2": "^0.43.0",
 		"canvg": "^4.0.3",

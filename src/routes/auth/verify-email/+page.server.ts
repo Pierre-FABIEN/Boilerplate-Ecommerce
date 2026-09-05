@@ -115,7 +115,7 @@ async function verifyCode(event: RequestEvent) {
 		return message(form, 'Forbidden', { status: 403 });
 	}
 
-	if (!bucket.check(event.locals.user.id, 1)) {
+	if (!(await bucket.check(event.locals.user.id, 1))) {
 		log('Rate limit pre-check failed');
 		return message(form, 'Too many requests', { status: 429 });
 	}
@@ -135,7 +135,7 @@ async function verifyCode(event: RequestEvent) {
 
 	const { code } = form.data;
 
-	if (!bucket.consume(event.locals.user.id, 1)) {
+	if (!(await bucket.consume(event.locals.user.id, 1))) {
 		log('Rate limit consume failed');
 		return message(form, 'Too many requests', { status: 429 });
 	}
@@ -190,7 +190,7 @@ async function resendEmail(event: RequestEvent) {
 		return fail(403, { resend: { message: 'Forbidden' } });
 	}
 
-	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
+	if (!(await sendVerificationEmailBucket.check(event.locals.user.id, 1))) {
 		log('Rate-limit resend check failed');
 		return fail(429, { resend: { message: 'Too many requests' } });
 	}
@@ -203,7 +203,7 @@ async function resendEmail(event: RequestEvent) {
 			return fail(403, { resend: { message: 'Forbidden' } });
 		}
 
-		if (!sendVerificationEmailBucket.consume(event.locals.user.id, 1)) {
+		if (!(await sendVerificationEmailBucket.consume(event.locals.user.id, 1))) {
 			log('Rate-limit consume failed on resend');
 			return fail(429, { resend: { message: 'Too many requests' } });
 		}
@@ -214,7 +214,7 @@ async function resendEmail(event: RequestEvent) {
 		);
 		log('New verification request created (no previous one)');
 	} else {
-		if (!sendVerificationEmailBucket.consume(event.locals.user.id, 1)) {
+		if (!(await sendVerificationEmailBucket.consume(event.locals.user.id, 1))) {
 			log('Rate-limit consume failed on resend (existing request)');
 			return fail(429, { resend: { message: 'Too many requests' } });
 		}

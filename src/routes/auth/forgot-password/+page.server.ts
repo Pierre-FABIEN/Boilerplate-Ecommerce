@@ -51,7 +51,7 @@ export const actions: Actions = {
 		}
 
 		const clientIP = event.request.headers.get('X-Forwarded-For');
-		if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
+		if (clientIP !== null && !(await ipBucket.check(clientIP, 1))) {
 			return message(form, 'Too many requests');
 		}
 
@@ -60,11 +60,11 @@ export const actions: Actions = {
 		if (user === null) {
 			return message(form, 'Account does not exist');
 		}
-		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
+		if (clientIP !== null && !(await ipBucket.consume(clientIP, 1))) {
 			return message(form, 'Too many requests');
 		}
 
-		if (!userBucket.consume(user.id, 1)) {
+		if (!(await userBucket.consume(user.id, 1))) {
 			return message(form, 'Too many requests');
 		}
 

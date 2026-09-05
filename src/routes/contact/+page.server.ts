@@ -10,7 +10,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { contactSchema } from '$lib/schema/contact/contactSchema';
 import { createContactSubmission } from '$lib/prisma/contact/contact';
-import { contactFormLimiter, getClientIP } from '$lib/server/rate-limiter';
+import { contactFormLimiter, getClientIP } from '$lib/server/rate-limit';
 
 export const load = (async () => {
 	const form = await superValidate(zod(contactSchema));
@@ -25,7 +25,7 @@ export const actions: Actions = {
 		}
 
 		const ip = getClientIP(event);
-		if (!contactFormLimiter.consume(ip, 1)) {
+		if (!(await contactFormLimiter.consume(ip, 1))) {
 			return fail(429, { message: 'Too many requests' });
 		}
 

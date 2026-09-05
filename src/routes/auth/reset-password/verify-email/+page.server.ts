@@ -57,7 +57,7 @@ export const actions: Actions = {
 		if (session.emailVerified) {
 			return message(form, 'Forbidden');
 		}
-		if (!bucket.check(session.userId, 1)) {
+		if (!(await bucket.check(session.userId, 1))) {
 			return message(form, 'Too many requests');
 		}
 
@@ -69,13 +69,13 @@ export const actions: Actions = {
 		if (code === '') {
 			return message(form, 'Please enter your code');
 		}
-		if (!bucket.consume(session.userId, 1)) {
+		if (!(await bucket.consume(session.userId, 1))) {
 			return message(form, 'Too many requests');
 		}
 		if (code !== session.code) {
 			return message(form, 'Incorrect code');
 		}
-		bucket.reset(session.userId);
+		await bucket.reset(session.userId);
 		await setPasswordResetSessionAsEmailVerified(session.id);
 		const emailMatches = await setUserAsEmailVerifiedIfEmailMatches(session.userId, session.email);
 		if (!emailMatches) {

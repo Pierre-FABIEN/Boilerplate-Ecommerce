@@ -296,9 +296,12 @@ model Transaction {
   shippingMethodName String
 
   // Informations supplémentaires Sendcloud
-  sendcloudParcelId Int?
-  trackingNumber    String?
-  trackingUrl       String?
+  sendcloudParcelId       Int?
+  trackingNumber          String?
+  trackingUrl             String?
+  /// Posé après le premier succès de `createSendcloudOrder` (job post-paiement) :
+  /// garde d'idempotence contre un retry QStash qui recréerait la commande.
+  sendcloudOrderCreatedAt DateTime?
 
   // Dimensions et poids du colis selon l'API Sendcloud
   package_length         Float
