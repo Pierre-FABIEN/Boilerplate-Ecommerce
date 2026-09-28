@@ -227,7 +227,15 @@
 					<tbody>
 						{#each data.sessions as session (session.id)}
 							<tr class="border-b">
-								<td class="py-2 pr-4">{session.device}</td>
+									<td class="py-2 pr-4">
+										{#if session.device}
+											{session.device}
+										{:else}
+											<span class="text-muted-foreground italic"
+												>Non disponible (session pré-existante)</span
+											>
+										{/if}
+									</td>
 								<td class="py-2 pr-4">
 									{[session.city, session.country].filter(Boolean).join(', ') || '—'}
 								</td>

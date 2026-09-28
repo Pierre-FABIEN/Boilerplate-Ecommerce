@@ -83,7 +83,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// self-service (`/auth/settings/sessions`), voir FEATURE_IDEAS.md.
 		sessions: sessionsFetched.map((session) => ({
 			id: session.id,
-			device: describeUserAgent(session.userAgent),
+			// `null` = session ouverte avant l'ajout de ce suivi, voir le même
+			// commentaire dans /auth/settings/sessions/+page.server.ts.
+			device: session.userAgent ? describeUserAgent(session.userAgent) : null,
 			city: session.city,
 			country: session.country,
 			ipAddress: session.ipAddress,

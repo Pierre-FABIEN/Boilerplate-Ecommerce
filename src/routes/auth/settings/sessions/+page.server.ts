@@ -30,7 +30,12 @@ export const load = (async ({ locals }) => {
 	return {
 		sessions: sessions.map((session) => ({
 			id: session.id,
-			device: describeUserAgent(session.userAgent),
+			// `null` distingué de « appareil non reconnu » : une session ouverte
+			// avant l'ajout de ce suivi (colonne alors vide) n'a jamais eu de
+			// User-Agent capturé, ce n'est pas la même chose qu'un User-Agent
+			// présent mais qu'on n'a pas su identifier — voir +page.svelte, qui
+			// affiche un message différent (et explicite) dans ce cas.
+			device: session.userAgent ? describeUserAgent(session.userAgent) : null,
 			city: session.city,
 			country: session.country,
 			createdAt: session.createdAt,

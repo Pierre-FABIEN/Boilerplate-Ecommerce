@@ -16,6 +16,12 @@
 	});
 
 	let revokingId = $state<string | null>(null);
+
+	// Une session ouverte avant l'ajout de ce suivi n'a jamais eu de User-Agent
+	// capturé (colonne vide) — bannière explicite plutôt que de laisser chaque
+	// ligne afficher silencieusement « Informations non disponibles » sans
+	// contexte pour comprendre pourquoi.
+	let hasLegacySession = $derived(data.sessions.some((s) => s.device === null));
 </script>
 
 <svelte:head>
@@ -73,6 +79,13 @@
 		{/if}
 	</div>
 
+	{#if hasLegacySession}
+		<p class="text-sm text-muted-foreground bg-muted rounded-md px-3 py-2 mb-4">
+			Certaines sessions ont été ouvertes avant l'activation du suivi des appareils : leurs
+			informations apparaîtront à la prochaine connexion depuis cet appareil.
+		</p>
+	{/if}
+
 	<div class="space-y-3">
 		{#each data.sessions as session (session.id)}
 			<Card.Root>
@@ -81,7 +94,13 @@
 						<Monitor class="w-5 h-5 mt-0.5 text-muted-foreground shrink-0" />
 						<div>
 							<p class="font-medium flex items-center gap-2">
-								{session.device}
+								{#if session.device}
+									{session.device}
+								{:else}
+									<span class="text-muted-foreground font-normal italic">
+										Informations non disponibles
+									</span>
+								{/if}
 								{#if session.isCurrent}
 									<span
 										class="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5 font-normal"
@@ -93,6 +112,8 @@
 							<p class="text-sm text-muted-foreground">
 								{#if session.city || session.country}
 									{[session.city, session.country].filter(Boolean).join(', ')} ·
+								{:else if session.device}
+									Localisation non disponible ·
 								{/if}
 								Dernière activité : {new Date(session.lastActiveAt).toLocaleString('fr-FR')}
 							</p>
