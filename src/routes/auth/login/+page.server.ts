@@ -12,6 +12,7 @@ import { getUserFromEmail, getUserPasswordHash } from '$lib/lucia/user';
 import { RefillingTokenBucket, Throttler } from '$lib/server/rate-limit';
 import { verifyPasswordHash } from '$lib/lucia/password';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/lucia/session';
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 
 import type { SessionFlags } from '$lib/lucia/session';
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
@@ -95,7 +96,13 @@ export const actions: Actions = {
 		};
 
 		const sessionToken = generateSessionToken();
-		const session = await createSession(sessionToken, user.id, sessionFlags);
+		const session = await createSession(
+			sessionToken,
+			user.id,
+			sessionFlags,
+			null,
+			getSessionDeviceContext(event.request)
+		);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 		if (!user.emailVerified) {

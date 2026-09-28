@@ -14,6 +14,7 @@ import { auth } from '$lib/lucia';
 import { createUserWithGoogleOAuth } from '$lib/prisma/user/user';
 import { GOOGLE_CLIENT_ID } from '$env/static/private';
 import { isDummySecret } from '$lib/server/dummy-secrets';
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 
 import type { RequestEvent } from './$types';
 import type { OAuth2Tokens } from 'arctic';
@@ -28,7 +29,10 @@ function isE2eGoogleBypass(code: string, email: string | null): boolean {
 }
 
 async function establishGoogleSession(event: RequestEvent, userId: string): Promise<Response> {
-	const session = await auth.createSession(userId, { twoFactorVerified: false });
+	const session = await auth.createSession(userId, {
+		twoFactorVerified: false,
+		...getSessionDeviceContext(event.request)
+	});
 	const sessionCookie = auth.createSessionCookie(session.id);
 	event.cookies.set(sessionCookie.name, sessionCookie.value, {
 		path: '/',

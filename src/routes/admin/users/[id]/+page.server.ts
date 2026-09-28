@@ -10,6 +10,8 @@ import { updateUserSecurity } from '$lib/prisma/user/updateUserSecurity';
 import { invalidateUserSessions } from '$lib/lucia/session';
 import { assertAdmin, requireAdmin } from '$lib/admin/guards';
 import { logAdminAction } from '$lib/server/audit-log';
+import { findSessionsForUser } from '$lib/prisma/session/sessions';
+import { describeUserAgent } from '$lib/lucia/deviceLabel';
 
 /**
  * Fiche d'un utilisateur : rôle, 2FA, mot de passe, adresses.
@@ -24,9 +26,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// console.log('Loading user data for ID:', params.id);
 
 	// 📌 Récupération des informations utilisateur et adresses associées
-	const [userFetched, addressesFetched] = await Promise.all([
+	const [userFetched, addressesFetched, sessionsFetched] = await Promise.all([
 		getUsersById(params.id),
-		getUserAddresses(params.id)
+		getUserAddresses(params.id),
+		findSessionsForUser(params.id)
 	]);
 
 	// console.log(userFetched, 'userFetched');
@@ -76,7 +79,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		IupdateUserAndAddressSchema,
-		userSelected
+		userSelected,
+		// Lecture seule côté admin — la déconnexion à distance reste réservée au
+		// self-service (`/auth/settings/sessions`), voir FEATURE_IDEAS.md.
+		sessions: sessionsFetched.map((session) => ({
+			id: session.id,
+			// `null` = session ouverte avant l'ajout de ce suivi, voir le même
+			// commentaire dans /auth/settings/sessions/+page.server.ts.
+			device: session.userAgent ? describeUserAgent(session.userAgent) : null,
+			city: session.city,
+			country: session.country,
+			ipAddress: session.ipAddress,
+			createdAt: session.createdAt,
+			lastActiveAt: session.lastActiveAt
+		}))
 	};
 };
 

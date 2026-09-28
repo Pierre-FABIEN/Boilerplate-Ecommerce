@@ -23,7 +23,7 @@ import type { User } from '$lib/lucia/user';
 import type { Session } from '$lib/lucia/session';
 import { sessionIdentityCacheKey, SESSION_IDENTITY_CACHE_TTL_SECONDS } from '$lib/lucia/session';
 import { getUserByIdPrisma } from '$lib/prisma/user/user';
-import { findSessionById } from '$lib/prisma/session/sessions';
+import { findSessionById, touchSessionActivity } from '$lib/prisma/session/sessions';
 import { isRedisConfigured, getRedis } from '$lib/server/redis';
 
 /** Passe à `true` pour tracer la résolution de session dans la console. */
@@ -136,6 +136,17 @@ async function resolveIdentity(event: Parameters<Handle>[0]['event']): Promise<R
 		const session = luciaSession
 			? await loadFreshSession(luciaSession.id, luciaSession.fresh)
 			: null;
+
+		// « Dernière activité », pour /auth/settings/sessions. Fire-and-forget :
+		// une écriture ratée ne doit jamais faire échouer la requête, et ce
+		// chemin n'est déjà emprunté qu'une fois par ~8s par visiteur actif (le
+		// cache d'identité ci-dessus absorbe le reste) — pas besoin d'un seuil
+		// de fraîcheur supplémentaire avant d'écrire.
+		if (session) {
+			touchSessionActivity(session.id).catch((error) => {
+				log('échec de la mise à jour de dernière activité', error);
+			});
+		}
 
 		const identity: ResolvedIdentity = { session, user };
 		if (isRedisConfigured() && session && user) {

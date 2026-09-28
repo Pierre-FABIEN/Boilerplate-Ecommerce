@@ -24,7 +24,8 @@
 		Undo2,
 		Bell,
 		Gift,
-		ShieldCheck
+		ShieldCheck,
+		Monitor
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -264,6 +265,20 @@
 				</Card.Footer>
 			</Card.Root>
 		{/if}
+
+		<Card.Root class="flex flex-col">
+			<Card.Header>
+				<Card.Title class="flex items-center gap-2">
+					<Monitor class="w-6 h-6 text-primary" />
+					<span>Sessions actives</span>
+				</Card.Title>
+				<Card.Description>Voir les appareils connectés et les déconnecter.</Card.Description>
+			</Card.Header>
+			<Card.Content class="flex-grow" />
+			<Card.Footer>
+				<Button href="/auth/settings/sessions" class="w-full">Mes sessions</Button>
+			</Card.Footer>
+		</Card.Root>
 
 		{#if !data.user.googleId}
 			<!-- Mise à jour de l'email -->

@@ -10,6 +10,7 @@ import { totpBucket } from '$lib/lucia/2fa';
 import { fail, redirect } from '@sveltejs/kit';
 import { getUserTOTPKey, upgradeTotpKeyEncryption } from '$lib/lucia/user';
 import { verifyTOTP } from '@oslojs/otp';
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 import { auth } from '$lib/lucia';
 
 import type { Actions, RequestEvent } from './$types';
@@ -107,7 +108,10 @@ export const actions: Actions = {
 		await auth.invalidateSession(locals.session.id);
 
 		// Créer une nouvelle session pour l'utilisateur avec twoFactorVerified à true
-		const newSession = await auth.createSession(locals.user.id, { twoFactorVerified: true });
+		const newSession = await auth.createSession(locals.user.id, {
+			twoFactorVerified: true,
+			...getSessionDeviceContext(request)
+		});
 
 		// Définir le nouveau cookie de session
 		const newSessionCookie = auth.createSessionCookie(newSession.id);
