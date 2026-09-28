@@ -157,7 +157,7 @@ export const actions: Actions = {
 			path: '/',
 			...cookie.attributes
 		});
-		log('✅  Session created', { sid: session.id });
+		log('✅  Session created', { userId: user.id });
 
 		// Enregistré pour l'historique (`/auth/settings/sessions`), mais jamais
 		// d'alerte « nouvel appareil » ici : c'est la toute première connexion
