@@ -17,6 +17,7 @@ import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 import { buildCreditNoteView } from '$lib/server/creditNote/view';
 import { sendCreditNoteEmail } from '$lib/server/creditNote/email';
 import { getInvoiceCompany } from '$lib/server/invoice/company';
+import { withLock } from '$lib/server/lock';
 
 /**
  * Gestion admin des demandes de retour (`ReturnRequest`).
@@ -62,69 +63,79 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const id = String(formData.get('id') ?? '');
 
-		const returnRequest = await getReturnRequestById(id);
-		if (!returnRequest) {
-			return fail(404, { message: 'Demande introuvable' });
-		}
-		if (returnRequest.status !== 'REQUESTED') {
-			return fail(400, { message: 'Cette demande a déjà été traitée' });
-		}
-
-		try {
-			const session = await stripe.checkout.sessions.retrieve(
-				returnRequest.transaction.stripePaymentId,
-				{ expand: ['payment_intent'] }
-			);
-			const paymentIntentId =
-				typeof session.payment_intent === 'string'
-					? session.payment_intent
-					: session.payment_intent?.id;
-
-			if (!paymentIntentId) {
-				return fail(500, { message: 'Paiement Stripe introuvable pour cette transaction' });
+		// Un double-clic (ou deux admins) ne doit pas rembourser deux fois : le
+		// contrôle de statut et l'écriture qui en sort sont dans la même section
+		// critique, pas deux lectures/écritures isolées (§1.3 de l'audit).
+		const result = await withLock(`return:${id}`, 30, async () => {
+			const returnRequest = await getReturnRequestById(id);
+			if (!returnRequest) {
+				return fail(404, { message: 'Demande introuvable' });
+			}
+			if (returnRequest.status !== 'REQUESTED') {
+				return fail(400, { message: 'Cette demande a déjà été traitée' });
 			}
 
-			const refund = await stripe.refunds.create({
-				payment_intent: paymentIntentId,
-				amount: Math.round(returnRequest.transaction.amount * 100)
-			});
-
-			const updated = await markReturnApproved(id, refund.id);
-
 			try {
-				const creditNote = buildCreditNoteView(
-					returnRequest.transaction,
-					updated.creditNoteNumber!,
-					'REFUND',
-					await getInvoiceCompany()
+				const session = await stripe.checkout.sessions.retrieve(
+					returnRequest.transaction.stripePaymentId,
+					{ expand: ['payment_intent'] }
 				);
-				await sendCreditNoteEmail(creditNote);
-			} catch (creditNoteErr) {
-				log('WARN', 'returns', 'Avoir non envoyé', {
-					returnRequestId: id,
-					error: creditNoteErr instanceof Error ? creditNoteErr.message : String(creditNoteErr)
-				});
-			}
+				const paymentIntentId =
+					typeof session.payment_intent === 'string'
+						? session.payment_intent
+						: session.payment_intent?.id;
 
-			// Best-effort : le remboursement est déjà acquis, une étiquette de
-			// retour qui échoue ne doit pas repasser la demande en échec.
-			try {
-				await createSendcloudReturnLabel(id, {
-					shippingMethodId: returnRequest.transaction.shippingMethodId,
-					package_weight: returnRequest.transaction.package_weight
-				});
-			} catch (labelErr) {
-				log('WARN', 'returns', 'Étiquette de retour Sendcloud non générée', {
-					returnRequestId: id,
-					error: labelErr instanceof Error ? labelErr.message : String(labelErr)
-				});
-			}
+				if (!paymentIntentId) {
+					return fail(500, { message: 'Paiement Stripe introuvable pour cette transaction' });
+				}
 
-			return { success: true };
-		} catch (err) {
-			console.error('Erreur remboursement Stripe:', err);
-			return fail(500, { message: 'Échec du remboursement Stripe' });
+				const refund = await stripe.refunds.create({
+					payment_intent: paymentIntentId,
+					amount: Math.round(returnRequest.transaction.amount * 100)
+				});
+
+				const updated = await markReturnApproved(id, refund.id);
+
+				try {
+					const creditNote = buildCreditNoteView(
+						returnRequest.transaction,
+						updated.creditNoteNumber!,
+						'REFUND',
+						await getInvoiceCompany()
+					);
+					await sendCreditNoteEmail(creditNote);
+				} catch (creditNoteErr) {
+					log('WARN', 'returns', 'Avoir non envoyé', {
+						returnRequestId: id,
+						error: creditNoteErr instanceof Error ? creditNoteErr.message : String(creditNoteErr)
+					});
+				}
+
+				// Best-effort : le remboursement est déjà acquis, une étiquette de
+				// retour qui échoue ne doit pas repasser la demande en échec.
+				try {
+					await createSendcloudReturnLabel(id, {
+						shippingMethodId: returnRequest.transaction.shippingMethodId,
+						package_weight: returnRequest.transaction.package_weight
+					});
+				} catch (labelErr) {
+					log('WARN', 'returns', 'Étiquette de retour Sendcloud non générée', {
+						returnRequestId: id,
+						error: labelErr instanceof Error ? labelErr.message : String(labelErr)
+					});
+				}
+
+				return { success: true };
+			} catch (err) {
+				console.error('Erreur remboursement Stripe:', err);
+				return fail(500, { message: 'Échec du remboursement Stripe' });
+			}
+		});
+
+		if (result === null) {
+			return fail(409, { message: 'Cette demande est déjà en cours de traitement, réessayez.' });
 		}
+		return result;
 	},
 
 	creditStore: async ({ request, locals }) => {
@@ -139,59 +150,68 @@ export const actions: Actions = {
 			});
 		}
 
-		const returnRequest = await getReturnRequestById(id);
-		if (!returnRequest) {
-			return fail(404, { message: 'Demande introuvable' });
-		}
-		if (returnRequest.status !== 'REQUESTED') {
-			return fail(400, { message: 'Cette demande a déjà été traitée' });
-		}
+		// Même verrou que `approve` : sans lui, un double-clic créerait deux
+		// `GiftCard` distinctes pour le même retour (§1.3 de l'audit).
+		const result = await withLock(`return:${id}`, 30, async () => {
+			const returnRequest = await getReturnRequestById(id);
+			if (!returnRequest) {
+				return fail(404, { message: 'Demande introuvable' });
+			}
+			if (returnRequest.status !== 'REQUESTED') {
+				return fail(400, { message: 'Cette demande a déjà été traitée' });
+			}
 
-		const giftCard = await createGiftCard({
-			initialValue: returnRequest.transaction.amount,
-			recipientEmail: returnRequest.user.email,
-			note: `Retour ${returnRequest.transaction.invoiceNumber ?? returnRequest.transactionId}`
+			const giftCard = await createGiftCard({
+				initialValue: returnRequest.transaction.amount,
+				recipientEmail: returnRequest.user.email,
+				note: `Retour ${returnRequest.transaction.invoiceNumber ?? returnRequest.transactionId}`
+			});
+
+			const updated = await markReturnCredited(id, giftCard.id);
+
+			await sendMail({
+				to: returnRequest.user.email,
+				subject: 'Votre retour a été crédité sur votre compte 🎁',
+				text: `Bonjour, votre retour a été accepté et crédité sous forme d'avoir de ${giftCard.initialValue.toFixed(2)} € : utilisez le code ${giftCard.code} lors de votre prochaine commande.`,
+				html: `<p>Bonjour,</p><p>Votre retour a été accepté et crédité sous forme d'avoir de <strong>${giftCard.initialValue.toFixed(2)} €</strong> : utilisez le code <strong>${giftCard.code}</strong> lors de votre prochaine commande.</p>`
+			});
+
+			try {
+				const creditNote = buildCreditNoteView(
+					returnRequest.transaction,
+					updated.creditNoteNumber!,
+					'STORE_CREDIT',
+					await getInvoiceCompany()
+				);
+				await sendCreditNoteEmail(creditNote);
+			} catch (creditNoteErr) {
+				log('WARN', 'returns', 'Avoir non envoyé', {
+					returnRequestId: id,
+					error: creditNoteErr instanceof Error ? creditNoteErr.message : String(creditNoteErr)
+				});
+			}
+
+			// Best-effort, comme pour l'approbation Stripe : le crédit est déjà
+			// acquis, une étiquette de retour qui échoue ne doit pas le remettre en cause.
+			try {
+				await createSendcloudReturnLabel(id, {
+					shippingMethodId: returnRequest.transaction.shippingMethodId,
+					package_weight: returnRequest.transaction.package_weight
+				});
+			} catch (labelErr) {
+				log('WARN', 'returns', 'Étiquette de retour Sendcloud non générée', {
+					returnRequestId: id,
+					error: labelErr instanceof Error ? labelErr.message : String(labelErr)
+				});
+			}
+
+			return { success: true };
 		});
 
-		const updated = await markReturnCredited(id, giftCard.id);
-
-		await sendMail({
-			to: returnRequest.user.email,
-			subject: 'Votre retour a été crédité sur votre compte 🎁',
-			text: `Bonjour, votre retour a été accepté et crédité sous forme d'avoir de ${giftCard.initialValue.toFixed(2)} € : utilisez le code ${giftCard.code} lors de votre prochaine commande.`,
-			html: `<p>Bonjour,</p><p>Votre retour a été accepté et crédité sous forme d'avoir de <strong>${giftCard.initialValue.toFixed(2)} €</strong> : utilisez le code <strong>${giftCard.code}</strong> lors de votre prochaine commande.</p>`
-		});
-
-		try {
-			const creditNote = buildCreditNoteView(
-				returnRequest.transaction,
-				updated.creditNoteNumber!,
-				'STORE_CREDIT',
-				await getInvoiceCompany()
-			);
-			await sendCreditNoteEmail(creditNote);
-		} catch (creditNoteErr) {
-			log('WARN', 'returns', 'Avoir non envoyé', {
-				returnRequestId: id,
-				error: creditNoteErr instanceof Error ? creditNoteErr.message : String(creditNoteErr)
-			});
+		if (result === null) {
+			return fail(409, { message: 'Cette demande est déjà en cours de traitement, réessayez.' });
 		}
-
-		// Best-effort, comme pour l'approbation Stripe : le crédit est déjà
-		// acquis, une étiquette de retour qui échoue ne doit pas le remettre en cause.
-		try {
-			await createSendcloudReturnLabel(id, {
-				shippingMethodId: returnRequest.transaction.shippingMethodId,
-				package_weight: returnRequest.transaction.package_weight
-			});
-		} catch (labelErr) {
-			log('WARN', 'returns', 'Étiquette de retour Sendcloud non générée', {
-				returnRequestId: id,
-				error: labelErr instanceof Error ? labelErr.message : String(labelErr)
-			});
-		}
-
-		return { success: true };
+		return result;
 	},
 
 	reject: async ({ request, locals }) => {
@@ -199,15 +219,22 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const id = String(formData.get('id') ?? '');
 
-		const returnRequest = await getReturnRequestById(id);
-		if (!returnRequest) {
-			return fail(404, { message: 'Demande introuvable' });
-		}
-		if (returnRequest.status !== 'REQUESTED') {
-			return fail(400, { message: 'Cette demande a déjà été traitée' });
-		}
+		const result = await withLock(`return:${id}`, 30, async () => {
+			const returnRequest = await getReturnRequestById(id);
+			if (!returnRequest) {
+				return fail(404, { message: 'Demande introuvable' });
+			}
+			if (returnRequest.status !== 'REQUESTED') {
+				return fail(400, { message: 'Cette demande a déjà été traitée' });
+			}
 
-		await markReturnRejected(id);
-		return { success: true };
+			await markReturnRejected(id);
+			return { success: true };
+		});
+
+		if (result === null) {
+			return fail(409, { message: 'Cette demande est déjà en cours de traitement, réessayez.' });
+		}
+		return result;
 	}
 };

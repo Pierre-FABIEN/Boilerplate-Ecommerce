@@ -28,7 +28,7 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 3   | ✅ Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives (corrigé)                                           | 🔴       | Auth/Admin    |
 | 4   | ✅ `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry (corrigé) | 🔴       | Jobs          |
 | 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                                           | 🟡       | Transverse    |
-| 6   | Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible                                            | 🟡       | Commerce      |
+| 6   | ✅ Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible (corrigé)                               | 🟡       | Commerce      |
 | 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                                         | 🟡       | Jobs          |
 | 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                                   | 🟡       | Jobs          |
 | 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                                    | 🟡       | Transverse    |
@@ -147,7 +147,18 @@ gte: amount } }, data: { balance: { decrement: amount } } })` et vérifier
 que la mise à jour a bien matché une ligne (sinon solde insuffisant, à
 gérer explicitement) — même pattern que le fix stock.
 
-### 1.3 🟡 Double remboursement / double carte cadeau sur une demande de retour
+### 1.3 🟡 ✅ Corrigé — Double remboursement / double carte cadeau sur une demande de retour
+
+> **Corrigé le 2026-09-28** : les trois actions (`approve`, `creditStore`,
+> `reject`) de `admin/returns/+page.server.ts` enveloppent désormais tout le
+> cycle lecture-du-statut → opération (Stripe/`createGiftCard`) → écriture
+> du nouveau statut dans `withLock(`return:<id>`, 30, ...)`. Si le verrou
+> est déjà pris (Redis configuré, production), l'action renvoie
+> immédiatement `fail(409, ...)` sans appeler Stripe ni créer de carte
+> cadeau. Sans Redis configuré (dev local/e2e), `withLock` s'exécute en
+> passe-through comme partout ailleurs dans le dépôt (webhook, jobs) — la
+> même limitation connue, pas une régression introduite ici. Vérifié par
+> `e2e/commerce/returns.spec.ts` (aucune régression sur les 3 actions).
 
 **Fichier** : [src/routes/admin/returns/+page.server.ts](src/routes/admin/returns/+page.server.ts) —
 actions `approve` (L60), `creditStore` (L130), `reject` (L197)
