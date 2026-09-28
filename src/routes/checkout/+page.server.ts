@@ -3,8 +3,9 @@
  *
  * COMMERCE-PLUGIN : login obligatoire, la commande doit appartenir au visiteur,
  * les frais de port Sendcloud (0–200 €) sont acceptés pour créer la session
- * Stripe. PROMO-PLUGIN : `validatePromo` / `incrementUsage` restent ici
- * pour que le checkout compile ; ce n'est pas le périmètre du module.
+ * Stripe. PROMO-PLUGIN : `validatePromo` reste ici pour que le checkout
+ * compile ; ce n'est pas le périmètre du module (`incrementUsage` est
+ * appelé côté webhook, après confirmation du paiement).
  */
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
@@ -15,8 +16,8 @@ import type { PageServerLoad } from './$types';
 import { getOrderById, findPendingOrder } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
-import { validatePromo, incrementUsage } from '$lib/prisma/promo/promo';
-import { validateGiftCard, decrementGiftCardBalance } from '$lib/prisma/giftCards/giftCards';
+import { validatePromo } from '$lib/prisma/promo/promo';
+import { validateGiftCard } from '$lib/prisma/giftCards/giftCards';
 import {
 	isReferralDiscountEligible,
 	REFERRAL_REFEREE_DISCOUNT_PERCENT
@@ -280,22 +281,10 @@ export const actions: Actions = {
 			}
 		});
 
-		if (promoResult.valid && promoResult.promo) {
-			try {
-				await incrementUsage(promoResult.promo.id);
-			} catch (err) {
-				console.error('Erreur incrementUsage code promo:', err);
-			}
-		}
-
-		if (giftCardResult.valid && giftCardResult.giftCard && appliedGiftCardAmount > 0) {
-			try {
-				await decrementGiftCardBalance(giftCardResult.giftCard.id, appliedGiftCardAmount);
-			} catch (err) {
-				console.error('Erreur decrementGiftCardBalance:', err);
-			}
-		}
-
+		// Usage promo et solde carte cadeau sont désormais consommés dans le
+		// webhook `checkout.session.completed` (paiement confirmé), pas ici :
+		// un panier abandonné/refusé sur la page Stripe ne coûte plus rien au
+		// client (même correction que le stock produit, voir handleCheckoutSession).
 		throw redirect(303, session.url || '/');
 	}
 };

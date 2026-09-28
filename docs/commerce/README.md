@@ -433,12 +433,12 @@ Un code se cumule avec un éventuel code promo (`PromoCodeInput`,
 la remise promo, puis plafonne le montant de la carte cadeau par ce qu'il
 reste à payer (`validateGiftCard(code, productTotalTTC - promoDiscount)`) —
 jamais l'un sans l'autre, jamais un montant envoyé par le client. Le solde
-est décrémenté **au même moment que `PromoCode.usageCount`** : à la création
-de la session Stripe, pas à la confirmation du paiement — une session Stripe
-abandonnée consomme donc le solde de la carte, exactement comme un code
-promo abandonné consomme son compteur d'usage. Décision assumée pour rester
-cohérent avec le comportement déjà en place plutôt que d'introduire un
-second modèle de décompte au moment du webhook.
+est décrémenté **au même moment que `PromoCode.usageCount`** : dans le
+webhook `checkout.session.completed`, après confirmation du paiement (comme
+le stock produit) — une session Stripe abandonnée ou un paiement refusé ne
+coûte donc plus rien au client. `Order.promoCode`/`giftCardCode`/
+`giftCardAmount` sont écrits dès la création de la session (`createCheckoutSession`)
+et relus par le webhook pour appliquer le débit réel.
 
 Édition admin (`/admin/gift-cards/[id]`) : statut, destinataire, note,
 expiration. La valeur d'émission et le solde ne se modifient jamais par ce
@@ -711,9 +711,10 @@ Test à part : IDOR — un compte ne peut pas supprimer la carte d'un autre.
 
 ### Cartes cadeaux — `e2e/gift-cards/validate.spec.ts`, `e2e/gift-cards/admin.spec.ts`
 
-Stripe n'est pas appelé : `decrementGiftCardBalance` suit
-`stripe.checkout.sessions.create`, hors de portée de ces specs (même
-convention que `incrementUsage` pour les codes promo).
+Stripe n'est pas appelé : `decrementGiftCardBalance` suit la confirmation
+du paiement (webhook `checkout.session.completed`), hors de portée de ces
+specs (même convention que `incrementUsage` pour les codes promo, vérifié
+côté paiement dans `e2e/commerce/stripe.spec.ts`).
 
 | #   | Étape                                                         | Geste                             | Preuve                                               |
 | --- | ------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------- |

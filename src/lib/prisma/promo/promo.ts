@@ -4,7 +4,7 @@
  * PROMO-PLUGIN : hors COMMERCE. `validatePromo` est encore appelé au checkout.
  */
 import { prisma } from '$lib/server';
-import type { PromoType } from '@prisma/client';
+import type { Prisma, PromoType } from '@prisma/client';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
 
 type PromoInput = {
@@ -89,8 +89,14 @@ export const deletePromoCode = async (id: string) => {
 	return await prisma.promoCode.delete({ where: { id } });
 };
 
-export const incrementUsage = async (id: string) => {
-	return await prisma.promoCode.update({
+/**
+ * À appeler dans la même transaction que la confirmation du paiement
+ * (webhook `checkout.session.completed`), jamais avant : `tx` est requis,
+ * pas de valeur par défaut sur `prisma` global (même convention que
+ * `nextInvoiceNumber`/`nextCreditNoteNumber`).
+ */
+export const incrementUsage = async (tx: Prisma.TransactionClient, id: string) => {
+	return await tx.promoCode.update({
 		where: { id },
 		data: { usageCount: { increment: 1 } }
 	});

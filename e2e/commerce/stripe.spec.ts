@@ -3,10 +3,17 @@ import { signUpAndVerify } from '../support/admin';
 import { checkoutSessionCompletedPayload, signStripePayload } from '../support/stripe';
 import {
 	attachOrderAddress,
+	attachOrderDiscount,
 	createCatalogProduct,
+	createGiftCard,
+	createPromoCode,
 	createUserAddress,
 	deleteCatalogProduct,
+	deleteGiftCard,
+	deletePromoCode,
 	deleteTransaction,
+	findPromoCode,
+	getGiftCardById,
 	getOrderById,
 	getProductById,
 	getTransactionByStripePaymentId,
@@ -47,6 +54,9 @@ test.describe('Commerce — webhook Stripe', () => {
 		const { product } = created;
 		const sessionId = `e2e-cs-${Date.now()}`;
 		let transactionId: string | undefined;
+		const stamp = Date.now().toString(36).toUpperCase();
+		const promo = await createPromoCode(`E2ESTRIPE${stamp}`);
+		const giftCard = await createGiftCard(`E2ESTRIPE${stamp}`, { initialValue: 5 });
 
 		try {
 			await signUpAndVerify(page, account);
@@ -54,6 +64,14 @@ test.describe('Commerce — webhook Stripe', () => {
 			const address = await createUserAddress(user.id);
 			const linked = await linkProductToOrder(user.id, product.id);
 			await attachOrderAddress(linked.order.id, address.id);
+			// Simule ce que `createCheckoutSession` écrit sur la commande avant la
+			// session Stripe : le débit réel ne doit avoir lieu qu'à la confirmation
+			// du paiement (webhook), jamais avant (§1.1 de l'audit fonctionnel).
+			await attachOrderDiscount(linked.order.id, {
+				promoCode: promo.code,
+				giftCardCode: giftCard.code,
+				giftCardAmount: 2
+			});
 
 			await test.step('2. checkout.session.completed signé', async () => {
 				await clearMailbox();
@@ -86,6 +104,14 @@ test.describe('Commerce — webhook Stripe', () => {
 				// `createCatalogProduct` pose stock=10, `linkProductToOrder` quantity=1.
 				const updatedProduct = await getProductById(product.id);
 				expect(updatedProduct?.stock).toBe(9);
+
+				// Usage promo et solde carte cadeau consommés par le webhook, pas
+				// avant (§1.1 de l'audit fonctionnel) : un paiement refusé ou un
+				// panier abandonné ne les aurait jamais touchés.
+				const updatedPromo = await findPromoCode(promo.id);
+				expect(updatedPromo?.usageCount).toBe(1);
+				const updatedGiftCard = await getGiftCardById(giftCard.id);
+				expect(updatedGiftCard?.balance).toBeCloseTo(3, 2);
 			});
 
 			await test.step('3. Facture compte + PDF + e-mail', async () => {
@@ -128,6 +154,8 @@ test.describe('Commerce — webhook Stripe', () => {
 				await deleteTransaction(transactionId);
 			}
 			await deleteCatalogProduct(product.id);
+			await deletePromoCode(promo.id);
+			await deleteGiftCard(giftCard.id);
 		}
 	});
 });

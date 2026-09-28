@@ -38,9 +38,10 @@ un pourcentage du total ; `FIXED` est plafonnée à ce total. Les frais de port
 ne sont pas remisés.
 
 Le checkout relit le code côté serveur (`?/checkout`) : un `discountAmount`
-posté par le client n'est jamais crédité. `incrementUsage` est appelé après
-la création de la session Stripe, donc **pas** pendant le paiement simulé
-Prisma des e2e commerce.
+posté par le client n'est jamais crédité. `incrementUsage` est appelé dans
+le webhook Stripe (`checkout.session.completed`), après confirmation du
+paiement — pas à la création de la session, pour qu'un panier abandonné ou
+un paiement refusé ne consomme jamais le compteur d'usage.
 
 ## Admin
 

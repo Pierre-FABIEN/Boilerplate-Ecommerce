@@ -3,6 +3,8 @@ import Stripe from 'stripe';
 import { prisma } from '$lib/server/index';
 import dotenv from 'dotenv';
 import { getUserIdByOrderId } from '$lib/prisma/order/prendingOrder';
+import { incrementUsage } from '$lib/prisma/promo/promo';
+import { decrementGiftCardBalance } from '$lib/prisma/giftCards/giftCards';
 import { nextInvoiceNumber } from '$lib/server/invoice/number';
 import { snapshotInvoiceTotals } from '$lib/server/invoice/totals';
 import { getVatRate } from '$lib/server/vat';
@@ -251,6 +253,25 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 						where: { id: item.productId },
 						data: { stock: { decrement: item.quantity } }
 					});
+				}
+			}
+
+			// Consomme le code promo / la carte cadeau ici, pas au clic « Payer »
+			// (`checkout/+page.server.ts`) : un panier abandonné ou un paiement
+			// refusé sur Stripe ne coûte plus rien au client — même correction
+			// que le stock ci-dessus.
+			if (order.promoCode) {
+				const promo = await prismaTx.promoCode.findUnique({ where: { code: order.promoCode } });
+				if (promo) {
+					await incrementUsage(prismaTx, promo.id);
+				}
+			}
+			if (order.giftCardCode && order.giftCardAmount > 0) {
+				const giftCard = await prismaTx.giftCard.findUnique({
+					where: { code: order.giftCardCode }
+				});
+				if (giftCard) {
+					await decrementGiftCardBalance(prismaTx, giftCard.id, order.giftCardAmount);
 				}
 			}
 

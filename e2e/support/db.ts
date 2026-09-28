@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { createDecipheriv } from 'node:crypto';
+import { createDecipheriv, randomBytes } from 'node:crypto';
 
 /**
  * Client Prisma dédié aux tests, branché explicitement sur l'URL de `.env.test`
@@ -669,6 +669,24 @@ export async function countSessions(email: string): Promise<number> {
 }
 
 /**
+ * Insère directement une session valide pour un utilisateur, sans passer par
+ * un vrai login navigateur — sert à prouver qu'une action admin (reset mot de
+ * passe, bascule MFA) révoque bien les sessions existantes de la CIBLE, sans
+ * avoir à simuler un parcours de connexion complet dans le test.
+ */
+export async function createRawSession(userId: string) {
+	return resilient(() =>
+		db.session.create({
+			data: {
+				id: randomBytes(20).toString('hex'),
+				userId,
+				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+			}
+		})
+	);
+}
+
+/**
  * Nettoyage en fin de test.
  *
  * Les commandes doivent partir en premier : l'application crée un panier
@@ -703,6 +721,28 @@ export async function attachOrderAddress(orderId: string, addressId: string) {
 				billingAddressId: addressId,
 				shippingOption: 'no_shipping',
 				shippingCost: 0
+			}
+		})
+	);
+}
+
+/**
+ * Pose directement `promoCode`/`giftCardCode`/`giftCardAmount` sur une
+ * commande — simule ce que `createCheckoutSession` écrit avant la session
+ * Stripe, pour tester la consommation réelle (webhook) sans repasser par le
+ * formulaire `/checkout?/checkout`.
+ */
+export async function attachOrderDiscount(
+	orderId: string,
+	discount: { promoCode?: string; giftCardCode?: string; giftCardAmount?: number }
+) {
+	return resilient(() =>
+		db.order.update({
+			where: { id: orderId },
+			data: {
+				promoCode: discount.promoCode,
+				giftCardCode: discount.giftCardCode,
+				giftCardAmount: discount.giftCardAmount
 			}
 		})
 	);

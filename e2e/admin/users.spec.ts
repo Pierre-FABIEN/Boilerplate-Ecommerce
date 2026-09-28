@@ -2,7 +2,9 @@ import { test, expect } from '../support/fixtures';
 import { waitForPath } from '../support/flows';
 import { pageOrigin, signUpAndVerify } from '../support/admin';
 import {
+	countSessions,
 	createCatalogProduct,
+	createRawSession,
 	deleteCatalogProduct,
 	deleteUser,
 	getOrderById,
@@ -92,7 +94,13 @@ test.describe('Administration — utilisateurs', () => {
 				expect((await requireUser(victimEmail)).role).toBe('CLIENT');
 			});
 
-			await test.step('4. La MFA se bascule depuis la fiche', async () => {
+			await test.step('4. La MFA se bascule depuis la fiche, et révoque les sessions de la cible', async () => {
+				// Une session active existante sur le compte visé : si un admin
+				// bascule la MFA (ou change le mot de passe) sans révoquer les
+				// sessions, un attaquant avec un cookie volé garderait la main.
+				await createRawSession(victim.id);
+				expect(await countSessions(victimEmail)).toBe(1);
+
 				await page.goto(`/admin/users/${victim.id}`);
 				await expect(
 					page.getByRole('heading', { name: 'Update User and Addresses' })
@@ -101,6 +109,10 @@ test.describe('Administration — utilisateurs', () => {
 				await page.getByRole('button', { name: 'Save changes' }).click();
 				await waitForPath(page, '/admin/users');
 				expect((await requireUser(victimEmail)).isMfaEnabled).toBe(true);
+
+				// §4.1 de l'audit fonctionnel : changer la MFA/le mot de passe
+				// d'un compte depuis l'admin doit déconnecter ce compte partout.
+				expect(await countSessions(victimEmail)).toBe(0);
 			});
 
 			await test.step('5. Suppression d’un CLIENT', async () => {

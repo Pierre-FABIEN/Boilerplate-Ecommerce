@@ -21,22 +21,22 @@ en première passe se sont révélées être des faux positifs après vérificat
 
 ## 0. Résumé exécutif
 
-| #   | Constat                                                                                                                 | Sévérité | Domaine       |
-| --- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------------- |
-| 1   | Carte cadeau + code promo débités **avant** confirmation du paiement Stripe, erreurs avalées silencieusement            | 🔴       | Commerce      |
-| 2   | Solde de carte cadeau décrémenté sans atomicité (race condition)                                                        | 🔴       | Commerce      |
-| 3   | Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives                                           | 🔴       | Auth/Admin    |
-| 4   | `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry | 🔴       | Jobs          |
-| 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                              | 🟡       | Transverse    |
-| 6   | Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible                               | 🟡       | Commerce      |
-| 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                            | 🟡       | Jobs          |
-| 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                      | 🟡       | Jobs          |
-| 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                       | 🟡       | Transverse    |
-| 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                     | 🟡       | Produits      |
-| 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                      | 🔵       | Admin         |
-| 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                          | 🔵       | Auth          |
-| 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                    | 🔵       | Auth/Admin    |
-| 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                              | 🔵       | Qualité tests |
+| #   | Constat                                                                                                                   | Sévérité | Domaine       |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | -------- | ------------- |
+| 1   | ✅ Carte cadeau + code promo débités **avant** confirmation du paiement Stripe, erreurs avalées silencieusement (corrigé) | 🔴       | Commerce      |
+| 2   | ✅ Solde de carte cadeau décrémenté sans atomicité (race condition) (corrigé)                                             | 🔴       | Commerce      |
+| 3   | ✅ Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives (corrigé)                                | 🔴       | Auth/Admin    |
+| 4   | `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry   | 🔴       | Jobs          |
+| 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                                | 🟡       | Transverse    |
+| 6   | Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible                                 | 🟡       | Commerce      |
+| 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                              | 🟡       | Jobs          |
+| 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                        | 🟡       | Jobs          |
+| 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                         | 🟡       | Transverse    |
+| 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                       | 🟡       | Produits      |
+| 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                        | 🔵       | Admin         |
+| 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                            | 🔵       | Auth          |
+| 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                      | 🔵       | Auth/Admin    |
+| 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                                | 🔵       | Qualité tests |
 
 **Déjà corrigé aujourd'hui, avant cet audit** : stock produit/variante non
 décrémenté à la vente (webhook Stripe) — voir historique de commit, non
@@ -46,7 +46,12 @@ listé ci-dessus.
 
 ## 1. Commerce / Checkout / Paiement
 
-### 1.1 🔴 Carte cadeau et code promo consommés avant la confirmation du paiement
+### 1.1 🔴 ✅ Corrigé — Carte cadeau et code promo consommés avant la confirmation du paiement
+
+> **Corrigé le 2026-09-28** : `incrementUsage`/`decrementGiftCardBalance` sont
+> désormais appelés dans `handleCheckoutSession` (webhook), plus dans
+> `checkout/+page.server.ts`. Vérifié par `e2e/commerce/stripe.spec.ts`
+> (assertions `usageCount`/`balance` après webhook signé).
 
 **Fichier** : [src/routes/checkout/+page.server.ts](src/routes/checkout/+page.server.ts#L282-L296)
 
@@ -102,7 +107,11 @@ stock aujourd'hui. Nécessite de faire transiter `promoCode`/`giftCardCode`/
 `giftCardAmount` jusqu'au webhook (déjà fait en partie : `order.promoCode`
 est stocké sur la commande).
 
-### 1.2 🔴 Solde de carte cadeau décrémenté sans atomicité (race condition)
+### 1.2 🔴 ✅ Corrigé — Solde de carte cadeau décrémenté sans atomicité (race condition)
+
+> **Corrigé le 2026-09-28**, dans le même changement que §1.1 :
+> `decrementGiftCardBalance` utilise désormais `updateMany` avec une garde
+> `balance: { gte: amount }`, atomique.
 
 **Fichier** : [src/lib/prisma/giftCards/giftCards.ts](src/lib/prisma/giftCards/giftCards.ts#L171-L182)
 
@@ -373,7 +382,17 @@ triables (nouveau champ `sortable?: boolean` sur `TableColumn`).
 
 ## 4. Auth / Admin
 
-### 4.1 🔴 Changement de mot de passe/2FA par un admin sans révoquer les sessions existantes
+### 4.1 🔴 ✅ Corrigé — Changement de mot de passe/2FA par un admin sans révoquer les sessions existantes
+
+> **Corrigé le 2026-09-28** : `admin/users/[id]/+page.server.ts` appelle
+> désormais `invalidateUserSessions(id)` (import `$lib/lucia/session`) juste
+> après `updateUserSecurity`/`updateUserMFA`, mais seulement si un mot de
+> passe a réellement été fourni ou si `isMfaEnabled` change de valeur par
+> rapport à l'utilisateur chargé avant l'action — pour ne pas déconnecter la
+> cible à chaque sauvegarde du formulaire (ex. simple modification
+> d'adresse). Vérifié par `e2e/admin/users.spec.ts` (étape 4, étendue) :
+> une session brute est insérée pour la cible (`createRawSession`,
+> `e2e/support/db.ts`), `countSessions` vaut 1 avant la bascule MFA, 0 après.
 
 **Fichier** : [src/lib/prisma/user/updateUserSecurity.ts](src/lib/prisma/user/updateUserSecurity.ts),
 appelé depuis [src/routes/admin/users/[id]/+page.server.ts](src/routes/admin/users/[id]/+page.server.ts#L177)
