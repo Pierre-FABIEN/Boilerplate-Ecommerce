@@ -5,6 +5,7 @@
 	import { deleteUserSchema } from '$lib/schema/users/userSchema.js';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash from 'lucide-svelte/icons/trash';
@@ -16,7 +17,8 @@
 	const deleteUser = superForm(
 		untrack(() => data?.IdeleteUserSchema ?? {}),
 		{
-			validators: zodClient(deleteUserSchema)
+			validators: zodClient(deleteUserSchema),
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

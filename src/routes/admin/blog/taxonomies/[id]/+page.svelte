@@ -10,6 +10,7 @@
 	import type { TableAction, TableColumn, TableItem } from '$components/Table.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updateBlogTaxonomySchema } from '$lib/schema/BlogPost/blogTaxonomySchema';
 	import { deleteBlogTaxonomyValueSchema } from '$lib/schema/BlogPost/blogTaxonomyValueSchema';
 	import { toast } from 'svelte-sonner';
@@ -23,7 +24,8 @@
 		untrack(() => data.IupdateBlogTaxonomySchema),
 		{
 			validators: zodClient(updateBlogTaxonomySchema),
-			id: 'updateBlogTaxonomy'
+			id: 'updateBlogTaxonomy',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -43,7 +45,8 @@
 		untrack(() => data.IdeleteBlogTaxonomyValueSchema),
 		{
 			validators: zodClient(deleteBlogTaxonomyValueSchema),
-			id: 'deleteBlogTaxonomyValue'
+			id: 'deleteBlogTaxonomyValue',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

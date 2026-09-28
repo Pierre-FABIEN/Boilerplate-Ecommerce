@@ -8,6 +8,7 @@
 	import * as Select from '$shadcn/select';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { createTaxonomySchema } from '$lib/schema/taxonomies/taxonomySchema';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -18,7 +19,8 @@
 		untrack(() => data.IcreateTaxonomySchema),
 		{
 			validators: zodClient(createTaxonomySchema),
-			id: 'createTaxonomy'
+			id: 'createTaxonomy',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

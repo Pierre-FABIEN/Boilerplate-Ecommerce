@@ -7,6 +7,7 @@
 	import { Textarea } from '$shadcn/textarea';
 	import { filesFieldProxy, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { createProductSchema } from '$lib/schema/products/productSchema';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -18,7 +19,8 @@
 		untrack(() => data.IcreateProductSchema),
 		{
 			validators: zodClient(createProductSchema),
-			id: 'createProduct'
+			id: 'createProduct',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

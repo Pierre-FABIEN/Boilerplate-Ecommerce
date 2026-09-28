@@ -10,6 +10,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import {
 		updateGiftCardSchema,
 		adjustGiftCardBalanceSchema
@@ -21,7 +22,8 @@
 		untrack(() => data.updateGiftCardForm),
 		{
 			validators: zodClient(updateGiftCardSchema),
-			id: 'updateGiftCard'
+			id: 'updateGiftCard',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const {
@@ -34,7 +36,8 @@
 		untrack(() => data.adjustBalanceForm),
 		{
 			validators: zodClient(adjustGiftCardBalanceSchema),
-			id: 'adjustBalance'
+			id: 'adjustBalance',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const {

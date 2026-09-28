@@ -7,6 +7,7 @@ import {
 	deleteCatalogProduct,
 	deleteUser,
 	getProductById,
+	getStoreFeatureFlags,
 	linkProductToOrder,
 	occupyEmail,
 	promoteToAdmin,
@@ -64,8 +65,14 @@ test.describe('Administration — produits', () => {
 				expect(updated?.price).toBeCloseTo(9.99, 2);
 				expect(updated?.stock).toBe(7);
 
+				// La vitrine affiche le prix TTC (`toTTC`, voir `$lib/utils/price.ts`) —
+				// le formulaire admin édite le prix HT stocké en base, donc le prix
+				// affiché dépend du taux de TVA courant (`StoreSettings.vatRate`).
+				const { vatRate } = await getStoreFeatureFlags();
+				const expectedTTC = (9.99 * (1 + vatRate)).toFixed(2);
+
 				await page.goto(`/products/${editable.product.slug}`);
-				await expect(page.getByText('9.99 €')).toBeVisible();
+				await expect(page.getByText(`${expectedTTC} €`)).toBeVisible();
 				await expect(page.getByText('Stock : 7')).toBeVisible();
 			});
 

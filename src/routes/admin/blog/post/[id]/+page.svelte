@@ -13,6 +13,7 @@
 
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updateBlogPostSchema } from '$lib/schema/BlogPost/BlogPostSchema.js';
 	import { PUBLIC_TINYMCE_API_KEY } from '$env/static/public';
 
@@ -23,7 +24,8 @@
 	const updateForm = superForm(
 		untrack(() => data.IupdateBlogPostSchema),
 		{
-			validators: zodClient(updateBlogPostSchema)
+			validators: zodClient(updateBlogPostSchema),
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

@@ -6,6 +6,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { answerQuestionSchema } from '$lib/schema/products/questionSchema.js';
 	import { goto } from '$app/navigation';
 
@@ -15,7 +16,8 @@
 		untrack(() => data.answerForm),
 		{
 			validators: zodClient(answerQuestionSchema),
-			id: 'answerQuestion'
+			id: 'answerQuestion',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const { form: answerData, enhance: answerEnhance, message: answerMessage } = answerForm;

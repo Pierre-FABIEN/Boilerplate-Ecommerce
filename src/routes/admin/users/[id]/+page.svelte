@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updateUserAndAddressSchema } from '$lib/schema/addresses/updateUserAndAddressSchema.js';
 	// Importation des composants nécessaires de Shadcn
 	import * as Form from '$shadcn/form';
@@ -22,6 +23,7 @@
 			validators: zodClient(updateUserAndAddressSchema),
 			id: 'updateUserAndAddresses',
 			dataType: 'json',
+			...RETRY_FRIENDLY_FORM,
 			onResult: (event) => {
 				if (
 					event.result.type === 'success' &&
@@ -230,15 +232,15 @@
 					<tbody>
 						{#each data.sessions as session (session.id)}
 							<tr class="border-b">
-									<td class="py-2 pr-4">
-										{#if session.device}
-											{session.device}
-										{:else}
-											<span class="text-muted-foreground italic"
-												>Non disponible (session pré-existante)</span
-											>
-										{/if}
-									</td>
+								<td class="py-2 pr-4">
+									{#if session.device}
+										{session.device}
+									{:else}
+										<span class="text-muted-foreground italic"
+											>Non disponible (session pré-existante)</span
+										>
+									{/if}
+								</td>
 								<td class="py-2 pr-4">
 									{[session.city, session.country].filter(Boolean).join(', ') || '—'}
 								</td>

@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { companyIdentitySchema } from '$lib/schema/settings/companyIdentitySchema';
 
 	let { data } = $props();
@@ -16,7 +17,8 @@
 		untrack(() => data.companyForm),
 		{
 			validators: zodClient(companyIdentitySchema),
-			id: 'companyIdentity'
+			id: 'companyIdentity',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const { form: companyFormData, enhance: companyEnhance, message: companyMessage } = companyForm;

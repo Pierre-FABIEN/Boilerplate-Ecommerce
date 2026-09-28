@@ -8,6 +8,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updatePromoSchema } from '$lib/schema/promo/promoSchema.js';
 	import { goto } from '$app/navigation';
 
@@ -17,7 +18,8 @@
 		untrack(() => data.updatePromoForm),
 		{
 			validators: zodClient(updatePromoSchema),
-			id: 'updatePromo'
+			id: 'updatePromo',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

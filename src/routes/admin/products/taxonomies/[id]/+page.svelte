@@ -11,6 +11,7 @@
 	import type { TableAction, TableColumn, TableItem } from '$components/Table.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updateTaxonomySchema } from '$lib/schema/taxonomies/taxonomySchema';
 	import { deleteTaxonomyValueSchema } from '$lib/schema/taxonomies/taxonomyValueSchema';
 	import { toast } from 'svelte-sonner';
@@ -24,7 +25,8 @@
 		untrack(() => data.IupdateTaxonomySchema),
 		{
 			validators: zodClient(updateTaxonomySchema),
-			id: 'updateTaxonomy'
+			id: 'updateTaxonomy',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -58,7 +60,8 @@
 		untrack(() => data.IdeleteTaxonomyValueSchema),
 		{
 			validators: zodClient(deleteTaxonomyValueSchema),
-			id: 'deleteTaxonomyValue'
+			id: 'deleteTaxonomyValue',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

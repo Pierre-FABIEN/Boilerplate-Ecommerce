@@ -6,6 +6,7 @@
 	import { Button } from '$shadcn/button';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { updateBlogTaxonomyValueSchema } from '$lib/schema/BlogPost/blogTaxonomyValueSchema';
 	import { toast } from 'svelte-sonner';
 
@@ -16,7 +17,8 @@
 		untrack(() => data.IupdateBlogTaxonomyValueSchema),
 		{
 			validators: zodClient(updateBlogTaxonomyValueSchema),
-			id: 'updateBlogTaxonomyValue'
+			id: 'updateBlogTaxonomyValue',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

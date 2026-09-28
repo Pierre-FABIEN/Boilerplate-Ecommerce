@@ -6,6 +6,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { createVariantSchema } from '$lib/schema/products/variantSchema.js';
 	import { goto } from '$app/navigation';
 
@@ -15,7 +16,8 @@
 		untrack(() => data.createVariantForm),
 		{
 			validators: zodClient(createVariantSchema),
-			id: 'createVariant'
+			id: 'createVariant',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const {

@@ -34,7 +34,11 @@
 		<h1 class="text-2xl font-semibold mb-4">Configurer l'authentification à deux facteurs</h1>
 
 		<div class="flex flex-col items-center">
-			<!-- QR Code -->
+			<!-- QR Code : SVG généré par `uqr` (`renderSVG`, voir +page.server.ts) —
+			     toujours un pavage de rectangles représentant les pixels du QR
+			     code, jamais un texte injecté tel quel. Aucune entrée ici n'est
+			     assez proche d'attaquant-contrôlée (secret TOTP généré côté
+			     serveur) pour en faire un vecteur XSS. -->
 			<div class="w-64 h-64 mb-4">
 				{@html data.qrcode}
 			</div>

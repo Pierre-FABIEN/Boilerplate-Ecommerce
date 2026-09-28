@@ -4,6 +4,7 @@
 	import type { TableAction, TableColumn } from '$components/Table.svelte';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash from 'lucide-svelte/icons/trash';
@@ -18,7 +19,8 @@
 		untrack(() => data?.IdeleteBlogPostSchema ?? {}),
 		{
 			validators: zodClient(deleteBlogPostSchema),
-			id: 'deleteBlogPost'
+			id: 'deleteBlogPost',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -26,7 +28,8 @@
 		untrack(() => data?.IdeleteBlogTaxonomySchema ?? {}),
 		{
 			validators: zodClient(deleteBlogTaxonomySchema),
-			id: 'deleteBlogTaxonomy'
+			id: 'deleteBlogTaxonomy',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

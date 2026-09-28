@@ -7,6 +7,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { createGiftCardSchema } from '$lib/schema/giftCards/giftCardSchema.js';
 
 	let { data } = $props();
@@ -15,7 +16,8 @@
 		untrack(() => data?.createGiftCardForm ?? {}),
 		{
 			validators: zodClient(createGiftCardSchema),
-			id: 'createGiftCard'
+			id: 'createGiftCard',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

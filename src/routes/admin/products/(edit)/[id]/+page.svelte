@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { filesFieldProxy, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 
 	import * as Form from '$shadcn/form';
 	import { Label } from '$shadcn/label';
@@ -23,7 +24,8 @@
 		{
 			validators: zodClient(updateProductSchema),
 			id: 'updateProduct',
-			resetForm: false
+			resetForm: false,
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

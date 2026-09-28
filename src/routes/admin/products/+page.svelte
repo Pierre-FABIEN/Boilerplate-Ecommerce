@@ -5,6 +5,7 @@
 	import { deleteProductSchema } from '$lib/schema/products/productSchema.js';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash from 'lucide-svelte/icons/trash';
@@ -44,7 +45,8 @@
 		untrack(() => data?.IdeleteProductSchema ?? {}),
 		{
 			validators: zodClient(deleteProductSchema),
-			id: 'deleteProduct'
+			id: 'deleteProduct',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -130,7 +132,8 @@
 		untrack(() => data?.IdeleteTaxonomySchema ?? {}),
 		{
 			validators: zodClient(deleteTaxonomySchema),
-			id: 'deleteTaxonomy'
+			id: 'deleteTaxonomy',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

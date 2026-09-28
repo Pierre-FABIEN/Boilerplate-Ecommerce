@@ -9,6 +9,7 @@
 
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { goto } from '$app/navigation';
 	import Editor from '@tinymce/tinymce-svelte';
 	import { toast } from 'svelte-sonner';
@@ -32,7 +33,8 @@
 	const createPost = superForm(
 		untrack(() => data.IcreateBlogPostSchema),
 		{
-			validators: zodClient(createBlogPostSchema)
+			validators: zodClient(createBlogPostSchema),
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

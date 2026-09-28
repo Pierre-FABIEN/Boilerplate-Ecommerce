@@ -3,6 +3,7 @@
 	import Table from '$components/Table.svelte';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash from 'lucide-svelte/icons/trash';
@@ -14,7 +15,8 @@
 		untrack(() => data.IdeleteVariantSchema),
 		{
 			validators: zodClient(deleteVariantSchema),
-			id: 'deleteVariant'
+			id: 'deleteVariant',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const { enhance: deleteVariantEnhance, message: deleteVariantMessage } = deleteVariant;

@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { deliveryEstimateSchema } from '$lib/schema/settings/deliverySchema';
 
 	let { data } = $props();
@@ -14,7 +15,8 @@
 		untrack(() => data.deliveryForm),
 		{
 			validators: zodClient(deliveryEstimateSchema),
-			id: 'deliveryEstimate'
+			id: 'deliveryEstimate',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const {

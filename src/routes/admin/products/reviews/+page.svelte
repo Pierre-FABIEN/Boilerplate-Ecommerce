@@ -5,6 +5,7 @@
 	import { formatDate } from '$lib/utils/formatDate';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import { deleteReviewSchema } from '$lib/schema/products/reviewSchema';
 	import Trash from 'lucide-svelte/icons/trash';
@@ -16,7 +17,8 @@
 		untrack(() => data.deleteForm),
 		{
 			validators: zodClient(deleteReviewSchema),
-			id: 'deleteReview'
+			id: 'deleteReview',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 	const { enhance: deleteReviewEnhance, message: deleteReviewMessage } = deleteReview;

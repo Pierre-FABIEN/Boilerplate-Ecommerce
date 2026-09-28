@@ -7,6 +7,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { toast } from 'svelte-sonner';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { contactSchema } from '$lib/schema/contact/contactSchema';
 	import SEO from '$lib/components/SEO.svelte';
 
@@ -16,7 +17,8 @@
 		untrack(() => data.form),
 		{
 			validators: zodClient(contactSchema),
-			id: 'contactForm'
+			id: 'contactForm',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
