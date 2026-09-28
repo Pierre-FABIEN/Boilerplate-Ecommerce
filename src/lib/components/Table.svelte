@@ -10,6 +10,8 @@
 		key: string;
 		label: string;
 		formatter?: (value: unknown) => unknown;
+		/** §3.3 audit fonctionnel : `false` masque le bouton de tri (colonne absente du `*_SORTABLE` serveur). Défaut `true`. */
+		sortable?: boolean;
 	};
 
 	// `icon` reste en `any` : les icônes viennent soit de `lucide-svelte`
@@ -593,9 +595,11 @@
 										<Table.Head class="border-r border-r-gray-800 pr-2">
 											<div class="rcb">
 												{column.label}
-												<button onclick={() => sortItems(column.key)}>
-													<ChevronDown class="cursor-pointer" />
-												</button>
+												{#if column.sortable !== false}
+													<button onclick={() => sortItems(column.key)}>
+														<ChevronDown class="cursor-pointer" />
+													</button>
+												{/if}
 											</div>
 										</Table.Head>
 									{/each}

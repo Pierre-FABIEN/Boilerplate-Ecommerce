@@ -63,6 +63,18 @@ test.describe('Administration — utilisateurs', () => {
 				expect(html).not.toContain('passwordHash');
 			});
 
+			await test.step('1b. Colonne "Nom" non triable, "Email"/"Role" triables (§3.3 audit)', async () => {
+				await expect(
+					page.getByRole('columnheader', { name: 'Nom', exact: true }).getByRole('button')
+				).toHaveCount(0);
+				await expect(
+					page.getByRole('columnheader', { name: 'Email', exact: true }).getByRole('button')
+				).toHaveCount(1);
+				await expect(
+					page.getByRole('columnheader', { name: 'Role', exact: true }).getByRole('button')
+				).toHaveCount(1);
+			});
+
 			await test.step('2. Promotion CLIENT → ADMIN (crayon)', async () => {
 				await page.goto('/admin/users');
 				await page.getByPlaceholder('Cherchez dans le tableau').fill(targetEmail);

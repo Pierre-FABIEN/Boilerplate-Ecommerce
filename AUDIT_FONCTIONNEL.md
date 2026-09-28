@@ -31,9 +31,9 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 6   | ✅ Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible (corrigé)                               | 🟡       | Commerce      |
 | 7   | ✅ Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée) (corrigé)                            | 🟡       | Jobs          |
 | 8   | ✅ Cartes cadeaux de parrainage potentiellement orphelines/dupliquées (corrigé)                                                      | 🟡       | Jobs          |
-| 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                                    | 🟡       | Transverse    |
+| 9   | ✅ Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent (corrigé)                                       | 🟡       | Transverse    |
 | 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                                  | 🟡       | Produits      |
-| 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                                   | 🔵       | Admin         |
+| 11  | ✅ Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs) (corrigé)                                      | 🔵       | Admin         |
 | 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                                       | 🔵       | Auth          |
 | 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                                 | 🔵       | Auth/Admin    |
 | 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                                           | 🔵       | Qualité tests |
@@ -371,7 +371,20 @@ problème que la fonctionnalité `vatRate` a été construite pour résoudre).
 panier/checkout pour le calcul TTC) jusqu'à ces deux libellés et formater
 dynamiquement `TVA ({(vatRate * 100).toLocaleString('fr-FR')} %)`.
 
-### 3.2 🟡 Liens relatifs (cassés) dans les emails si `APP_URL` absent
+### 3.2 🟡 ✅ Corrigé — Liens relatifs (cassés) dans les emails si `APP_URL` absent
+
+> **Correction (2026-09-28)** : nouvelle fonction `resolveAppUrlOrDefault()`
+> (`$lib/server/app-url.ts`), qui centralise exactement le repli déjà utilisé
+> par `invoice/email.ts` (`resolveAppUrl() ?? 'http://localhost:2000'`). Les
+> 5 fichiers (`cartRecovery.ts`, `recentlyViewedReminder.ts`,
+> `reviewReminder.ts`, `stockAlerts.ts`, `wishlistPriceAlert.ts`) l'utilisent
+> maintenant à la place de `resolveAppUrl() ?? ''`, et `invoice/email.ts` a
+> été aligné sur le même appel pour ne garder qu'une seule définition du
+> repli. `resolveAppUrl()` reste inchangée (toujours utilisée telle quelle
+> par `qstash.ts`, qui doit échouer explicitement sans URL publique réelle).
+> Nouveau test `app-url.test.ts` (2 tests : repli localhost:2000 sans
+> `APP_URL`/`VERCEL_URL`, utilisation d'`APP_URL` quand définie). `npm run
+check` 0/0, `npx vitest run` 63 passed/2 skipped (+2 vs précédent).
 
 **Fichiers** : `cartRecovery.ts`, `recentlyViewedReminder.ts`,
 `reviewReminder.ts`, `stockAlerts.ts`, `wishlistPriceAlert.ts` (tous dans
@@ -403,7 +416,22 @@ silencieux et déjà démontré incohérent au sein même du dépôt.
 **Piste de correction** : reprendre le même repli que `invoice/email.ts`
 dans les 5 fichiers, ou centraliser un `resolveAppUrlOrDefault()` unique.
 
-### 3.3 🔵 Boutons de tri actifs sur des colonnes non triables
+### 3.3 🔵 ✅ Corrigé — Boutons de tri actifs sur des colonnes non triables
+
+> **Correction (2026-09-28)** : nouveau champ `sortable?: boolean` sur
+> `TableColumn` (`$lib/components/Table.svelte`, défaut `true` — aucun
+> changement pour les tables 100% client qui trient déjà n'importe quelle
+> colonne côté navigateur) : le bouton de tri ne s'affiche plus quand
+> `sortable === false`. Marché explicitement à `false` sur les colonnes
+> affichées mais absentes du `*_SORTABLE` serveur : `/admin/sales`
+> (N°, noms/emails commande et compte, Litige, Risque — seuls Montant et
+> Date de création restent triables), `/admin/fraud` (Compte, Risque,
+> Facteurs déclenchés, Commande — seule Date reste triable), `/admin/users`
+> (Nom — Email et Role restent triables, déjà dans `USER_SORTABLE`).
+> Vérifié par un nouveau `test.step` dans `e2e/admin/users.spec.ts` :
+> aucun bouton dans l'en-tête "Nom", un bouton chacun dans "Email"/"Role".
+> `npm run check` 0/0, `npx vitest run` 63 passed/2 skipped (inchangé, fix
+> UI pur sans logique serveur touchée).
 
 **Fichiers** : `src/lib/prisma/transaction/getAllTransactions.ts`,
 `src/lib/prisma/fraud/getFraudBlocks.ts`, `src/lib/prisma/user/user.ts`
