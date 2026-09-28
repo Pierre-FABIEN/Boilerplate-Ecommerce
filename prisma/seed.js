@@ -11,11 +11,29 @@ if (!process.env.ENCRYPTION_KEY) {
 	throw new Error('ENCRYPTION_KEY is not defined in the environment variables.');
 }
 
+// Ce script insère un jeu de données de démonstration : comptes avec un mot
+// de passe partagé et connu (voir DEMO_PASSWORD), produits fictifs... Rien de
+// tout ça n'a sa place dans un environnement de production réel. `VERCEL_ENV`
+// est posé automatiquement par Vercel (jamais en local) — un run local avec
+// des identifiants de prod dans `.env` reste possible, ce garde-fou ne couvre
+// que le cas où ce script serait, par erreur, câblé dans un déploiement.
+if (process.env.VERCEL_ENV === 'production' && process.env.FORCE_SEED !== '1') {
+	throw new Error(
+		'npm run seed refusé en production (VERCEL_ENV=production). ' +
+			'Si c’est volontaire, relancez avec FORCE_SEED=1.'
+	);
+}
+
 const key = decodeBase64(process.env.ENCRYPTION_KEY);
 const prisma = new PrismaClient();
 
-/** Mot de passe commun aux comptes email de démonstration. */
-const DEMO_PASSWORD = 'DemoPass!2026';
+/**
+ * Mot de passe commun aux comptes email de démonstration — surchargeable
+ * (`SEED_DEMO_PASSWORD`) pour ne pas dépendre d'une valeur en dur connue de
+ * quiconque lit ce fichier, si ce jeu de données sert au-delà d'un poste de
+ * dev local.
+ */
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'DemoPass!2026';
 
 const ARGON2 = {
 	memoryCost: 19456,

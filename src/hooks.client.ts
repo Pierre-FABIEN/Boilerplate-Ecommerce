@@ -1,16 +1,22 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import * as Sentry from '@sentry/sveltekit';
+import { isValidSentryDsn } from '$lib/sentryDsn';
 
 /**
  * Suivi d'erreurs/traces côté navigateur (plan gratuit Sentry). Sans
- * `PUBLIC_SENTRY_DSN`, le SDK reste un no-op documenté — pas de config
- * supplémentaire requise en local (voir aussi src/hooks.server.ts).
+ * `PUBLIC_SENTRY_DSN`, ou si la valeur n'a pas la forme d'une DSN
+ * (`isValidSentryDsn`), le SDK n'est jamais initialisé — pas de config
+ * supplémentaire requise en local, et plus de `Invalid Sentry Dsn: ****`
+ * dans la console pour une valeur mal configurée (voir aussi
+ * src/hooks.server.ts).
  */
-Sentry.init({
-	dsn: env.PUBLIC_SENTRY_DSN,
-	tracesSampleRate: 0.1
-});
+if (isValidSentryDsn(env.PUBLIC_SENTRY_DSN)) {
+	Sentry.init({
+		dsn: env.PUBLIC_SENTRY_DSN,
+		tracesSampleRate: 0.1
+	});
+}
 
 export const handleError = Sentry.handleErrorWithSentry();
 

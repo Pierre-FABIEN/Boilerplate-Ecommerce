@@ -110,6 +110,10 @@ export const actions: Actions = {
 		// Créer une nouvelle session pour l'utilisateur avec twoFactorVerified à true
 		const newSession = await auth.createSession(locals.user.id, {
 			twoFactorVerified: true,
+			// Reprend le fournisseur de la session qu'on remplace : sans ça,
+			// `oauthProvider` retombait toujours à `null` à la réémission, même
+			// pour un compte connecté via Google.
+			oauthProvider: locals.session.oauthProvider,
 			...getSessionDeviceContext(request)
 		});
 

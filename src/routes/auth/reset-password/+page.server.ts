@@ -25,6 +25,8 @@ import {
 } from '$lib/lucia/session';
 import { updateUserPassword } from '$lib/lucia/user';
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
+import { recordLoginEvent } from '$lib/prisma/loginEvent/loginEvent';
+import { notifyNewDeviceLogin } from '$lib/server/newDeviceAlert';
 
 import type { Actions, RequestEvent } from './$types';
 import type { SessionFlags } from '$lib/lucia/session';
@@ -90,14 +92,17 @@ export const actions: Actions = {
 		const sessionFlags: SessionFlags = {
 			twoFactorVerified: passwordResetSession.twoFactorVerified
 		};
+		const device = getSessionDeviceContext(event.request);
 		const sessionToken = generateSessionToken();
-		const session = await createSession(
-			sessionToken,
-			user.id,
-			sessionFlags,
-			null,
-			getSessionDeviceContext(event.request)
-		);
+		const session = await createSession(sessionToken, user.id, sessionFlags, null, device);
+
+		// Une réinitialisation de mot de passe est une authentification à part
+		// entière (pas une simple réémission) — historique + alerte au même
+		// titre qu'une connexion classique, voir login/+page.server.ts.
+		const { isNewDevice } = await recordLoginEvent(user.id, 'password-reset', device);
+		if (isNewDevice) {
+			void notifyNewDeviceLogin(user.email, user.id, session.id, device);
+		}
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 		deletePasswordResetSessionTokenCookie(event);
 		return redirect(302, '/auth/');

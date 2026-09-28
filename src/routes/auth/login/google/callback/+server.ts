@@ -15,6 +15,8 @@ import { createUserWithGoogleOAuth } from '$lib/prisma/user/user';
 import { GOOGLE_CLIENT_ID } from '$env/static/private';
 import { isDummySecret } from '$lib/server/dummy-secrets';
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
+import { recordLoginEvent, type LoginMethod } from '$lib/prisma/loginEvent/loginEvent';
+import { notifyNewDeviceLogin } from '$lib/server/newDeviceAlert';
 
 import type { RequestEvent } from './$types';
 import type { OAuth2Tokens } from 'arctic';
@@ -28,16 +30,35 @@ function isE2eGoogleBypass(code: string, email: string | null): boolean {
 	);
 }
 
-async function establishGoogleSession(event: RequestEvent, userId: string): Promise<Response> {
+/**
+ * `method: 'signup'` pour un compte tout juste créé via Google (jamais
+ * d'alerte « nouvel appareil », voir `recordLoginEvent`) ; `'google'` pour
+ * une connexion sur un compte existant.
+ */
+async function establishGoogleSession(
+	event: RequestEvent,
+	userId: string,
+	email: string,
+	method: LoginMethod
+): Promise<Response> {
+	const device = getSessionDeviceContext(event.request);
 	const session = await auth.createSession(userId, {
 		twoFactorVerified: false,
-		...getSessionDeviceContext(event.request)
+		// Jamais rempli avant ce correctif : `Session.oauthProvider` restait
+		// `null` même pour une connexion Google, rendant la colonne inutilisable.
+		oauthProvider: 'google',
+		...device
 	});
 	const sessionCookie = auth.createSessionCookie(session.id);
 	event.cookies.set(sessionCookie.name, sessionCookie.value, {
 		path: '/',
 		...sessionCookie.attributes
 	});
+
+	const { isNewDevice } = await recordLoginEvent(userId, method, device);
+	if (isNewDevice) {
+		void notifyNewDeviceLogin(email, userId, session.id, device);
+	}
 
 	return new Response(null, {
 		status: 302,
@@ -71,9 +92,9 @@ export async function GET(event: RequestEvent): Promise<Response> {
 				'E2e Google',
 				''
 			);
-			return establishGoogleSession(event, created.id);
+			return establishGoogleSession(event, created.id, created.email, 'signup');
 		}
-		return establishGoogleSession(event, user.id);
+		return establishGoogleSession(event, user.id, user.email, 'google');
 	}
 
 	let tokens: OAuth2Tokens;
@@ -97,9 +118,9 @@ export async function GET(event: RequestEvent): Promise<Response> {
 
 		if (!user) {
 			const created = await createUserWithGoogleOAuth(googleId, email, name, picture);
-			return establishGoogleSession(event, created.id);
+			return establishGoogleSession(event, created.id, created.email, 'signup');
 		}
 	}
 
-	return establishGoogleSession(event, user.id);
+	return establishGoogleSession(event, user.id, user.email, 'google');
 }

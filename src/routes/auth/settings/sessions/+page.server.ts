@@ -15,6 +15,7 @@ import {
 	deleteSessionForUser,
 	findSessionsForUser
 } from '$lib/prisma/session/sessions';
+import { findRecentLoginEvents } from '$lib/prisma/loginEvent/loginEvent';
 import { sessionIdentityCacheKey, sessionPublicId } from '$lib/lucia/session';
 import { invalidateCache } from '$lib/server/cache';
 import { describeUserAgent } from '$lib/lucia/deviceLabel';
@@ -25,7 +26,10 @@ export const load = (async ({ locals }) => {
 		redirect(302, '/auth/login');
 	}
 
-	const sessions = await findSessionsForUser(locals.user.id);
+	const [sessions, loginEvents] = await Promise.all([
+		findSessionsForUser(locals.user.id),
+		findRecentLoginEvents(locals.user.id)
+	]);
 
 	return {
 		sessions: sessions.map((session) => ({
@@ -42,6 +46,17 @@ export const load = (async ({ locals }) => {
 			createdAt: session.createdAt,
 			lastActiveAt: session.lastActiveAt,
 			isCurrent: session.id === locals.session!.id
+		})),
+		// Historique en lecture seule — distinct des sessions actives ci-dessus,
+		// survit à leur expiration/révocation (voir le modèle `LoginEvent`).
+		loginEvents: loginEvents.map((event) => ({
+			id: event.id,
+			device: event.userAgent ? describeUserAgent(event.userAgent) : null,
+			city: event.city,
+			country: event.country,
+			createdAt: event.createdAt,
+			method: event.method,
+			isNewDevice: event.isNewDevice
 		}))
 	};
 }) satisfies PageServerLoad;

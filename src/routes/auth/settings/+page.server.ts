@@ -41,6 +41,7 @@ import {
 } from '$lib/prisma/user/user';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
+import { notifyPasswordChanged } from '$lib/server/passwordChangedAlert';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>(5, 60 * 30, 'settings-password');
 
@@ -138,6 +139,7 @@ export const actions: Actions = {
 		await invalidateUserSessions(event.locals.user.id);
 		await updateUserPassword(event.locals.user.id, new_password);
 
+		const device = getSessionDeviceContext(event.request);
 		const sessionToken = generateSessionToken();
 		const sessionFlags: SessionFlags = {
 			twoFactorVerified: event.locals.session.twoFactorVerified
@@ -147,9 +149,13 @@ export const actions: Actions = {
 			event.locals.user.id,
 			sessionFlags,
 			null,
-			getSessionDeviceContext(event.request)
+			device
 		);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
+
+		// Jamais bloquant pour la réponse : un échec d'envoi ne doit pas empêcher
+		// la confirmation du changement de mot de passe (voir `notifyPasswordChanged`).
+		void notifyPasswordChanged(event.locals.user.email, device);
 
 		return message(form, 'Password modified successfully');
 	},

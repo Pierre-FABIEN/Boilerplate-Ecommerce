@@ -25,6 +25,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import * as Sentry from '@sentry/sveltekit';
+import { isValidSentryDsn } from '$lib/sentryDsn';
 
 import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { isSuspiciousUserAgent } from '$lib/server/anti-scraping';
@@ -43,14 +44,20 @@ import { adminHandle } from '$lib/admin/hooks';
 // ADMIN-PLUGIN ▲
 
 /**
- * Suivi d'erreurs/traces (plan gratuit Sentry). Sans `SENTRY_DSN`, le SDK
- * reste un no-op documenté — aucune configuration supplémentaire requise en
- * local, même comportement que Redis/QStash absents ailleurs dans ce fichier.
+ * Suivi d'erreurs/traces (plan gratuit Sentry). Sans `SENTRY_DSN` ou avec
+ * une valeur qui n'a pas la forme d'une DSN (`isValidSentryDsn`), le SDK
+ * n'est jamais initialisé — aucune configuration supplémentaire requise en
+ * local, même comportement que Redis/QStash absents ailleurs dans ce
+ * fichier. Initialiser quand même avec une DSN invalide ne fait pas planter
+ * l'appli mais imprime `Invalid Sentry Dsn: ****` à chaque requête —
+ * évité en amont plutôt que subi.
  */
-Sentry.init({
-	dsn: env.SENTRY_DSN,
-	tracesSampleRate: 0.1
-});
+if (isValidSentryDsn(env.SENTRY_DSN)) {
+	Sentry.init({
+		dsn: env.SENTRY_DSN,
+		tracesSampleRate: 0.1
+	});
+}
 
 /** Adresse du client, en tenant compte d'un éventuel proxy (Vercel). */
 function clientIP(event: Parameters<Handle>[0]['event']): string {

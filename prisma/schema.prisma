@@ -130,6 +130,7 @@ model User {
   sessions                  Session[]
   emailVerificationRequests EmailVerificationRequest[] @relation("UserEmailVerificationRequests")
   passwordResetSessions     PasswordResetSession[]     @relation("UserPasswordResetSessions")
+  loginEvents               LoginEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -176,6 +177,59 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+/// Historique des connexions — distinct de `Session` : survit à l'expiration
+/// ou à la révocation de la session qu'il documente (jamais de clé étrangère
+/// vers elle), pour qu'« il y a 2 mois, connexion depuis un iPhone à Lyon »
+/// reste consultable bien après que cette session-là a disparu. Une ligne par
+/// authentification réelle seulement — pas à chaque réémission de session
+/// (validation 2FA, changement de mot de passe) : voir `recordLoginEvent`,
+/// seul point d'écriture (`$lib/prisma/loginEvent/loginEvent.ts`).
+model LoginEvent {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  /// Mêmes colonnes et même origine que `Session.userAgent`/`ipAddress`/
+  /// `city`/`country` — capturées une seule fois, jamais recalculées.
+  userAgent String?
+  ipAddress String?
+  city      String?
+  country   String?
+  /// 'password' | 'google' | 'password-reset' — jamais 'signup' pour l'alerte
+  /// (voir `isNewDevice`), toujours pour l'historique.
+  method    String
+  /// Vrai si `recordLoginEvent` n'a trouvé aucune connexion antérieure avec
+  /// ce même `userAgent` pour ce compte — a déclenché l'e-mail « nouvelle
+  /// connexion » (`$lib/server/newDeviceAlert.ts`), jamais recalculé après
+  /// coup : ce champ documente ce qui a été décidé au moment de la
+  /// connexion, pas un état dérivable a posteriori.
+  isNewDevice Boolean @default(false)
+
+  @@index([userId, createdAt])
+  @@map("login_events")
+}
+
+/// Jeton à usage unique porté par le lien « Ce n'était pas moi » de l'alerte
+/// nouvel appareil (`$lib/server/newDeviceAlert.ts`) — permet de révoquer UNE
+/// session précise sans être connecté. Jamais le `Session.id` lui-même dans
+/// l'e-mail : c'est un identifiant porteur (équivalent au cookie de session),
+/// le divulguer permettrait d'usurper la session, pas seulement de la
+/// révoquer. `sessionId` n'est pas une clé étrangère vers `Session` : la
+/// session peut déjà avoir expiré au moment où le jeton est utilisé, sans
+/// que ce soit une erreur (`consumeSessionRevokeToken` traite l'absence de
+/// session comme un succès silencieux — il n'y a de toute façon plus rien à
+/// révoquer).
+model SessionRevokeToken {
+  /// Le jeton lui-même (`generateSecureToken`, même génération que `Session.id`).
+  id        String   @id
+  userId    String
+  sessionId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("session_revoke_tokens")
 }
 
 /// Code à 8 caractères envoyé par email, à la création du compte comme au

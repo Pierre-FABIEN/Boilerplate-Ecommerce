@@ -2,7 +2,7 @@
 	import * as Card from '$shadcn/card';
 	import { Button, buttonVariants } from '$shadcn/button';
 	import * as AlertDialog from '$shadcn/alert-dialog/index.js';
-	import { Monitor } from 'lucide-svelte';
+	import { Monitor, History, ShieldAlert } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
 	import { cn } from '$lib/components/shadcn/utils.js';
@@ -22,6 +22,13 @@
 	// ligne afficher silencieusement « Informations non disponibles » sans
 	// contexte pour comprendre pourquoi.
 	let hasLegacySession = $derived(data.sessions.some((s) => s.device === null));
+
+	const METHOD_LABELS: Record<string, string> = {
+		password: 'Mot de passe',
+		google: 'Google',
+		'password-reset': 'Réinitialisation du mot de passe',
+		signup: 'Création du compte'
+	};
 </script>
 
 <svelte:head>
@@ -149,5 +156,48 @@
 				</Card.Content>
 			</Card.Root>
 		{/each}
+	</div>
+
+	<div class="mt-10">
+		<h2 class="text-lg font-semibold flex items-center gap-2">
+			<History class="w-5 h-5 text-muted-foreground" />
+			Historique des connexions récentes
+		</h2>
+		<p class="text-sm text-muted-foreground mt-1 mb-4">
+			Les 10 dernières connexions à votre compte, même celles dont la session a expiré depuis.
+		</p>
+
+		{#if data.loginEvents.length === 0}
+			<p class="text-sm text-muted-foreground">Aucun historique disponible.</p>
+		{:else}
+			<div class="space-y-2">
+				{#each data.loginEvents as event (event.id)}
+					<div class="flex items-center justify-between gap-4 text-sm py-2 border-b last:border-0">
+						<div class="flex items-center gap-2">
+							{#if event.isNewDevice}
+								<ShieldAlert class="w-4 h-4 text-amber-500 shrink-0" />
+							{/if}
+							<span>
+								{event.device ?? 'Informations non disponibles'}
+								{#if event.city || event.country}
+									· {[event.city, event.country].filter(Boolean).join(', ')}
+								{/if}
+							</span>
+							{#if event.isNewDevice}
+								<span
+									class="text-xs rounded-full bg-amber-500/10 text-amber-600 px-2 py-0.5 font-normal"
+								>
+									Nouvel appareil
+								</span>
+							{/if}
+						</div>
+						<div class="text-muted-foreground text-right shrink-0">
+							<div>{new Date(event.createdAt).toLocaleString('fr-FR')}</div>
+							<div class="text-xs">{METHOD_LABELS[event.method] ?? event.method}</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
 	</div>
 </div>
