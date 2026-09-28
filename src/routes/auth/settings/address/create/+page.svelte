@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { createAddressSchema } from '$lib/schema/addresses/addressSchema.js';
 
 	import * as Form from '$shadcn/form';
@@ -19,7 +20,8 @@
 		untrack(() => data.IcreateAddressSchema),
 		{
 			validators: zodClient(createAddressSchema),
-			id: 'createAddress'
+			id: 'createAddress',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

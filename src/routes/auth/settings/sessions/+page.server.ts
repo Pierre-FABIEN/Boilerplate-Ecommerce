@@ -15,7 +15,7 @@ import {
 	deleteSessionForUser,
 	findSessionsForUser
 } from '$lib/prisma/session/sessions';
-import { sessionIdentityCacheKey } from '$lib/lucia/session';
+import { sessionIdentityCacheKey, sessionPublicId } from '$lib/lucia/session';
 import { invalidateCache } from '$lib/server/cache';
 import { describeUserAgent } from '$lib/lucia/deviceLabel';
 import { log } from '$lib/server/log';
@@ -29,7 +29,8 @@ export const load = (async ({ locals }) => {
 
 	return {
 		sessions: sessions.map((session) => ({
-			id: session.id,
+			// Jamais `session.id` : c'est le token du cookie (voir `sessionPublicId`).
+			id: sessionPublicId(session.id),
 			// `null` distingué de « appareil non reconnu » : une session ouverte
 			// avant l'ajout de ce suivi (colonne alors vide) n'a jamais eu de
 			// User-Agent capturé, ce n'est pas la même chose qu'un User-Agent
@@ -53,24 +54,32 @@ export const actions: Actions = {
 		}
 
 		const formData = await event.request.formData();
-		const sessionId = String(formData.get('sessionId') ?? '');
-		if (!sessionId) {
+		const publicId = String(formData.get('sessionId') ?? '');
+		if (!publicId) {
 			return fail(400, { message: 'Session invalide' });
 		}
-		if (sessionId === event.locals.session?.id) {
+		if (publicId === sessionPublicId(event.locals.session?.id ?? '')) {
 			return fail(400, { message: 'Utilisez la déconnexion classique pour la session en cours.' });
 		}
 
-		const { count } = await deleteSessionForUser(userId, sessionId);
-		if (count === 0) {
-			// Session déjà expirée/supprimée, ou appartenant à quelqu'un d'autre —
-			// jamais distingué côté message, voir le commentaire sur
-			// `deleteSessionForUser`.
+		// L'empreinte n'est rapprochée que des sessions de l'utilisateur
+		// authentifié : elle ne peut donc jamais désigner celle d'un tiers.
+		const target = (await findSessionsForUser(userId)).find(
+			(s) => sessionPublicId(s.id) === publicId
+		);
+		if (!target) {
 			return fail(404, { message: 'Session introuvable' });
 		}
 
-		await invalidateCache(sessionIdentityCacheKey(sessionId));
-		log('INFO', 'auth:sessions', 'Session déconnectée (self-service)', { userId, sessionId });
+		const { count } = await deleteSessionForUser(userId, target.id);
+		if (count === 0) {
+			// Session déjà expirée/supprimée entre-temps — jamais distingué côté
+			// message, voir le commentaire sur `deleteSessionForUser`.
+			return fail(404, { message: 'Session introuvable' });
+		}
+
+		await invalidateCache(sessionIdentityCacheKey(target.id));
+		log('INFO', 'auth:sessions', 'Session déconnectée (self-service)', { userId });
 
 		return { success: true };
 	},

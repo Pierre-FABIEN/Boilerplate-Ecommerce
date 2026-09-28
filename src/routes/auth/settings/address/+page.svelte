@@ -10,6 +10,7 @@
 
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { deleteAddressSchema } from '$lib/schema/addresses/addressSchema.js';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
@@ -23,7 +24,8 @@
 		untrack(() => data?.IdeleteAddressSchema ?? {}),
 		{
 			validators: zodClient(deleteAddressSchema),
-			id: 'deleteAddress'
+			id: 'deleteAddress',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

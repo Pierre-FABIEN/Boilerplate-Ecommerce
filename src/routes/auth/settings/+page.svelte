@@ -6,6 +6,7 @@
 	import { Button } from '$shadcn/button';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
 	import { emailSchema, passwordSchema } from '$lib/schema/auth/settingsSchemas';
@@ -37,7 +38,8 @@
 		untrack(() => data.emailForm),
 		{
 			validators: zodClient(emailSchema),
-			id: 'emailForm'
+			id: 'emailForm',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -45,7 +47,8 @@
 		untrack(() => data.passwordForm),
 		{
 			validators: zodClient(passwordSchema),
-			id: 'passwordForm'
+			id: 'passwordForm',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
@@ -53,7 +56,8 @@
 		untrack(() => data.isMfaEnabledForm),
 		{
 			validators: zodClient(isMfaEnabledSchema),
-			id: 'isMfaEnabledForm'
+			id: 'isMfaEnabledForm',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 
