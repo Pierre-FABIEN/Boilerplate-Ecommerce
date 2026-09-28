@@ -7,7 +7,7 @@ import { getUsersById, updateUserMFA, updateUserRole } from '$lib/prisma/user/us
 import { getUserAddresses, updateAddress } from '$lib/prisma/addresses/addresses';
 import { serializeData } from '$lib/utils/serializeData';
 import { updateUserSecurity } from '$lib/prisma/user/updateUserSecurity';
-import { invalidateUserSessions } from '$lib/lucia/session';
+import { invalidateUserSessions, sessionPublicId } from '$lib/lucia/session';
 import { assertAdmin, requireAdmin } from '$lib/admin/guards';
 import { logAdminAction } from '$lib/server/audit-log';
 import { findSessionsForUser } from '$lib/prisma/session/sessions';
@@ -83,7 +83,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// Lecture seule côté admin — la déconnexion à distance reste réservée au
 		// self-service (`/auth/settings/sessions`), voir FEATURE_IDEAS.md.
 		sessions: sessionsFetched.map((session) => ({
-			id: session.id,
+			// Jamais `session.id` : c'est le token du cookie (voir `sessionPublicId`).
+			id: sessionPublicId(session.id),
 			// `null` = session ouverte avant l'ajout de ce suivi, voir le même
 			// commentaire dans /auth/settings/sessions/+page.server.ts.
 			device: session.userAgent ? describeUserAgent(session.userAgent) : null,

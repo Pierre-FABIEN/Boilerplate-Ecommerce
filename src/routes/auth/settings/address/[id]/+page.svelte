@@ -9,6 +9,7 @@
 
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 
 	import { goto } from '$app/navigation';
 	import { updateAddressSchema } from '$lib/schema/addresses/addressSchema.js';
@@ -21,7 +22,8 @@
 		untrack(() => data.IupdateAddressSchema),
 		{
 			validators: zodClient(updateAddressSchema),
-			id: 'updateAddress'
+			id: 'updateAddress',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

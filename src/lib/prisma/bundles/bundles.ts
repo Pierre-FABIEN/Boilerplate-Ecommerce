@@ -86,13 +86,41 @@ export async function computeBundleDiscount(
 	const uniqueIds = [...new Set(productIds)];
 	if (uniqueIds.length < 2 || remainder <= 0) return 0;
 
-	for (const productId of uniqueIds) {
-		const counts = await getCoOccurrenceCounts(productId);
-		const hasQualifyingPartner = uniqueIds.some(
-			(otherId) => otherId !== productId && (counts.get(otherId) ?? 0) >= MIN_CO_OCCURRENCE
-		);
-		if (hasQualifyingPartner) {
-			return parseFloat((remainder * BUNDLE_DISCOUNT_PERCENT).toFixed(2));
+	// Une seule requête pour tout le panier, puis comptage des paires en
+	// mémoire : boucler sur `getCoOccurrenceCounts` coûtait deux requêtes par
+	// produit, sur un chemin appelé deux fois par passage en caisse (aperçu
+	// dans le `load`, puis recalcul dans l'action).
+	const rows = await prisma.orderItem.findMany({
+		where: {
+			productId: { in: uniqueIds },
+			order: { status: { in: [...COMPLETED_STATUSES] } }
+		},
+		select: { orderId: true, productId: true }
+	});
+
+	const cartProductsByOrder = new Map<string, Set<string>>();
+	for (const row of rows) {
+		const seen = cartProductsByOrder.get(row.orderId);
+		if (seen) seen.add(row.productId);
+		else cartProductsByOrder.set(row.orderId, new Set([row.productId]));
+	}
+
+	// Compte des commandes DISTINCTES par paire, conformément à
+	// `MIN_CO_OCCURRENCE` : deux lignes du même produit dans une même commande
+	// ne valent qu'une co-occurrence.
+	const ordersPerPair = new Map<string, number>();
+	for (const products of cartProductsByOrder.values()) {
+		if (products.size < 2) continue;
+		const present = [...products].sort();
+		for (let i = 0; i < present.length; i++) {
+			for (let j = i + 1; j < present.length; j++) {
+				const key = `${present[i]}|${present[j]}`;
+				const count = (ordersPerPair.get(key) ?? 0) + 1;
+				if (count >= MIN_CO_OCCURRENCE) {
+					return parseFloat((remainder * BUNDLE_DISCOUNT_PERCENT).toFixed(2));
+				}
+				ordersPerPair.set(key, count);
+			}
 		}
 	}
 

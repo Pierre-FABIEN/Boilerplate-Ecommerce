@@ -72,6 +72,40 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 		});
 		const existingOrderItemIds = existingOrderItems.map((oi) => oi.id);
 
+		// Catalogue préchargé en deux requêtes : relire produit puis variante dans la
+		// boucle coûtait jusqu'à deux allers-retours par article du panier.
+		const incomingProductIds = [
+			...new Set(
+				incomingItems
+					.map((item) => item.product?.id ?? item.productId)
+					.filter((id): id is string => Boolean(id))
+			)
+		];
+		const incomingVariantIds = [
+			...new Set(
+				incomingItems
+					.map((item) => item.variant?.id ?? item.variantId)
+					.filter((id): id is string => Boolean(id))
+			)
+		];
+
+		const [catalogProducts, catalogVariants] = await Promise.all([
+			incomingProductIds.length
+				? prisma.product.findMany({
+						where: { id: { in: incomingProductIds } },
+						select: { id: true, price: true }
+					})
+				: [],
+			incomingVariantIds.length
+				? prisma.productVariant.findMany({
+						where: { id: { in: incomingVariantIds } },
+						select: { id: true, productId: true, price: true }
+					})
+				: []
+		]);
+		const catalogProductById = new Map(catalogProducts.map((product) => [product.id, product]));
+		const catalogVariantById = new Map(catalogVariants.map((variant) => [variant.id, variant]));
+
 		// IDs qu'on va conserver ou créer
 		const keptOrCreatedIds: string[] = [];
 
@@ -82,10 +116,7 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 			if (!productId) {
 				throw new UnknownProductError();
 			}
-			const catalogProduct = await prisma.product.findUnique({
-				where: { id: productId },
-				select: { id: true, price: true }
-			});
+			const catalogProduct = catalogProductById.get(productId);
 			if (!catalogProduct) {
 				throw new UnknownProductError(productId);
 			}
@@ -97,10 +128,7 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 			const variantId: string | null = newItem.variant?.id ?? newItem.variantId ?? null;
 			let variantPrice: number | null = null;
 			if (variantId) {
-				const variant = await prisma.productVariant.findUnique({
-					where: { id: variantId },
-					select: { id: true, productId: true, price: true }
-				});
+				const variant = catalogVariantById.get(variantId);
 				if (!variant || variant.productId !== productId) {
 					throw new UnknownProductError(productId);
 				}

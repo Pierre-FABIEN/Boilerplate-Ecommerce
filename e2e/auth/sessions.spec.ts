@@ -1,4 +1,5 @@
 import { test, expect } from '../support/fixtures';
+import { createHash } from 'node:crypto';
 import { pageOrigin, signUpAndVerify, sveltekitActionHeaders } from '../support/admin';
 import { sessionCookie } from '../support/flows';
 import {
@@ -30,6 +31,17 @@ async function expectFailure(response: import('@playwright/test').APIResponse, s
 	return body.data;
 }
 
+/**
+ * Empreinte publique d'une session, telle que la page l'expose.
+ *
+ * `Session.id` est le token du cookie : il n'est jamais envoyé au navigateur,
+ * donc jamais rejoué tel quel dans un formulaire (voir `sessionPublicId`,
+ * `$lib/lucia/session.ts`). Le test doit dériver la même empreinte.
+ */
+function publicSessionId(token: string) {
+	return createHash('sha256').update(token).digest('hex');
+}
+
 test.describe('Auth — sessions actives', () => {
 	test.setTimeout(6 * 60_000);
 
@@ -51,6 +63,12 @@ test.describe('Auth — sessions actives', () => {
 				await expect(page.getByText('Firefox sur Windows')).toBeVisible();
 				await expect(page.getByText('Lyon, FR', { exact: false })).toBeVisible();
 				expect(await countSessions(account.email)).toBe(2);
+
+				// `Session.id` est le token du cookie : une XSS sur cette page ne doit
+				// pas pouvoir moissonner les sessions du compte.
+				const token = (await sessionCookie(page))?.value;
+				expect(token).toBeTruthy();
+				expect(await page.content()).not.toContain(token!);
 			});
 
 			await test.step('2. Refus : révoquer la session en cours', async () => {
@@ -58,7 +76,7 @@ test.describe('Auth — sessions actives', () => {
 				expect(currentSessionId).toBeTruthy();
 
 				const response = await page.request.post('/auth/settings/sessions?/revoke', {
-					form: { sessionId: currentSessionId! },
+					form: { sessionId: publicSessionId(currentSessionId!) },
 					headers: sveltekitActionHeaders(origin)
 				});
 				await expectFailure(response, 400);

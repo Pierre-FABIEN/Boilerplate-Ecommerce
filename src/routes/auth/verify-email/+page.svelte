@@ -7,6 +7,7 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
 
 	let { data } = $props();
@@ -16,13 +17,7 @@
 		{
 			validators: zodClient(verifyCodeSchema),
 			id: 'verifyCodeForm',
-			// Superforms 2.27 laisse son état interne bloqué sur « en cours » après
-			// une soumission refusée : avec le défaut `'prevent'`, le clic suivant
-			// est alors annulé sans requête ni message pendant ~8 s (le temps que
-			// son minuteur `timeoutMs` débloque l'état). Sur une saisie de code,
-			// ignorer silencieusement l'utilisateur est pire qu'un double envoi,
-			// que le serveur rejette de toute façon.
-			multipleSubmits: 'allow'
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

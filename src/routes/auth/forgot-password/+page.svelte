@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { RETRY_FRIENDLY_FORM } from '$lib/forms/superformOptions';
 	import { forgotPasswordSchema } from '$lib/schema/auth/forgotPasswordSchema';
 
 	let { data } = $props();
@@ -15,7 +16,8 @@
 		untrack(() => data.forgotForm),
 		{
 			validators: zodClient(forgotPasswordSchema),
-			id: 'forgotForm'
+			id: 'forgotForm',
+			...RETRY_FRIENDLY_FORM
 		}
 	);
 

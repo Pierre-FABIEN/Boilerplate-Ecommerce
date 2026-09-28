@@ -16,7 +16,7 @@ import {
 	peekSessionRevokeToken
 } from '$lib/prisma/sessionRevokeToken/sessionRevokeToken';
 import { findSessionDeviceInfo } from '$lib/prisma/session/sessions';
-import { invalidateSession } from '$lib/lucia/session';
+import { invalidateSession, sessionPublicId } from '$lib/lucia/session';
 import { describeUserAgent } from '$lib/lucia/deviceLabel';
 import { log } from '$lib/server/log';
 
@@ -49,7 +49,9 @@ export const actions: Actions = {
 		await invalidateSession(target.sessionId);
 		log('INFO', 'auth:not-me', 'Session révoquée via le lien "Ce n\'était pas moi"', {
 			userId: target.userId,
-			sessionId: target.sessionId
+			// Empreinte, pas `sessionId` : c'est le token du cookie, il n'a rien à
+			// faire dans les journaux (voir `sessionPublicId`).
+			session: sessionPublicId(target.sessionId)
 		});
 
 		return { success: true };
