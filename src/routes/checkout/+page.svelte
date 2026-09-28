@@ -614,6 +614,7 @@
 						{totalNonCustomQuantity}
 						{discountAmount}
 						{promoCode}
+						vatRate={data.vatRate}
 						onRemoveFromCart={handleRemoveFromCart}
 						onChangeQuantity={changeQuantity}
 					/>

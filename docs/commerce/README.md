@@ -67,6 +67,12 @@ Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
 - Prix des lignes = `Product.price` (ou `ProductVariant.price` si une
   variante est sélectionnée — voir [docs/products](../products/README.md#variantes-produit)),
   jamais le JSON client ni le panier invité.
+- Taux de TVA = `StoreSettings.vatRate` (`getVatRate()`, configurable depuis
+  `/admin/tva`), propagé côté client via `data.vatRate` (chargé par
+  `+layout.server.ts`). Le libellé « TVA (x %) » du tiroir panier
+  (`Cart.svelte`) et du récapitulatif checkout (`CartSummary.svelte`,
+  reçoit `vatRate` en prop depuis `checkout/+page.svelte`) reflète ce taux
+  dynamiquement — il n'y a plus de pourcentage figé dans le markup.
 - Invité : `localStorage` seulement ; fusion au compte à signup / login
   (même `productId` **et** même `variantId` → quantités additionnées,
   plafonnées au stock de la ligne ; deux variantes du même produit ne

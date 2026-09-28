@@ -27,7 +27,7 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 2   | ✅ Solde de carte cadeau décrémenté sans atomicité (race condition) (corrigé)                                                        | 🔴       | Commerce      |
 | 3   | ✅ Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives (corrigé)                                           | 🔴       | Auth/Admin    |
 | 4   | ✅ `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry (corrigé) | 🔴       | Jobs          |
-| 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                                           | 🟡       | Transverse    |
+| 5   | ✅ Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable (corrigé)                                              | 🟡       | Transverse    |
 | 6   | ✅ Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible (corrigé)                               | 🟡       | Commerce      |
 | 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                                         | 🟡       | Jobs          |
 | 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                                   | 🟡       | Jobs          |
@@ -299,7 +299,17 @@ protection déjà en place dans `loyalty.ts` pour un cas équivalent.
 
 ## 3. Transverse (affichage, emails, tri)
 
-### 3.1 🟡 Taux de TVA affiché en dur à "5,5 %"
+### 3.1 🟡 ✅ Corrigé — Taux de TVA affiché en dur à "5,5 %"
+
+> **Correction (2026-09-28)** : `Cart.svelte` reçoit déjà `data.vatRate`
+> (propagé depuis `+layout.server.ts` via `Navigation.svelte`) — le libellé
+> utilise désormais `TVA ({(data.vatRate * 100).toLocaleString('fr-FR')} %) :`.
+> `CartSummary.svelte` reçoit un nouveau prop `vatRate` (défaut `0.055`),
+> passé explicitement par `checkout/+page.svelte` (`vatRate={data.vatRate}`),
+> et affiche le même calcul dynamique. Vérifié par `npm run check` (0
+> erreur), `npx vitest run` (58 passés/2 skip, inchangé) et un nouveau
+> `test.step` dans `e2e/admin/vat-rate.spec.ts` qui configure le taux à
+> 20 % puis ouvre le tiroir panier et vérifie le texte `TVA (20 %) :`.
 
 **Fichiers** : [src/lib/components/cart/Cart.svelte](src/lib/components/cart/Cart.svelte#L288),
 [src/lib/components/checkout/CartSummary.svelte](src/lib/components/checkout/CartSummary.svelte#L181)

@@ -62,6 +62,12 @@ test.describe('Admin — taux de TVA', () => {
 				const order = await getOrderById(pending!.id);
 				expect(order?.tax).toBeCloseTo(100 * 0.2, 2);
 			});
+
+			await test.step('3. Le tiroir panier affiche le taux réellement configuré (§3.1 audit)', async () => {
+				await page.reload();
+				await page.getByRole('button', { name: /Voir le panier/ }).click();
+				await expect(page.getByText('TVA (20 %) :')).toBeVisible();
+			});
 		} finally {
 			await setStoreFeatureFlags(originalFlags);
 			await deleteCatalogProduct(product.id);

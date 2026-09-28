@@ -23,6 +23,7 @@
 		) => void;
 		discountAmount?: number;
 		promoCode?: string;
+		vatRate?: number;
 	}
 
 	let {
@@ -36,8 +37,13 @@
 		onRemoveFromCart,
 		onChangeQuantity,
 		discountAmount = 0,
-		promoCode = ''
+		promoCode = '',
+		vatRate = 0.055
 	}: Props = $props();
+
+	// §3.1 de l'audit : le libellé suivait le vrai taux configuré côté calcul
+	// (`tax`) mais restait figé au texte "5,5%".
+	let vatRatePercent = $derived(vatRate * 100);
 
 	// Borne haute du champ libre : stock dispo, et pour le non-custom, le
 	// reliquat sous le plafond global de 72 unités (pas de plafond en custom).
@@ -178,7 +184,7 @@
 					</span>
 				</div>
 				<div class="flex justify-between text-sm">
-					<span>TVA (5,5%)</span>
+					<span>TVA ({vatRatePercent.toLocaleString('fr-FR')}%)</span>
 					<span>{localTax.toFixed(2)}€</span>
 				</div>
 				{#if discountAmount > 0}
