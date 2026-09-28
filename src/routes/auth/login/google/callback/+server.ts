@@ -31,6 +31,9 @@ function isE2eGoogleBypass(code: string, email: string | null): boolean {
 async function establishGoogleSession(event: RequestEvent, userId: string): Promise<Response> {
 	const session = await auth.createSession(userId, {
 		twoFactorVerified: false,
+		// Jamais rempli avant ce correctif : `Session.oauthProvider` restait
+		// `null` même pour une connexion Google, rendant la colonne inutilisable.
+		oauthProvider: 'google',
 		...getSessionDeviceContext(event.request)
 	});
 	const sessionCookie = auth.createSessionCookie(session.id);

@@ -55,7 +55,10 @@
 
 <div class="min-h-screen min-w-[100vw] absolute">
 	<div class="container mx-auto p-4">
-		<h1 class="text-2xl font-bold mb-4">Update User and Addresses</h1>
+		<h1 class="text-2xl font-bold mb-1">Update User and Addresses</h1>
+		<!-- Absent avant ce correctif : aucun moyen de confirmer visuellement
+		     quel compte on modifie sans redescendre dans l'URL. -->
+		<p class="text-muted-foreground mb-4">{data.userSelected.email}</p>
 		<form method="POST" action="?/updateUserAndAddresses" use:enhance class="space-y-4">
 			<Form.Field name="role" form={updateUserAndAddresses}>
 				<Form.Control>
