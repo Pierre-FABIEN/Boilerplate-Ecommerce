@@ -18,11 +18,17 @@ const memoryWindows = new Map<string, { count: number; windowStart: number }>();
  * d'alerting (PagerDuty/Slack), mais ce que Sentry peut exploiter sans
  * infrastructure supplémentaire : configurer une règle d'alerte Sentry sur
  * le tag `alert:<key>` pour être notifié en dehors du dashboard.
+ *
+ * Renvoie `true` seulement pour l'appel qui fait franchir le seuil — permet
+ * à un appelant de déclencher un effet de bord qui, comme l'alerte Sentry
+ * elle-même, ne doit se produire qu'une fois par fenêtre (voir
+ * `$lib/server/failedLoginAlert.ts`, qui en dépend pour l'e-mail « plusieurs
+ * tentatives de connexion échouées »).
  */
 export async function reportIfRepeated(
 	key: string,
 	options: { threshold: number; windowSeconds: number; message: string }
-): Promise<void> {
+): Promise<boolean> {
 	const { threshold, windowSeconds, message } = options;
 	let count: number;
 
@@ -48,5 +54,7 @@ export async function reportIfRepeated(
 	if (count === threshold) {
 		log('ERROR', 'Alerting', message, { key, threshold, windowSeconds });
 		Sentry.captureMessage(message, { level: 'warning', tags: { alert: key } });
+		return true;
 	}
+	return false;
 }

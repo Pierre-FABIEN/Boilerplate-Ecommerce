@@ -15,6 +15,7 @@ import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 import { recordLoginEvent } from '$lib/prisma/loginEvent/loginEvent';
 import { notifyNewDeviceLogin } from '$lib/server/newDeviceAlert';
+import { reportFailedLoginAttempt } from '$lib/server/failedLoginAlert';
 
 import type { SessionFlags } from '$lib/lucia/session';
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
@@ -81,15 +82,21 @@ export const actions: Actions = {
 			return message(form, 'Too many requests');
 		}
 		const passwordHash = await getUserPasswordHash(user.id ?? undefined, email);
+		// Calculé avant la vérification du mot de passe : utilisé aussi bien en
+		// cas d'échec (compteur de tentatives ci-dessous) qu'en cas de succès
+		// (session, historique).
+		const device = getSessionDeviceContext(event.request);
 
 		// Un compte sans mot de passe n'en a jamais défini : la vérification
 		// planterait au lieu de refuser proprement.
 		if (passwordHash === null) {
+			await reportFailedLoginAttempt(user.id, user.email, device);
 			return message(form, 'Invalid password');
 		}
 
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {
+			await reportFailedLoginAttempt(user.id, user.email, device);
 			return message(form, 'Invalid password');
 		}
 		await throttler.reset(user.id);
@@ -97,7 +104,6 @@ export const actions: Actions = {
 			twoFactorVerified: false
 		};
 
-		const device = getSessionDeviceContext(event.request);
 		const sessionToken = generateSessionToken();
 		const session = await createSession(sessionToken, user.id, sessionFlags, null, device);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
