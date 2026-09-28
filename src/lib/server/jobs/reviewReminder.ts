@@ -24,7 +24,7 @@ import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { withDuration } from '$lib/server/metrics';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
-import { resolveAppUrl } from '$lib/server/app-url';
+import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 
 const REVIEW_REMINDER_DELAY_DAYS = 7;
 
@@ -35,7 +35,7 @@ export interface ReviewReminderResult {
 }
 
 function productReviewUrl(slug: string): string {
-	return `${resolveAppUrl() ?? ''}/products/${slug}#reviews`;
+	return `${resolveAppUrlOrDefault()}/products/${slug}#reviews`;
 }
 
 async function sendReminder(orderId: string): Promise<boolean> {

@@ -58,18 +58,30 @@ export async function runReferralRewardJob(orderId: string): Promise<void> {
 			});
 			if (!referrer) return;
 
-			const giftCard = await createGiftCard({
-				initialValue: REFERRAL_REWARD_AMOUNT,
-				recipientEmail: referrer.email,
-				note: `Parrainage — filleul ${referredUser.id}`
-			});
+			const giftCard = await prisma.$transaction(async (tx) => {
+				// §2.3 de l'audit : les deux écritures doivent réussir ou échouer
+				// ensemble, sinon une carte cadeau créée sans son `ReferralReward`
+				// devient orpheline (introuvable par un retry, qui en recrée une
+				// seconde) — même famille de garantie que `loyalty.ts`, ici via une
+				// transaction plutôt qu'un rollback manuel après coup.
+				const giftCard = await createGiftCard(
+					{
+						initialValue: REFERRAL_REWARD_AMOUNT,
+						recipientEmail: referrer.email,
+						note: `Parrainage — filleul ${referredUser.id}`
+					},
+					tx
+				);
 
-			await prisma.referralReward.create({
-				data: {
-					referrerId: referrer.id,
-					referredId: referredUser.id,
-					giftCardId: giftCard.id
-				}
+				await tx.referralReward.create({
+					data: {
+						referrerId: referrer.id,
+						referredId: referredUser.id,
+						giftCardId: giftCard.id
+					}
+				});
+
+				return giftCard;
 			});
 
 			await sendMail({

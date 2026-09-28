@@ -24,7 +24,7 @@ import { withLock } from '$lib/server/lock';
 import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { withDuration } from '$lib/server/metrics';
-import { resolveAppUrl } from '$lib/server/app-url';
+import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 import {
 	listWishlistItemsForProduct,
 	markWishlistItemNotified
@@ -91,7 +91,7 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 
 			const now = new Date();
 			const flashSaleActive = product.flashSaleEndsAt !== null && product.flashSaleEndsAt > now;
-			const productUrl = `${resolveAppUrl() ?? ''}/products/${product.slug}`;
+			const productUrl = `${resolveAppUrlOrDefault()}/products/${product.slug}`;
 
 			let sent = 0;
 			for (const item of items) {

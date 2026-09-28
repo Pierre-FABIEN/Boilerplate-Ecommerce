@@ -38,10 +38,12 @@ function randomSegment(length: number): string {
 }
 
 /** `GIFT-XXXX-XXXX-XXXX`, retire une collision improbable en retentant. */
-async function generateUniqueGiftCardCode(): Promise<string> {
+async function generateUniqueGiftCardCode(
+	client: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<string> {
 	for (let attempt = 0; attempt < 5; attempt++) {
 		const code = `GIFT-${randomSegment(4)}-${randomSegment(4)}-${randomSegment(4)}`;
-		const existing = await prisma.giftCard.findUnique({ where: { code } });
+		const existing = await client.giftCard.findUnique({ where: { code } });
 		if (!existing) return code;
 	}
 	throw new Error('Impossible de générer un code de carte cadeau unique');
@@ -79,9 +81,18 @@ export const getGiftCardByCode = async (code: string) => {
 	return await prisma.giftCard.findUnique({ where: { code: normalizeCode(code) } });
 };
 
-export const createGiftCard = async (data: CreateGiftCardInput) => {
-	const code = await generateUniqueGiftCardCode();
-	return await prisma.giftCard.create({
+/**
+ * `tx` optionnel (§2.3 de l'audit fonctionnel) : à passer quand la création
+ * doit rester atomique avec une autre écriture liée (ex. `ReferralReward` —
+ * voir `$lib/server/jobs/referral.ts`), pour qu'un échec de cette dernière
+ * fasse aussi disparaître la carte cadeau au lieu de la laisser orpheline.
+ */
+export const createGiftCard = async (
+	data: CreateGiftCardInput,
+	tx: Prisma.TransactionClient | typeof prisma = prisma
+) => {
+	const code = await generateUniqueGiftCardCode(tx);
+	return await tx.giftCard.create({
 		data: {
 			code,
 			initialValue: data.initialValue,

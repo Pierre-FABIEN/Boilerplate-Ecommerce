@@ -15,7 +15,7 @@ import { withLock } from '$lib/server/lock';
 import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { withDuration } from '$lib/server/metrics';
-import { resolveAppUrl } from '$lib/server/app-url';
+import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 import {
 	listPendingStockAlerts,
 	markStockAlertsNotified
@@ -40,7 +40,7 @@ export async function runStockAlertsJob(productId: string): Promise<void> {
 			const pending = await listPendingStockAlerts(productId);
 			if (pending.length === 0) return;
 
-			const productUrl = `${resolveAppUrl() ?? ''}/products/${product.slug}`;
+			const productUrl = `${resolveAppUrlOrDefault()}/products/${product.slug}`;
 			const results = await Promise.allSettled(
 				pending.map((alert) =>
 					sendMail({

@@ -30,7 +30,7 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 5   | ✅ Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable (corrigé)                                              | 🟡       | Transverse    |
 | 6   | ✅ Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible (corrigé)                               | 🟡       | Commerce      |
 | 7   | ✅ Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée) (corrigé)                            | 🟡       | Jobs          |
-| 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                                   | 🟡       | Jobs          |
+| 8   | ✅ Cartes cadeaux de parrainage potentiellement orphelines/dupliquées (corrigé)                                                      | 🟡       | Jobs          |
 | 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                                    | 🟡       | Transverse    |
 | 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                                  | 🟡       | Produits      |
 | 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                                   | 🔵       | Admin         |
@@ -293,7 +293,22 @@ quitte à accepter qu'un email manqué en cas d'échec d'envoi ne soit pas
 retenté), ou entourer les deux appels d'une logique qui traite l'échec du
 marquage comme aussi grave que l'échec de l'envoi.
 
-### 2.3 🟡 Cartes cadeaux de parrainage potentiellement orphelines
+### 2.3 🟡 ✅ Corrigé — Cartes cadeaux de parrainage potentiellement orphelines
+
+> **Correction (2026-09-28)** : les deux écritures sont désormais dans un
+> seul `prisma.$transaction` — `createGiftCard` (`$lib/prisma/giftCards/giftCards.ts`)
+> accepte un client transactionnel optionnel (`tx`, défaut `prisma`), utilisé
+> à la fois pour la vérification d'unicité du code et la création elle-même,
+> et `referral.ts` lui passe le même `tx` que celui utilisé pour
+> `referralReward.create`. Un échec de la seconde écriture fait donc échouer
+> (rollback) la première — plus de carte cadeau orpheline possible, et un
+> retry du job repart sur un état propre. Vérifié par 2 nouveaux tests
+> unitaires (`referral.test.ts`) : le premier prouve que `createGiftCard`
+> reçoit bien le même client `tx` que `referralReward.create` ; le second
+> simule un échec de `referralReward.create` et vérifie que le job rejette
+> (au lieu d'avaler l'erreur) et que `sendMail` n'est jamais appelé dans ce
+> cas. `npm run check` 0/0, `npx vitest run` 61 passed/2 skipped (+2 vs
+> précédent), e2e `promo/referral.spec.ts` (2 tests) inchangé et vert.
 
 **Fichier** : [src/lib/server/jobs/referral.ts](src/lib/server/jobs/referral.ts#L60-L72)
 
