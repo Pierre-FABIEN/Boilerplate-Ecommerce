@@ -10,13 +10,25 @@ import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 import { describeUserAgent } from '$lib/lucia/deviceLabel';
+import { createSessionRevokeToken } from '$lib/prisma/sessionRevokeToken/sessionRevokeToken';
 import type { SessionDeviceContext } from '$lib/lucia/deviceContext';
 
-export async function notifyNewDeviceLogin(email: string, device: SessionDeviceContext) {
+export async function notifyNewDeviceLogin(
+	email: string,
+	userId: string,
+	sessionId: string,
+	device: SessionDeviceContext
+) {
 	const deviceLabel = describeUserAgent(device.userAgent);
 	const location = [device.city, device.country].filter(Boolean).join(', ');
 	const when = new Date().toLocaleString('fr-FR');
 	const sessionsUrl = `${resolveAppUrlOrDefault()}/auth/settings/sessions`;
+
+	// Jamais le `sessionId` brut dans l'e-mail (c'est un identifiant porteur,
+	// équivalent au cookie de session) — un jeton dédié, à usage unique,
+	// limité à la seule action de révocation, voir `SessionRevokeToken`.
+	const revokeToken = await createSessionRevokeToken(userId, sessionId);
+	const notMeUrl = `${resolveAppUrlOrDefault()}/auth/not-me/${revokeToken}`;
 
 	const details = [
 		`Appareil : ${deviceLabel}`,
@@ -32,7 +44,9 @@ export async function notifyNewDeviceLogin(email: string, device: SessionDeviceC
 			subject: 'Nouvelle connexion détectée sur votre compte',
 			text:
 				`Une connexion vient d'avoir lieu depuis un appareil que nous ne reconnaissons pas.\n\n${details}\n\n` +
-				`Si c'est vous, aucune action requise. Sinon, déconnectez cette session et changez votre mot de passe : ${sessionsUrl}`,
+				`Si c'est vous, aucune action requise.\n\n` +
+				`Sinon : ${notMeUrl} (déconnecte cette session en un clic, sans avoir besoin de vous connecter) ` +
+				`— pensez aussi à changer votre mot de passe : ${sessionsUrl}`,
 			html: `
 				<p>Une connexion vient d'avoir lieu depuis un appareil que nous ne reconnaissons pas.</p>
 				<ul>
@@ -41,7 +55,9 @@ export async function notifyNewDeviceLogin(email: string, device: SessionDeviceC
 					<li><strong>Date :</strong> ${when}</li>
 				</ul>
 				<p>Si c'est vous, aucune action n'est requise.</p>
-				<p>Sinon, <a href="${sessionsUrl}">déconnectez cette session et changez votre mot de passe</a> au plus vite.</p>
+				<p>Sinon, <a href="${notMeUrl}"><strong>ce n'était pas moi</strong></a> — déconnecte cette
+				session immédiatement, sans avoir besoin de vous connecter. Pensez aussi à
+				<a href="${sessionsUrl}">changer votre mot de passe</a>.</p>
 			`
 		});
 	} catch (err) {

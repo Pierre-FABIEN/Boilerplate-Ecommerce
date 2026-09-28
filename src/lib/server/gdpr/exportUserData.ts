@@ -18,7 +18,8 @@ export async function buildUserDataExport(userId: string) {
 		questions,
 		wishlist,
 		returnRequests,
-		loyaltyAwards
+		loyaltyAwards,
+		loginEvents
 	] = await Promise.all([
 		prisma.user.findUnique({
 			where: { id: userId },
@@ -60,7 +61,22 @@ export async function buildUserDataExport(userId: string) {
 			include: { product: { select: { name: true } } }
 		}),
 		prisma.returnRequest.findMany({ where: { userId } }),
-		prisma.loyaltyAward.findMany({ where: { userId } })
+		prisma.loyaltyAward.findMany({ where: { userId } }),
+		// Conservé 90 jours (`$lib/server/jobs/cleanup.ts`), distinct des
+		// sessions actives — voir `LoginEvent` dans schema.prisma.
+		prisma.loginEvent.findMany({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: {
+				method: true,
+				userAgent: true,
+				ipAddress: true,
+				city: true,
+				country: true,
+				isNewDevice: true,
+				createdAt: true
+			}
+		})
 	]);
 
 	return {
@@ -95,6 +111,15 @@ export async function buildUserDataExport(userId: string) {
 			ajoute_le: item.createdAt
 		})),
 		retours: returnRequests,
-		fidelite: loyaltyAwards
+		fidelite: loyaltyAwards,
+		historique_connexions: loginEvents.map((event) => ({
+			methode: event.method,
+			appareil_brut: event.userAgent,
+			adresse_ip: event.ipAddress,
+			ville: event.city,
+			pays: event.country,
+			nouvel_appareil_detecte: event.isNewDevice,
+			connecte_le: event.createdAt
+		}))
 	};
 }

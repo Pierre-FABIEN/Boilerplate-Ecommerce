@@ -211,6 +211,27 @@ model LoginEvent {
   @@map("login_events")
 }
 
+/// Jeton à usage unique porté par le lien « Ce n'était pas moi » de l'alerte
+/// nouvel appareil (`$lib/server/newDeviceAlert.ts`) — permet de révoquer UNE
+/// session précise sans être connecté. Jamais le `Session.id` lui-même dans
+/// l'e-mail : c'est un identifiant porteur (équivalent au cookie de session),
+/// le divulguer permettrait d'usurper la session, pas seulement de la
+/// révoquer. `sessionId` n'est pas une clé étrangère vers `Session` : la
+/// session peut déjà avoir expiré au moment où le jeton est utilisé, sans
+/// que ce soit une erreur (`consumeSessionRevokeToken` traite l'absence de
+/// session comme un succès silencieux — il n'y a de toute façon plus rien à
+/// révoquer).
+model SessionRevokeToken {
+  /// Le jeton lui-même (`generateSecureToken`, même génération que `Session.id`).
+  id        String   @id
+  userId    String
+  sessionId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("session_revoke_tokens")
+}
+
 /// Code à 8 caractères envoyé par email, à la création du compte comme au
 /// changement d'adresse. Une seule requête vivante par utilisateur : la
 /// précédente est supprimée avant d'en créer une nouvelle.

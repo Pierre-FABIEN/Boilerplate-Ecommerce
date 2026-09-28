@@ -101,7 +101,7 @@ export const actions: Actions = {
 		// titre qu'une connexion classique, voir login/+page.server.ts.
 		const { isNewDevice } = await recordLoginEvent(user.id, 'password-reset', device);
 		if (isNewDevice) {
-			void notifyNewDeviceLogin(user.email, device);
+			void notifyNewDeviceLogin(user.email, user.id, session.id, device);
 		}
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 		deletePasswordResetSessionTokenCookie(event);

@@ -5,10 +5,13 @@ import { recordDuration } from '$lib/server/metrics';
  * Purge périodique des lignes qui n'ont plus de valeur passé leur expiration.
  *
  * Ce qui est purgé (aucune obligation de conservation) :
- * - `sessions`, `email_verification_requests`, `password_reset_sessions`
- *   expirées : jusqu'ici supprimées seulement au coup par coup, à la prochaine
- *   lecture du même token (`validateSessionToken`, etc.) — une session jamais
- *   revisitée restait en base indéfiniment.
+ * - `sessions`, `email_verification_requests`, `password_reset_sessions`,
+ *   `session_revoke_tokens` expirées : jusqu'ici supprimées seulement au coup
+ *   par coup, à la prochaine lecture du même token (`validateSessionToken`,
+ *   etc.) — une session jamais revisitée restait en base indéfiniment. Un
+ *   jeton « Ce n'était pas moi » jamais cliqué (voir
+ *   `$lib/prisma/sessionRevokeToken/sessionRevokeToken.ts`) suit la même
+ *   règle : 7 jours, puis supprimé, cliqué ou non.
  * - `orders` PENDING abandonnées depuis plus de `ABANDONED_ORDER_DAYS` : un
  *   panier jamais payé (`OrderItem`/`Custom` cascadent avec l'`Order`). Le
  *   filtre porte sur `updatedAt`, pas `createdAt` : un panier alimenté
@@ -37,6 +40,7 @@ export interface CleanupResult {
 	expiredSessions: number;
 	expiredEmailVerificationRequests: number;
 	expiredPasswordResetSessions: number;
+	expiredSessionRevokeTokens: number;
 	abandonedPendingOrders: number;
 	oldLoginEvents: number;
 	durationMs: number;
@@ -55,11 +59,13 @@ export async function runCleanupJob(): Promise<CleanupResult> {
 			expiredSessions,
 			expiredEmailVerificationRequests,
 			expiredPasswordResetSessions,
+			expiredSessionRevokeTokens,
 			oldLoginEvents
 		] = await Promise.all([
 			prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
 			prisma.emailVerificationRequest.deleteMany({ where: { expiresAt: { lt: now } } }),
 			prisma.passwordResetSession.deleteMany({ where: { expiresAt: { lt: now } } }),
+			prisma.sessionRevokeToken.deleteMany({ where: { expiresAt: { lt: now } } }),
 			prisma.loginEvent.deleteMany({ where: { createdAt: { lt: loginEventsBefore } } })
 		]);
 
@@ -74,6 +80,7 @@ export async function runCleanupJob(): Promise<CleanupResult> {
 			oldLoginEvents: oldLoginEvents.count,
 			expiredEmailVerificationRequests: expiredEmailVerificationRequests.count,
 			expiredPasswordResetSessions: expiredPasswordResetSessions.count,
+			expiredSessionRevokeTokens: expiredSessionRevokeTokens.count,
 			abandonedPendingOrders: abandonedPendingOrders.count,
 			durationMs: Date.now() - startedAt
 		};

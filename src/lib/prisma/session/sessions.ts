@@ -23,6 +23,18 @@ export const findSessionById = async (token: string) => {
 	});
 };
 
+/**
+ * Appareil/localisation d'une session, sans le reste (jamais `user` — voir
+ * `/auth/not-me/[token]`, une page publique qui ne doit exposer aucune
+ * donnée de compte au-delà de « à quoi ressemblait la connexion »).
+ */
+export const findSessionDeviceInfo = async (sessionId: string) => {
+	return await prisma.session.findUnique({
+		where: { id: sessionId },
+		select: { userAgent: true, city: true, country: true }
+	});
+};
+
 export const deleteSessionById = async (token: string) => {
 	return await prisma.session.delete({
 		where: { id: token }

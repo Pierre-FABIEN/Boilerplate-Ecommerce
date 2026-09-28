@@ -108,7 +108,7 @@ export const actions: Actions = {
 		// propres erreurs).
 		const { isNewDevice } = await recordLoginEvent(user.id, 'password', device);
 		if (isNewDevice) {
-			void notifyNewDeviceLogin(user.email, device);
+			void notifyNewDeviceLogin(user.email, user.id, session.id, device);
 		}
 
 		if (!user.emailVerified) {

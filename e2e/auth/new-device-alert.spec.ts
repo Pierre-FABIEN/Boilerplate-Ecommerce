@@ -3,7 +3,7 @@ import { signUpAndVerify } from '../support/admin';
 import { logIn, signOut, waitForPath } from '../support/flows';
 import { makeClientIp } from '../support/account';
 import { clearMailbox, waitForEmailContaining } from '../support/mailbox';
-import { deleteUser, getLoginEvents } from '../support/db';
+import { countSessions, deleteUser, getLoginEvents } from '../support/db';
 
 /**
  * Historique des connexions (`LoginEvent`) + alerte « nouvelle connexion
@@ -82,6 +82,76 @@ test.describe('Auth — alerte nouvel appareil', () => {
 					await otherContext.close();
 				}
 			});
+		} finally {
+			await deleteUser(account.email);
+		}
+	});
+
+	test('lien "Ce n\'était pas moi" : révoque sans connexion, à usage unique', async ({
+		page,
+		account,
+		browser
+	}) => {
+		try {
+			await signUpAndVerify(page, account);
+			await clearMailbox();
+
+			const otherContext = await browser.newContext({
+				userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/128.0 Mobile',
+				extraHTTPHeaders: { 'X-Forwarded-For': makeClientIp() }
+			});
+			const otherPage = await otherContext.newPage();
+
+			try {
+				await logIn(otherPage, account.email, account.password);
+				await waitForPath(otherPage, '/');
+				expect(await countSessions(account.email)).toBe(2);
+
+				const mail = await waitForEmailContaining(
+					account.email,
+					'appareil que nous ne reconnaissons pas'
+				);
+				// Le jeton est extrait du corps, jamais suivi tel quel : le lien
+				// embarque `resolveAppUrlOrDefault()` (port 2000 par défaut), pas le
+				// port e2e réel — même limite que les codes extraits des autres
+				// e-mails de cette suite (jamais un clic sur l'URL absolue).
+				const match = mail.raw.match(/\/auth\/not-me\/([A-Za-z0-9_-]+)/);
+				expect(match).not.toBeNull();
+				const token = match![1];
+
+				await test.step('Contexte anonyme (aucun cookie) : confirmation puis révocation', async () => {
+					const anonContext = await browser.newContext();
+					const anonPage = await anonContext.newPage();
+					try {
+						await anonPage.goto(`/auth/not-me/${token}`);
+						// `Card.Title` (shadcn) rend un `<div>`, jamais un vrai rôle
+						// `heading` — même limite partout ailleurs dans ce projet
+						// (`/auth/settings/donnees`, etc.) : on cherche le texte, pas un rôle.
+						await expect(anonPage.getByText('Déconnecter cette session ?')).toBeVisible();
+						await expect(anonPage.getByText('Android', { exact: false })).toBeVisible();
+
+						await anonPage.getByRole('button', { name: 'Oui, déconnecter cette session' }).click();
+						await expect(anonPage.getByText('Session déconnectée')).toBeVisible();
+					} finally {
+						await anonContext.close();
+					}
+				});
+
+				expect(await countSessions(account.email)).toBe(1);
+
+				await test.step('Rejouer le même lien : refusé, à usage unique', async () => {
+					const replayContext = await browser.newContext();
+					const replayPage = await replayContext.newPage();
+					try {
+						await replayPage.goto(`/auth/not-me/${token}`);
+						await expect(replayPage.getByText('Lien invalide ou expiré')).toBeVisible();
+					} finally {
+						await replayContext.close();
+					}
+				});
+			} finally {
+				await otherContext.close();
+			}
 		} finally {
 			await deleteUser(account.email);
 		}

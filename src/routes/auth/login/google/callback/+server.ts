@@ -57,7 +57,7 @@ async function establishGoogleSession(
 
 	const { isNewDevice } = await recordLoginEvent(userId, method, device);
 	if (isNewDevice) {
-		void notifyNewDeviceLogin(email, device);
+		void notifyNewDeviceLogin(email, userId, session.id, device);
 	}
 
 	return new Response(null, {
