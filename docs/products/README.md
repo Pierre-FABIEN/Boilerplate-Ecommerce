@@ -182,9 +182,9 @@ plafonnés par variante, pas par produit. Le prix d'une ligne est toujours
 revalidé serveur (`updateOrderItems`, `src/lib/prisma/order/prendingOrder.ts`)
 contre `ProductVariant.price`, jamais celui envoyé par le client — même
 garde que pour `Product.price`. Comme pour un produit sans variante, le
-panier ne décrémente jamais le stock en base à la vente (voir
-[docs/commerce](../commerce/README.md) : le stock reste un nombre géré par
-l'admin, pas un compteur temps réel).
+stock de la ligne est décrémenté à la vente (webhook Stripe, voir
+[docs/commerce](../commerce/README.md)), jamais réservé avant paiement : une
+vente concurrente sur le dernier exemplaire peut faire passer le stock sous 0.
 
 ### Récemment consultés
 

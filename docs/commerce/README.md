@@ -77,10 +77,14 @@ Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
   reste à payer une fois la remise promo déduite (voir « Cartes cadeaux »
   plus bas).
 - Webhook : sous verrou (`stripe:checkout:<session id>`, `src/lib/server/lock.ts`)
-  pour tolérer une double livraison Stripe, crée la `Transaction` et passe
-  l'`Order` en `PAID`. Facture et Sendcloud partent ensuite chacun dans leur
-  propre job asynchrone (voir ci-dessous), pas dans la requête webhook. Un
-  nouveau panier PENDING peut naître ensuite (c'est voulu).
+  pour tolérer une double livraison Stripe, crée la `Transaction`, décrémente
+  le stock vendu (`Product.stock` ou `ProductVariant.stock` si une variante
+  est sélectionnée, écriture atomique `decrement`) et passe l'`Order` en
+  `PAID`. Facture et Sendcloud partent ensuite chacun dans leur propre job
+  asynchrone (voir ci-dessous), pas dans la requête webhook. Un nouveau
+  panier PENDING peut naître ensuite (c'est voulu). Pas de réservation de
+  stock avant paiement : une vente concurrente sur le dernier exemplaire peut
+  faire passer le stock sous 0.
 
 ## Jobs post-paiement (facture, Sendcloud)
 

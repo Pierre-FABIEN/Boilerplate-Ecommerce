@@ -16,10 +16,11 @@ import { waitForEmailContaining } from '../support/mailbox';
  * Alertes réassort : bouton « Me prévenir » sur une fiche produit en rupture
  * (`Product.stock <= 0`), file d'attente en base (`StockAlert`, un compte —
  * pas un simple e-mail anonyme, même patron que le module Questions produit
- * déjà en place). Aucune vente ne décrémente jamais le stock dans ce dépôt
- * (voir commentaire `checkLowStockAlert` dans `products.ts`) : le seul
- * déclencheur possible est une édition admin qui fait repasser le stock
- * au-dessus de 0 (`updateProductById`), qui enfile alors
+ * déjà en place). La vente décrémente désormais le stock (webhook Stripe),
+ * mais ne repasse jamais un produit de rupture à disponible — le seul
+ * déclencheur possible pour la notification de réassort reste donc une
+ * édition admin qui fait repasser le stock au-dessus de 0
+ * (`updateProductById`), qui enfile alors
  * `$lib/server/jobs/stockAlerts.ts` — en fallback synchrone dans la requête
  * admin quand QStash n'est pas configuré (cas e2e).
  *

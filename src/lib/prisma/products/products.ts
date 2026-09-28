@@ -8,11 +8,11 @@ import { enqueueStockAlertsJob, enqueueWishlistPriceAlertJob } from '$lib/server
 const PRODUCT_SORTABLE = ['name', 'price', 'stock', 'createdAt'] as const;
 
 /**
- * Seuil de rupture imminente. Le stock n'est aujourd'hui décrémenté par
- * aucune vente (le catalogue ne fait que l'afficher) — ce signal se
- * déclenche donc à chaque sauvegarde admin d'un produit sous le seuil, pas
- * en continu : `reportIfRepeated` (déjà utilisé pour les 5xx et la
- * contention de verrous) borne à une alerte par produit et par jour.
+ * Seuil de rupture imminente. Le stock est décrémenté à la vente (webhook
+ * Stripe, `src/routes/api/webhooks/+server.ts`) et modifiable à la main en
+ * admin — ce signal se déclenche donc sur chacune des deux écritures, pas en
+ * continu : `reportIfRepeated` (déjà utilisé pour les 5xx et la contention
+ * de verrous) borne à une alerte par produit et par jour.
  */
 export const LOW_STOCK_THRESHOLD = 5;
 const LOW_STOCK_WINDOW_SECONDS = 24 * 60 * 60;
@@ -210,10 +210,10 @@ export const updateProductById = async (
 		height?: number | null;
 	}
 ) => {
-	// Réassort (STOCK_ALERT-PLUGIN) : seul point d'écriture du stock dans ce
-	// dépôt (aucune vente ne le décrémente, cf. commentaire `checkLowStockAlert`
-	// ci-dessus) — c'est donc ici, et seulement ici, qu'un passage de 0 (ou
-	// moins) à un stock positif peut être détecté. Lu avant l'update, sinon
+	// Réassort (STOCK_ALERT-PLUGIN) : seul point d'écriture ADMIN du stock
+	// (la vente décrémente aussi le stock, mais depuis le webhook Stripe, pas
+	// depuis ce chemin) — c'est donc ici, et seulement ici, qu'un passage de 0
+	// (ou moins) à un stock positif peut être détecté. Lu avant l'update, sinon
 	// l'ancienne valeur serait perdue. Même lecture pour `price`/
 	// `flashSaleEndsAt` : seul point d'écriture de ces deux champs, requis
 	// par l'alerte wishlist ci-dessous (WISHLIST_PRICE_ALERT-PLUGIN).

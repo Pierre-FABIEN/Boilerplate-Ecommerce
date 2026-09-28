@@ -8,6 +8,7 @@ import {
 	deleteCatalogProduct,
 	deleteTransaction,
 	getOrderById,
+	getProductById,
 	getTransactionByStripePaymentId,
 	linkProductToOrder,
 	promoteToAdmin,
@@ -80,6 +81,11 @@ test.describe('Commerce — webhook Stripe', () => {
 				expect(transaction?.amount).toBeCloseTo(12.5, 2);
 				expect(transaction?.status).toBe('paid');
 				transactionId = transaction!.id;
+
+				// Stock décrémenté par le webhook (pas par le checkout lui-même) :
+				// `createCatalogProduct` pose stock=10, `linkProductToOrder` quantity=1.
+				const updatedProduct = await getProductById(product.id);
+				expect(updatedProduct?.stock).toBe(9);
 			});
 
 			await test.step('3. Facture compte + PDF + e-mail', async () => {
