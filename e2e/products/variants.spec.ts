@@ -9,6 +9,7 @@ import {
 	deleteUser,
 	getPendingOrder,
 	getProductVariantById,
+	getStoreFeatureFlags,
 	linkProductToOrder,
 	occupyEmail,
 	promoteToAdmin,
@@ -26,7 +27,7 @@ test.describe('Variantes produit', () => {
 	test.setTimeout(6 * 60_000);
 
 	test('sélection sur la fiche, panier par variante, stock plafonné', async ({ page, account }) => {
-		const created = await createCatalogProduct();
+		const created = await createCatalogProduct({ compareAtPrice: 20 });
 		const variantA = await createProductVariant(created.product.id, {
 			label: 'Taille 52',
 			stock: 2
@@ -48,9 +49,33 @@ test.describe('Variantes produit', () => {
 				await expect(page.getByRole('option', { name: 'Taille 54' })).toBeVisible();
 			});
 
-			await test.step('2. Choisir la variante au prix surchargé met à jour l’affichage', async () => {
+			await test.step('1b. La remise reste visible avec une variante sans surcharge de prix, disparaît si la variante a son propre prix (§5.1 audit)', async () => {
+				const { vatRate } = await getStoreFeatureFlags();
+				const compareAtTTC = (20 * (1 + vatRate)).toFixed(2);
+
+				// Variante A (Taille 52) : pas de surcharge de prix, donc le prix
+				// affiché reste celui du produit de base — la remise doit rester
+				// visible (avant ce correctif, elle disparaissait dès qu'UNE
+				// variante quelconque était sélectionnée).
+				await page.getByRole('option', { name: 'Taille 52' }).click();
+				await expect(page.getByText(`${compareAtTTC} €`, { exact: true })).toBeVisible();
+				await expect(page.getByText('-38%', { exact: true })).toBeVisible();
+
+				// Variante B (Taille 54) : prix surchargé à 25 — comparer au
+				// compareAtPrice du produit de base n'aurait plus de sens, la
+				// remise doit disparaître.
+				await page.getByRole('button', { name: 'Variante' }).click();
 				await page.getByRole('option', { name: 'Taille 54' }).click();
-				await expect(page.getByText('25.00 €', { exact: true })).toBeVisible();
+				await expect(page.getByText(`${compareAtTTC} €`, { exact: true })).not.toBeVisible();
+				await expect(page.getByText('-38%', { exact: true })).not.toBeVisible();
+			});
+
+			await test.step('2. Choisir la variante au prix surchargé met à jour l’affichage', async () => {
+				await page.getByRole('button', { name: 'Variante' }).click();
+				await page.getByRole('option', { name: 'Taille 54' }).click();
+				const { vatRate } = await getStoreFeatureFlags();
+				const variantTTC = (25 * (1 + vatRate)).toFixed(2);
+				await expect(page.getByText(`${variantTTC} €`, { exact: true })).toBeVisible();
 				await expect(page.getByText('Stock : 1')).toBeVisible();
 			});
 

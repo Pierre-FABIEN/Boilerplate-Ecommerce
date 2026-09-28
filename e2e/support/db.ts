@@ -335,6 +335,7 @@ export async function createCatalogProduct(overrides?: {
 	slug?: string;
 	stock?: number;
 	price?: number;
+	compareAtPrice?: number | null;
 }) {
 	const stamp = `${Date.now()}`;
 	const category = await createCatalogCategory();
@@ -345,6 +346,7 @@ export async function createCatalogProduct(overrides?: {
 				slug: overrides?.slug ?? `e2e-prod-${stamp}`,
 				description: 'Produit de test e2e pour le catalogue.',
 				price: overrides?.price ?? 12.5,
+				compareAtPrice: overrides?.compareAtPrice ?? null,
 				stock: overrides?.stock ?? 10,
 				images: ['https://example.test/e2e-product.jpg'],
 				colorProduct: '#112233',

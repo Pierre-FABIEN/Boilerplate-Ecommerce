@@ -32,11 +32,11 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 7   | ✅ Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée) (corrigé)                            | 🟡       | Jobs          |
 | 8   | ✅ Cartes cadeaux de parrainage potentiellement orphelines/dupliquées (corrigé)                                                      | 🟡       | Jobs          |
 | 9   | ✅ Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent (corrigé)                                       | 🟡       | Transverse    |
-| 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                                  | 🟡       | Produits      |
+| 10  | ✅ Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix (corrigé)                                     | 🟡       | Produits      |
 | 11  | ✅ Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs) (corrigé)                                      | 🔵       | Admin         |
-| 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                                       | 🔵       | Auth          |
-| 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                                 | 🔵       | Auth/Admin    |
-| 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                                           | 🔵       | Qualité tests |
+| 12  | ✅ Redondance dans le flux 2FA (marquage de session juste avant son invalidation) (corrigé)                                          | 🔵       | Auth          |
+| 13  | ✅ Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur) (corrigé)                                    | 🔵       | Auth/Admin    |
+| 14  | ✅ Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit (corrigé)                              | 🔵       | Qualité tests |
 
 **Déjà corrigé aujourd'hui, avant cet audit** : stock produit/variante non
 décrémenté à la vente (webhook Stripe) — voir historique de commit, non
@@ -520,7 +520,26 @@ mot de passe faite pour reprendre le contrôle d'un compte.
 `updateUserSecurity` (ou juste après, côté appelant) dès que
 `passwordHash` ou `isMfaEnabled` change.
 
-### 4.2 🔵 Redondance dans le flux de validation 2FA
+### 4.2 🔵 ✅ Corrigé — Redondance dans le flux de validation 2FA
+
+> **Correction (2026-09-28)** : l'appel `setSessionAs2FAVerified(locals.session.id)`
+> et son import ont été supprimés de `auth/2fa/+page.server.ts` — il
+> marquait une session invalidée deux lignes plus loin (`auth.invalidateSession`),
+> une écriture DB totalement perdue. Aucune autre logique touchée : la
+> nouvelle session est toujours créée avec `twoFactorVerified: true`
+> directement via `auth.createSession`. `setSessionAs2FAVerified` reste
+> utilisée (à raison) dans `auth/2fa/setup/+page.server.ts`, où elle marque
+> la session EN PLACE, jamais invalidée ensuite. Vérifié par `npm run
+check` (0/0) et `npx vitest run` (63 passed/2 skipped, inchangé). Pas de
+> nouvelle preuve e2e ciblée : `e2e/auth/journey.spec.ts` (seul spec
+> couvrant `/auth/2fa`) échoue actuellement dès l'étape 5 (renvoi de code
+> de vérification d'email, bien avant la 2FA) de manière reproductible
+> **sur l'état du dépôt AVANT ce correctif aussi** (confirmé par un test
+> comparatif via `git stash`) — panne préexistante sans rapport avec ce
+> changement, à investiguer séparément. Le correctif lui-même ne modifie
+> aucun comportement observable (suppression d'une écriture DB sur une
+> session déjà promise à l'invalidation), la lecture du code suffit à
+> garantir l'absence de régression.
 
 **Fichier** : [src/routes/auth/2fa/+page.server.ts](src/routes/auth/2fa/+page.server.ts#L100-L110)
 
@@ -545,7 +564,21 @@ inutile et un flux plus confus à lire qu'il ne devrait.
 inutile dans ce fichier précis (le garder dans `2fa/setup/+page.server.ts`,
 où il sert réellement).
 
-### 4.3 🔵 Mise à jour d'adresse admin sans vérification d'appartenance
+### 4.3 🔵 ✅ Corrigé — Mise à jour d'adresse admin sans vérification d'appartenance
+
+> **Correction (2026-09-28)** : l'appel `updateAddress(address.id, {...})`
+> dans `admin/users/[id]/+page.server.ts` passe désormais `id` (l'id du
+> compte cible affiché sur la page) comme 3e argument `ownerId`, comme
+> suggéré par l'audit — la fonction vérifie alors que chaque adresse
+> appartient bien à ce compte avant d'écrire (via `prisma.address.findFirst`),
+> et renvoie `null` sans écrire sinon. Aucun changement de comportement
+> pour les appels existants sans `ownerId` (2 autres call sites,
+> inchangés). Nouveau fichier `src/lib/prisma/addresses/addresses.test.ts`
+> (3 tests, aucune couverture préexistante sur ce fichier) prouvant le
+> garde-fou : bloqué + `prisma.address.update` jamais appelé si `ownerId`
+> ne correspond pas, autorisé sinon, et rétro-compatible sans `ownerId`.
+> Vérifié par `npm run check` (0/0) et `npx vitest run` (66 passed/2
+> skipped, +3 vs. avant).
 
 **Fichiers** : [src/routes/admin/users/[id]/+page.server.ts](src/routes/admin/users/[id]/+page.server.ts#L184-L199),
 [src/lib/prisma/addresses/addresses.ts](src/lib/prisma/addresses/addresses.ts#L17-L26)
@@ -568,7 +601,25 @@ rester cohérent avec la fonction telle qu'elle est déjà écrite.
 
 ## 5. Produits / Catalogue
 
-### 5.1 🟡 Prix barré masqué dès qu'une variante est sélectionnée
+### 5.1 🟡 ✅ Corrigé — Prix barré masqué dès qu'une variante est sélectionnée
+
+> **Correction (2026-09-28)** : condition changée de `!selectedVariant &&
+hasDiscount` à `hasDiscount && !selectedVariant?.price` dans
+> `products/[slug]/+page.svelte` — la remise (prix barré + badge) reste
+> visible tant que la variante sélectionnée n'a pas sa propre surcharge de
+> prix (`ProductVariant.price` non `null`), puisque dans ce cas le prix
+> affiché reste celui du produit de base et la comparaison au
+> `compareAtPrice` du produit reste valide. Elle ne disparaît que si la
+> variante a un `price` propre (comparer son prix à un `compareAtPrice`
+> qui décrit un AUTRE prix de base n'aurait plus de sens). Nouveau
+> `overrides.compareAtPrice` ajouté à `createCatalogProduct` (helper e2e,
+> n'existait pas). Nouveau test.step `1b.` dans
+> `e2e/products/variants.spec.ts` : vérifie que la remise reste visible
+> avec une variante sans surcharge, disparaît avec une variante à prix
+> surchargé (valeurs attendues calculées dynamiquement depuis
+> `getStoreFeatureFlags().vatRate`, pas de valeur TTC codée en dur).
+> Vérifié par `npm run check` (0/0) et `npx playwright test
+e2e/products/variants.spec.ts` (3/3 passing).
 
 **Fichier** : [src/routes/products/[slug]/+page.svelte](src/routes/products/[slug]/+page.svelte#L275)
 
@@ -589,11 +640,21 @@ variante, même si le prix affiché reste identique.
 **Sévérité** : 🟡 moyen — UX/marketing, pas de donnée incorrecte (le prix
 facturé reste juste), mais l'argument de vente (remise visible) disparaît.
 
-**Piste de correction** : conditionner sur `hasDiscount && !selectedVariant?.price`
-(masquer seulement si la variante a une vraie surcharge de prix) plutôt que
+**Correctif appliqué** : condition sur `hasDiscount && !selectedVariant?.price`
+(masque uniquement si la variante a une vraie surcharge de prix) plutôt que
 sur la simple présence d'une variante sélectionnée.
 
-### 5.2 🔵 Test e2e variantes obsolète + donnée de test corrompue (trouvé et corrigé pendant cet audit)
+### 5.2 🔵 ✅ Corrigé — Test e2e variantes obsolète + donnée de test corrompue (trouvé et corrigé pendant cet audit)
+
+> **Correction (2026-09-28)** : l'assertion `page.getByText('25.00 €', {
+exact: true })` (prix HT brut) de l'étape 2 de
+> `e2e/products/variants.spec.ts` a été remplacée par une valeur TTC
+> calculée dynamiquement (`25 * (1 + vatRate)`, `vatRate` lu via
+> `getStoreFeatureFlags()` plutôt que codé en dur), pour rester correcte
+> quel que soit le taux de TVA configuré. Vérifié via `npx playwright test
+e2e/products/variants.spec.ts` (3/3 passing). La pollution de données
+> (`StoreSettings.vatRate` à `0.2` au lieu de `0.055`) avait déjà été
+> corrigée pendant cet audit (voir texte original ci-dessous).
 
 **Fichier** : [e2e/products/variants.spec.ts](e2e/products/variants.spec.ts#L53)
 
@@ -622,10 +683,10 @@ gênante (peut fausser d'autres assertions de prix dans toute la suite tant
 qu'elle traîne), mais déjà corrigée ; le test obsolète (2) est un problème
 de maintenance de la suite, pas un bug applicatif.
 
-**Piste de correction** : mettre à jour l'assertion de `variants.spec.ts`
-pour attendre le prix TTC réellement affiché (ou lire `data.vatRate` dans
-le test et calculer la valeur attendue), pour que ce test redevienne un
-vrai filet de sécurité sur ce composant.
+**Piste de correction (déjà appliquée, voir bloc ci-dessus)** : l'assertion
+de `variants.spec.ts` attend maintenant le prix TTC réellement affiché
+(calculé depuis `data.vatRate` au moment du test), ce test est de nouveau
+un vrai filet de sécurité sur ce composant.
 
 ---
 

@@ -272,7 +272,7 @@
 
 			<div class="mb-4 flex items-center gap-3">
 				<p class="text-2xl">{displayedPriceTTC.toFixed(2)} €</p>
-				{#if !selectedVariant && hasDiscount}
+				{#if hasDiscount && !selectedVariant?.price}
 					<p class="text-lg text-muted-foreground line-through">
 						{toTTC(product.compareAtPrice as number, data.vatRate).toFixed(2)} €
 					</p>
