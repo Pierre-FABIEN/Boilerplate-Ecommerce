@@ -24,6 +24,7 @@ import {
 } from '$lib/prisma/session/sessions';
 import { auth } from '.';
 import { invalidateCache } from '$lib/server/cache';
+import type { SessionDeviceContext } from './deviceContext';
 
 export interface SessionFlags {
 	twoFactorVerified: boolean;
@@ -53,7 +54,8 @@ export async function createSession(
 	token: string,
 	userId: string,
 	flags: SessionFlags,
-	oauthProvider?: string | null
+	oauthProvider?: string | null,
+	device?: SessionDeviceContext
 ): Promise<Session> {
 	if (!isValidId(userId)) {
 		throw new Error('Invalid user ID format');
@@ -67,7 +69,11 @@ export async function createSession(
 			userId,
 			expiresAt,
 			twoFactorVerified: flags.twoFactorVerified,
-			oauthProvider: oauthProvider ?? null
+			oauthProvider: oauthProvider ?? null,
+			userAgent: device?.userAgent ?? null,
+			ipAddress: device?.ipAddress ?? null,
+			city: device?.city ?? null,
+			country: device?.country ?? null
 		});
 
 		return {

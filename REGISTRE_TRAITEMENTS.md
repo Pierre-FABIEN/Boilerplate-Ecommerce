@@ -34,10 +34,10 @@ document), pas juste une case à cocher.
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Finalité                       | Création et gestion du compte client, connexion, sécurité (2FA)                                                                                                                                                  |
 | Base légale                    | Exécution du contrat (art. 6.1.b) pour le compte ; intérêt légitime (art. 6.1.f) pour la sécurité (sessions, 2FA)                                                                                                |
-| Données                        | `User` (email, username, name, picture), `passwordHash` (Argon2id), `recoveryCode`/`totpKey` (chiffrés AES), `googleId`, `Session`, `EmailVerificationRequest`, `PasswordResetSession`                           |
+| Données                        | `User` (email, username, name, picture), `passwordHash` (Argon2id), `recoveryCode`/`totpKey` (chiffrés AES), `googleId`, `Session` (dont `userAgent`, `ipAddress`, `city`/`country` approximatifs — ajoutés pour l'auto-service « Sessions actives », `/auth/settings/sessions`), `EmailVerificationRequest`, `PasswordResetSession` |
 | Personnes concernées           | Clients                                                                                                                                                                                                          |
-| Destinataires / sous-traitants | Google (connexion OAuth, si utilisée)                                                                                                                                                                            |
-| Durée de conservation          | Sessions et jetons expirés purgés automatiquement (`$lib/server/jobs/cleanup.ts`) ; le compte lui-même n'a pas de purge automatique — suppression uniquement sur demande (self-service ou admin, voir section 8) |
+| Destinataires / sous-traitants | Google (connexion OAuth, si utilisée) ; Vercel (en-têtes de géolocalisation `x-vercel-ip-*`, dérivés de l'IP côté edge, jamais un service de géolocalisation tiers séparé)                                       |
+| Durée de conservation          | Sessions et jetons expirés purgés automatiquement (`$lib/server/jobs/cleanup.ts`) — l'IP/ville/pays d'une session ont donc la même durée de vie qu'elle (30 jours glissants au plus) ; le compte lui-même n'a pas de purge automatique — suppression uniquement sur demande (self-service ou admin, voir section 8) |
 
 ## 2. Commandes, factures et paiement
 

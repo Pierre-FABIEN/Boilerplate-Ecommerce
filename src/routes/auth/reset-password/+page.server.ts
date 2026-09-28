@@ -24,6 +24,7 @@ import {
 	setSessionTokenCookie
 } from '$lib/lucia/session';
 import { updateUserPassword } from '$lib/lucia/user';
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 
 import type { Actions, RequestEvent } from './$types';
 import type { SessionFlags } from '$lib/lucia/session';
@@ -90,7 +91,13 @@ export const actions: Actions = {
 			twoFactorVerified: passwordResetSession.twoFactorVerified
 		};
 		const sessionToken = generateSessionToken();
-		const session = await createSession(sessionToken, user.id, sessionFlags);
+		const session = await createSession(
+			sessionToken,
+			user.id,
+			sessionFlags,
+			null,
+			getSessionDeviceContext(event.request)
+		);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 		deletePasswordResetSessionTokenCookie(event);
 		return redirect(302, '/auth/');

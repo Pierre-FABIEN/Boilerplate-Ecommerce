@@ -204,5 +204,41 @@
 			</div>
 			<Button type="submit">Save changes</Button>
 		</form>
+
+		<div class="mt-8">
+			<h2 class="text-xl font-bold mb-2">Sessions actives</h2>
+			<p class="text-sm text-muted-foreground mb-4">
+				Lecture seule — la déconnexion à distance d'un compte se fait par « Supprimer le compte » ou
+				en attendant l'expiration naturelle de la session.
+			</p>
+			{#if data.sessions.length === 0}
+				<p class="text-sm text-muted-foreground">Aucune session active.</p>
+			{:else}
+				<table class="w-full text-sm border-collapse">
+					<thead>
+						<tr class="border-b text-left">
+							<th class="py-2 pr-4">Appareil</th>
+							<th class="py-2 pr-4">Localisation</th>
+							<th class="py-2 pr-4">IP</th>
+							<th class="py-2 pr-4">Dernière activité</th>
+							<th class="py-2">Ouverte le</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.sessions as session (session.id)}
+							<tr class="border-b">
+								<td class="py-2 pr-4">{session.device}</td>
+								<td class="py-2 pr-4">
+									{[session.city, session.country].filter(Boolean).join(', ') || '—'}
+								</td>
+								<td class="py-2 pr-4">{session.ipAddress ?? '—'}</td>
+								<td class="py-2 pr-4">{new Date(session.lastActiveAt).toLocaleString('fr-FR')}</td>
+								<td class="py-2">{new Date(session.createdAt).toLocaleString('fr-FR')}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
+		</div>
 	</div>
 </div>

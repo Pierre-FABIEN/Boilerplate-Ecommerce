@@ -28,6 +28,7 @@ import {
 
 import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { auth } from '$lib/lucia'; // ⬅️  on récupère l’instance Lucia
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 
 import type { PageServerLoad, Actions } from './$types';
 
@@ -145,7 +146,8 @@ export const actions: Actions = {
 		/* ---------- 6. Création session + cookie Lucia --------------------- */
 		// 👉 on laisse Lucia s’en occuper
 		const session = await auth.createSession(user.id, {
-			twoFactorVerified: false // flags stockés dans la session
+			twoFactorVerified: false, // flags stockés dans la session
+			...getSessionDeviceContext(event.request)
 		});
 		const cookie = auth.createSessionCookie(session.id);
 

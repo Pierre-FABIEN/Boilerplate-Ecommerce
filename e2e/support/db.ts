@@ -669,6 +669,32 @@ export async function countSessions(email: string): Promise<number> {
 }
 
 /**
+ * Insère une session « autre appareil » directement en base, sans passer par
+ * un vrai navigateur — suffisant pour tester la liste/révocation
+ * (`/auth/settings/sessions`), qui ne lit que les colonnes de `Session`,
+ * jamais un cookie réellement valide pour cette session-là.
+ */
+export async function createExtraSessionForUser(
+	userId: string,
+	overrides?: { userAgent?: string; city?: string; country?: string; lastActiveAt?: Date }
+) {
+	return resilient(() =>
+		db.session.create({
+			data: {
+				id: `e2e-session-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+				userId,
+				expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+				userAgent:
+					overrides?.userAgent ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/128.0',
+				city: overrides?.city ?? 'Lyon',
+				country: overrides?.country ?? 'FR',
+				lastActiveAt: overrides?.lastActiveAt ?? new Date()
+			}
+		})
+	);
+}
+
+/**
  * Nettoyage en fin de test.
  *
  * Les commandes doivent partir en premier : l'application crée un panier

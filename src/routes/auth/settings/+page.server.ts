@@ -40,6 +40,7 @@ import {
 	updateUserMFA
 } from '$lib/prisma/user/user';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
+import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>(5, 60 * 30, 'settings-password');
 
@@ -141,7 +142,13 @@ export const actions: Actions = {
 		const sessionFlags: SessionFlags = {
 			twoFactorVerified: event.locals.session.twoFactorVerified
 		};
-		const session = await createSession(sessionToken, event.locals.user.id, sessionFlags);
+		const session = await createSession(
+			sessionToken,
+			event.locals.user.id,
+			sessionFlags,
+			null,
+			getSessionDeviceContext(event.request)
+		);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 		return message(form, 'Password modified successfully');

@@ -150,6 +150,28 @@ model Session {
   /// Fournisseur OAuth à l'origine de la session (« google »), sinon nul.
   oauthProvider     String?
   createdAt         DateTime @default(now())
+  /// User-Agent brut envoyé à la création de la session, jamais reparsé après
+  /// coup — l'étiquette lisible (« Chrome sur Windows ») est dérivée à
+  /// l'affichage par `$lib/lucia/deviceLabel.ts`, voir
+  /// `/auth/settings/sessions`. Absent pour une session créée hors requête
+  /// HTTP (aucune, à ce jour).
+  userAgent         String?
+  /// IP à l'origine de la connexion — donnée personnelle (voir
+  /// REGISTRE_TRAITEMENTS.md). Sa durée de vie est bornée à celle de la
+  /// session elle-même : purgée avec elle par `$lib/server/jobs/cleanup.ts`,
+  /// jamais conservée au-delà.
+  ipAddress         String?
+  /// Ville/pays approximatifs dérivés de l'IP à la connexion, lus depuis les
+  /// en-têtes de géolocalisation que Vercel ajoute lui-même
+  /// (`x-vercel-ip-city`/`x-vercel-ip-country`) — aucun service tiers, aucun
+  /// appel réseau supplémentaire. Absents en local/hors Vercel.
+  city              String?
+  country           String?
+  /// Dernière requête authentifiée servie par cette session — voir
+  /// `touchSessionActivity`, appelée depuis `$lib/lucia/hooks.ts` sur le
+  /// chemin non caché de la résolution de session (donc déjà bornée par le
+  /// cache Redis de 8s, pas une écriture à chaque requête).
+  lastActiveAt      DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
