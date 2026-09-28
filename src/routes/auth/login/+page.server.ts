@@ -13,6 +13,8 @@ import { RefillingTokenBucket, Throttler } from '$lib/server/rate-limit';
 import { verifyPasswordHash } from '$lib/lucia/password';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/lucia/session';
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
+import { recordLoginEvent } from '$lib/prisma/loginEvent/loginEvent';
+import { notifyNewDeviceLogin } from '$lib/server/newDeviceAlert';
 
 import type { SessionFlags } from '$lib/lucia/session';
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
@@ -95,15 +97,19 @@ export const actions: Actions = {
 			twoFactorVerified: false
 		};
 
+		const device = getSessionDeviceContext(event.request);
 		const sessionToken = generateSessionToken();
-		const session = await createSession(
-			sessionToken,
-			user.id,
-			sessionFlags,
-			null,
-			getSessionDeviceContext(event.request)
-		);
+		const session = await createSession(sessionToken, user.id, sessionFlags, null, device);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
+
+		// Historique + alerte « nouvel appareil » — la ligne est toujours
+		// écrite (attendue, pour un ordre fiable) ; l'e-mail, lui, ne bloque
+		// jamais la réponse (voir `notifyNewDeviceLogin`, qui avale ses
+		// propres erreurs).
+		const { isNewDevice } = await recordLoginEvent(user.id, 'password', device);
+		if (isNewDevice) {
+			void notifyNewDeviceLogin(user.email, device);
+		}
 
 		if (!user.emailVerified) {
 			return redirect(302, '/auth/verify-email');

@@ -715,6 +715,18 @@ export async function createExtraSessionForUser(
 }
 
 /**
+ * Historique des connexions (`LoginEvent`), le plus récent d'abord — pour
+ * vérifier la détection « nouvel appareil » (`recordLoginEvent`) sans
+ * dépendre du timing d'envoi de l'e-mail d'alerte, qui est fire-and-forget.
+ */
+export async function getLoginEvents(email: string) {
+	const user = await requireUser(email);
+	return resilient(() =>
+		db.loginEvent.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } })
+	);
+}
+
+/**
  * Nettoyage en fin de test.
  *
  * Les commandes doivent partir en premier : l'application crée un panier

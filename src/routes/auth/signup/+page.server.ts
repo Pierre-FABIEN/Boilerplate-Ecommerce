@@ -29,6 +29,7 @@ import {
 import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { auth } from '$lib/lucia'; // ⬅️  on récupère l’instance Lucia
 import { getSessionDeviceContext } from '$lib/lucia/deviceContext';
+import { recordLoginEvent } from '$lib/prisma/loginEvent/loginEvent';
 
 import type { PageServerLoad, Actions } from './$types';
 
@@ -145,9 +146,10 @@ export const actions: Actions = {
 
 		/* ---------- 6. Création session + cookie Lucia --------------------- */
 		// 👉 on laisse Lucia s’en occuper
+		const device = getSessionDeviceContext(event.request);
 		const session = await auth.createSession(user.id, {
 			twoFactorVerified: false, // flags stockés dans la session
-			...getSessionDeviceContext(event.request)
+			...device
 		});
 		const cookie = auth.createSessionCookie(session.id);
 
@@ -156,6 +158,11 @@ export const actions: Actions = {
 			...cookie.attributes
 		});
 		log('✅  Session created', { sid: session.id });
+
+		// Enregistré pour l'historique (`/auth/settings/sessions`), mais jamais
+		// d'alerte « nouvel appareil » ici : c'est la toute première connexion
+		// du compte, il n'y a par définition rien à comparer.
+		await recordLoginEvent(user.id, 'signup', device);
 
 		/* ---------- 7. Redirection finale ---------------------------------- */
 		// Le compte existe mais son adresse n'est pas vérifiée : c'est la seule

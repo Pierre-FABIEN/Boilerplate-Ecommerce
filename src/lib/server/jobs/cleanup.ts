@@ -18,18 +18,27 @@ import { recordDuration } from '$lib/server/metrics';
  * Ce qui n'est JAMAIS purgé : `transactions` (écriture comptable permanente,
  * voir `docs/commerce/README.md`) ni les `orders` déjà `PAID`/`SHIPPED`.
  *
+ * `login_events` (historique des connexions, voir
+ * `$lib/prisma/loginEvent/loginEvent.ts`) suit une règle différente : ce
+ * n'est pas une donnée expirée à nettoyer mais un journal de sécurité, purgé
+ * seulement au bout de `LOGIN_EVENT_RETENTION_DAYS` — assez long pour que
+ * « déjà vu cet appareil il y a quelques mois » reste une information utile,
+ * pas indéfiniment (minimisation, RGPD art. 5.1.e).
+ *
  * Chaque exécution est journalisée (comptes + durée), succès ou échec : cette
  * route n'a pas d'autre lecteur que les logs (le cron ne relit jamais la
  * réponse HTTP), donc c'est la seule trace exploitable en cas d'incident.
  */
 
 const ABANDONED_ORDER_DAYS = 30;
+const LOGIN_EVENT_RETENTION_DAYS = 90;
 
 export interface CleanupResult {
 	expiredSessions: number;
 	expiredEmailVerificationRequests: number;
 	expiredPasswordResetSessions: number;
 	abandonedPendingOrders: number;
+	oldLoginEvents: number;
 	durationMs: number;
 }
 
@@ -37,14 +46,22 @@ export async function runCleanupJob(): Promise<CleanupResult> {
 	const startedAt = Date.now();
 	const now = new Date();
 	const abandonedBefore = new Date(now.getTime() - ABANDONED_ORDER_DAYS * 24 * 60 * 60 * 1000);
+	const loginEventsBefore = new Date(
+		now.getTime() - LOGIN_EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000
+	);
 
 	try {
-		const [expiredSessions, expiredEmailVerificationRequests, expiredPasswordResetSessions] =
-			await Promise.all([
-				prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
-				prisma.emailVerificationRequest.deleteMany({ where: { expiresAt: { lt: now } } }),
-				prisma.passwordResetSession.deleteMany({ where: { expiresAt: { lt: now } } })
-			]);
+		const [
+			expiredSessions,
+			expiredEmailVerificationRequests,
+			expiredPasswordResetSessions,
+			oldLoginEvents
+		] = await Promise.all([
+			prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+			prisma.emailVerificationRequest.deleteMany({ where: { expiresAt: { lt: now } } }),
+			prisma.passwordResetSession.deleteMany({ where: { expiresAt: { lt: now } } }),
+			prisma.loginEvent.deleteMany({ where: { createdAt: { lt: loginEventsBefore } } })
+		]);
 
 		// Séparé du `Promise.all` ci-dessus : cible `orders`/`order_items`, pas les
 		// tables d'auth, pas de raison de les faire échouer ensemble.
@@ -54,6 +71,7 @@ export async function runCleanupJob(): Promise<CleanupResult> {
 
 		const result: CleanupResult = {
 			expiredSessions: expiredSessions.count,
+			oldLoginEvents: oldLoginEvents.count,
 			expiredEmailVerificationRequests: expiredEmailVerificationRequests.count,
 			expiredPasswordResetSessions: expiredPasswordResetSessions.count,
 			abandonedPendingOrders: abandonedPendingOrders.count,
