@@ -267,6 +267,15 @@ si la date de fin de vente flash a changé — un ré-enregistrement identique
 rien, mais une nouvelle baisse ou une nouvelle vente flash redéclenche
 normalement une alerte.
 
+L'e-mail part avant le marquage : un échec de `sendMail` ne marque rien (un
+futur passage retentera normalement), mais un échec du marquage APRÈS un
+envoi réussi (timeout DB) est traité différemment — `persistWishlistNotification`
+retente l'écriture 3 fois (backoff `200ms*tentative`, même patron que le
+marqueur Sendcloud du job post-paiement), puis abandonne en dead-letter (log
+`ERROR` + `Sentry.captureException`) sans faire échouer le reste de la
+boucle, plutôt que de laisser silencieusement l'item se refaire notifier au
+prochain passage.
+
 ### Souvent achetés ensemble
 
 Module activable depuis `/admin/settings`

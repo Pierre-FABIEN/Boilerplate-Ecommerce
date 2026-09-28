@@ -18,6 +18,7 @@
  * `StoreSettings.wishlistPriceAlertEnabled` est vérifié par l'appelant avant
  * d'enfiler ce job, pas ici (même convention que `stockAlerts.ts`).
  */
+import * as Sentry from '@sentry/sveltekit';
 import { prisma } from '$lib/server';
 import { withLock } from '$lib/server/lock';
 import { sendMail } from '$lib/server/smtp-mail';
@@ -28,6 +29,50 @@ import {
 	listWishlistItemsForProduct,
 	markWishlistItemNotified
 } from '$lib/prisma/wishlist/wishlist';
+
+/**
+ * L'email est déjà parti quand cette fonction est appelée (§2.2 de l'audit
+ * fonctionnel) : un échec du marquage ne doit surtout pas être traité comme
+ * un échec ordinaire (qui laisserait renvoyer le même email au prochain
+ * passage du job) — on retente d'abord l'écriture, puis on abandonne en
+ * dead-letter (log + Sentry) plutôt que de relancer l'erreur, pour ne pas
+ * faire échouer tout le job (les autres items de la boucle doivent quand
+ * même être traités).
+ */
+async function persistWishlistNotification(
+	itemId: string,
+	data: { price: number; flashSaleEndsAt: Date | null },
+	attempts = 3
+): Promise<boolean> {
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			await markWishlistItemNotified(itemId, data);
+			return true;
+		} catch (error) {
+			lastError = error;
+			log(
+				'WARN',
+				'wishlist-price-alert',
+				`Échec marquage alerte envoyée (tentative ${attempt}/${attempts})`,
+				{ itemId, error }
+			);
+			if (attempt < attempts) {
+				await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+			}
+		}
+	}
+	log(
+		'ERROR',
+		'wishlist-price-alert',
+		`Marquage non persisté après ${attempts} tentatives (email déjà envoyé) — item ${itemId}`,
+		{ error: lastError }
+	);
+	Sentry.captureException(lastError, {
+		tags: { deadLetter: 'wishlist-price-alert-marker', itemId }
+	});
+	return false;
+}
 
 export async function runWishlistPriceAlertJob(productId: string): Promise<void> {
 	await withDuration('job.wishlist-price-alert', () =>
@@ -70,18 +115,22 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 						text: `« ${product.name} », dans votre liste d'envies : ${reasons.join(', ')}. Voir : ${productUrl}`,
 						html: `<p><strong>${product.name}</strong>, dans votre liste d'envies : ${reasons.join(', ')}.</p><p><a href="${productUrl}">Voir le produit</a></p>`
 					});
-					await markWishlistItemNotified(item.id, {
-						price: product.price,
-						flashSaleEndsAt: flashSaleActive ? product.flashSaleEndsAt : null
-					});
-					sent++;
 				} catch (error) {
+					// Email jamais parti : rien à marquer, un futur passage du job
+					// retentera normalement sur la même baseline.
 					log('ERROR', 'wishlist-price-alert', 'Échec envoi alerte wishlist', {
 						productId,
 						itemId: item.id,
 						error: error instanceof Error ? error.message : String(error)
 					});
+					continue;
 				}
+
+				const marked = await persistWishlistNotification(item.id, {
+					price: product.price,
+					flashSaleEndsAt: flashSaleActive ? product.flashSaleEndsAt : null
+				});
+				if (marked) sent++;
 			}
 
 			log('INFO', 'wishlist-price-alert', 'Alertes wishlist envoyées', {

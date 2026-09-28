@@ -29,7 +29,7 @@ en première passe se sont révélées être des faux positifs après vérificat
 | 4   | ✅ `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry (corrigé) | 🔴       | Jobs          |
 | 5   | ✅ Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable (corrigé)                                              | 🟡       | Transverse    |
 | 6   | ✅ Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible (corrigé)                               | 🟡       | Commerce      |
-| 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                                         | 🟡       | Jobs          |
+| 7   | ✅ Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée) (corrigé)                            | 🟡       | Jobs          |
 | 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                                   | 🟡       | Jobs          |
 | 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                                    | 🟡       | Transverse    |
 | 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                                  | 🟡       | Produits      |
@@ -244,7 +244,23 @@ existe déjà pour cette transaction avant d'en recréer une (idempotency key
 si l'API le permet), ou au minimum élargir la fenêtre du verrou pour couvrir
 tout le cycle appel+update.
 
-### 2.2 🟡 Emails de relance wishlist potentiellement dupliqués
+### 2.2 🟡 ✅ Corrigé — Emails de relance wishlist potentiellement dupliqués
+
+> **Correction (2026-09-28)** : la boucle sépare désormais explicitement les
+> deux échecs possibles. Si `sendMail` échoue, rien n'est marqué (comportement
+> inchangé, un futur passage retentera normalement). Si `sendMail` réussit
+> mais que `markWishlistItemNotified` échoue, une nouvelle fonction
+> `persistWishlistNotification` retente l'écriture (3 tentatives, backoff
+> `200ms*tentative`, même patron que `persistSendcloudMarker` du §2.1) ; si
+> elle échoue encore, dead-letter (log `ERROR` + `Sentry.captureException`,
+> tag `deadLetter: 'wishlist-price-alert-marker'`) sans faire échouer le job
+> ni les autres items de la boucle. Vérifié par un nouveau test unitaire
+> (`wishlistPriceAlert.test.ts`) qui simule un marquage systématiquement en
+> échec pour un item et vérifie que `sendMail` n'est appelé qu'une fois par
+> item (jamais de renvoi dans la même exécution) et que l'autre item du lot
+> est bien traité normalement. `npm run check` 0/0, `npx vitest run` 59
+> passed/2 skipped (+1 vs baseline), e2e
+> `products/wishlist-price-alert.spec.ts` (2 tests) inchangé et vert.
 
 **Fichier** : [src/lib/server/jobs/wishlistPriceAlert.ts](src/lib/server/jobs/wishlistPriceAlert.ts#L68-L82)
 
