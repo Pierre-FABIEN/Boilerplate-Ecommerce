@@ -10,6 +10,7 @@ import { connectProductToTaxonomyValues, createProduct } from '$lib/prisma/produ
 import { getAllTaxonomiesWithValues } from '$lib/prisma/taxonomies/taxonomies';
 import { getTaxonomyValuesByIds } from '$lib/prisma/taxonomies/taxonomyValues';
 import { requireAdmin } from '$lib/admin/guards';
+import { validateImageUpload } from '$lib/server/imageUpload';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 
 export const load: PageServerLoad = async () => {
@@ -47,6 +48,10 @@ export const actions: Actions = {
 
 		for (const image of images) {
 			if (image instanceof File) {
+				const invalid = validateImageUpload(image);
+				if (invalid) {
+					return fail(400, { message: invalid });
+				}
 				try {
 					const buffer = await image.arrayBuffer();
 					const base64String = Buffer.from(buffer).toString('base64');

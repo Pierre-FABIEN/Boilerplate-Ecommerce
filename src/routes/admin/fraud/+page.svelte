@@ -6,10 +6,10 @@
 
 	const columns = [
 		{ key: 'createdAt', label: 'Date', formatter: (value: unknown) => formatDate(String(value)) },
-		{ key: 'email', label: 'Compte' },
-		{ key: 'riskLevel', label: 'Risque' },
-		{ key: 'factorsLabel', label: 'Facteurs déclenchés' },
-		{ key: 'orderId', label: 'Commande' }
+		{ key: 'email', label: 'Compte', sortable: false },
+		{ key: 'riskLevel', label: 'Risque', sortable: false },
+		{ key: 'factorsLabel', label: 'Facteurs déclenchés', sortable: false },
+		{ key: 'orderId', label: 'Commande', sortable: false }
 	];
 </script>
 

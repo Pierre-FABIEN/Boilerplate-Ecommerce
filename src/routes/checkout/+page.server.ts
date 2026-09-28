@@ -3,8 +3,9 @@
  *
  * COMMERCE-PLUGIN : login obligatoire, la commande doit appartenir au visiteur,
  * les frais de port Sendcloud (0–200 €) sont acceptés pour créer la session
- * Stripe. PROMO-PLUGIN : `validatePromo` / `incrementUsage` restent ici
- * pour que le checkout compile ; ce n'est pas le périmètre du module.
+ * Stripe. PROMO-PLUGIN : `validatePromo` reste ici pour que le checkout
+ * compile ; ce n'est pas le périmètre du module (`incrementUsage` est
+ * appelé côté webhook, après confirmation du paiement).
  */
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
@@ -15,8 +16,8 @@ import type { PageServerLoad } from './$types';
 import { getOrderById, findPendingOrder } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
-import { validatePromo, incrementUsage } from '$lib/prisma/promo/promo';
-import { validateGiftCard, decrementGiftCardBalance } from '$lib/prisma/giftCards/giftCards';
+import { validatePromo } from '$lib/prisma/promo/promo';
+import { validateGiftCard } from '$lib/prisma/giftCards/giftCards';
 import {
 	isReferralDiscountEligible,
 	REFERRAL_REFEREE_DISCOUNT_PERCENT
@@ -62,7 +63,7 @@ export const load = (async ({ locals }) => {
 		const productIds = pendingOrder?.items.map((item) => item.productId) ?? [];
 		const vatRate = await getVatRate();
 		const productTotalTTC = (pendingOrder?.items ?? []).reduce(
-			(sum, item) => sum + item.product.price * (1 + vatRate) * item.quantity,
+			(sum, item) => sum + item.price * (1 + vatRate) * item.quantity,
 			0
 		);
 		bundleDiscountEligible = (await computeBundleDiscount(productIds, productTotalTTC)) > 0;
@@ -123,6 +124,17 @@ export const actions: Actions = {
 			throw err;
 		}
 
+		// Les deux ids d'adresse viennent du formulaire : sans ce contrôle, un
+		// compte authentifié pourrait faire livrer et facturer sa commande à
+		// l'adresse d'un tiers, puis la lire dans sa propre facture.
+		const addressIds = [...new Set([shippingAddressId, billingAddressId])];
+		const ownedAddressCount = await prisma.address.count({
+			where: { id: { in: addressIds }, userId }
+		});
+		if (ownedAddressCount !== addressIds.length) {
+			error(403, 'Adresse invalide.');
+		}
+
 		// Après la vérification de propriété (autorisation), jamais avant : ce
 		// n'est qu'une règle métier/légale, pas une frontière de sécurité.
 		if (formData.get('cgvAccepted') !== 'on') {
@@ -152,9 +164,11 @@ export const actions: Actions = {
 
 		// PROMO-PLUGIN ▼ hors périmètre commerce ; conservé pour que le tunnel compile.
 		const vatRate = await getVatRate();
+		// Même base que la session Stripe (`createCheckoutSession`) : `item.price`
+		// porte la surcharge de prix de la variante, pas `item.product.price`.
 		const productTotalTTC = parseFloat(
 			order.items
-				.reduce((sum, item) => sum + item.product.price * (1 + vatRate) * item.quantity, 0)
+				.reduce((sum, item) => sum + item.price * (1 + vatRate) * item.quantity, 0)
 				.toFixed(2)
 		);
 		const promoResult = await validatePromo(promoCode, productTotalTTC);
@@ -280,22 +294,10 @@ export const actions: Actions = {
 			}
 		});
 
-		if (promoResult.valid && promoResult.promo) {
-			try {
-				await incrementUsage(promoResult.promo.id);
-			} catch (err) {
-				console.error('Erreur incrementUsage code promo:', err);
-			}
-		}
-
-		if (giftCardResult.valid && giftCardResult.giftCard && appliedGiftCardAmount > 0) {
-			try {
-				await decrementGiftCardBalance(giftCardResult.giftCard.id, appliedGiftCardAmount);
-			} catch (err) {
-				console.error('Erreur decrementGiftCardBalance:', err);
-			}
-		}
-
+		// Usage promo et solde carte cadeau sont désormais consommés dans le
+		// webhook `checkout.session.completed` (paiement confirmé), pas ici :
+		// un panier abandonné/refusé sur la page Stripe ne coûte plus rien au
+		// client (même correction que le stock produit, voir handleCheckoutSession).
 		throw redirect(303, session.url || '/');
 	}
 };

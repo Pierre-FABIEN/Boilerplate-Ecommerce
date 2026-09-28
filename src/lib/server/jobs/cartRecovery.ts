@@ -28,7 +28,7 @@ import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { withDuration } from '$lib/server/metrics';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
-import { resolveAppUrl } from '$lib/server/app-url';
+import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 
 const REMINDER_1_HOURS = 1;
 const REMINDER_2_HOURS = 24;
@@ -65,7 +65,7 @@ function checkoutUrl(): string {
 	// Le panier PENDING de l'utilisateur est réattaché automatiquement à
 	// chaque requête (`findPendingOrder` dans `hooks.server.ts`) : pas besoin
 	// d'un lien/token spécial, `/checkout` suffit.
-	return `${resolveAppUrl() ?? ''}/checkout`;
+	return `${resolveAppUrlOrDefault()}/checkout`;
 }
 
 async function sendReminder(

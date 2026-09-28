@@ -12,6 +12,7 @@
 // l'ancien code v2.
 import { prisma } from '$lib/server';
 import { log } from '$lib/server/log';
+import { persistSendcloudMarker } from '$lib/server/sendcloud-marker';
 
 type TransactionForLabel = {
 	id: string;
@@ -273,14 +274,16 @@ export async function createSendcloudLabel(transaction: TransactionForLabel) {
 		);
 	}
 
-	await prisma.transaction.update({
-		where: { id: transaction.id },
-		data: {
-			sendcloudParcelId: parcelId,
-			trackingNumber,
-			trackingUrl
-		}
-	});
+	await persistSendcloudMarker('étiquette Sendcloud', () =>
+		prisma.transaction.update({
+			where: { id: transaction.id },
+			data: {
+				sendcloudParcelId: parcelId,
+				trackingNumber,
+				trackingUrl
+			}
+		})
+	);
 
 	log('INFO', 'sendcloud:label', 'Transaction mise à jour avec les informations Sendcloud', {
 		transactionId: transaction.id,

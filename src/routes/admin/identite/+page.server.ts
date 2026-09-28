@@ -7,6 +7,7 @@ import { getCompanyIdentity, updateCompanyIdentity } from '$lib/server/companyId
 import { companyIdentitySchema } from '$lib/schema/settings/companyIdentitySchema';
 import { getPublicIdFromUrl } from '$lib/prisma/getPublicIdFromUrl';
 import cloudinary from '$lib/server/cloudinary';
+import { validateImageUpload } from '$lib/server/imageUpload';
 import { log } from '$lib/server/log';
 
 const LOGO_FOLDER = 'identite';
@@ -63,6 +64,10 @@ export const actions: Actions = {
 		const removeLogo = formData.get('removeLogo') === 'on';
 
 		if (logoFile instanceof File && logoFile.size > 0) {
+			const invalid = validateImageUpload(logoFile);
+			if (invalid) {
+				return fail(400, { companyForm: form, message: invalid });
+			}
 			try {
 				const buffer = await logoFile.arrayBuffer();
 				const base64String = Buffer.from(buffer).toString('base64');

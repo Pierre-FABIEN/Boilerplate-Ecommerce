@@ -7,6 +7,7 @@ import { getUsersById, updateUserMFA, updateUserRole } from '$lib/prisma/user/us
 import { getUserAddresses, updateAddress } from '$lib/prisma/addresses/addresses';
 import { serializeData } from '$lib/utils/serializeData';
 import { updateUserSecurity } from '$lib/prisma/user/updateUserSecurity';
+import { invalidateUserSessions } from '$lib/lucia/session';
 import { assertAdmin, requireAdmin } from '$lib/admin/guards';
 import { logAdminAction } from '$lib/server/audit-log';
 import { findSessionsForUser } from '$lib/prisma/session/sessions';
@@ -196,28 +197,47 @@ export const actions: Actions = {
 				await updateUserMFA(id, { isMfaEnabled });
 			}
 
+			// Un nouveau mot de passe ou un changement de MFA ne servent à rien
+			// si une session déjà ouverte sur ce compte reste valide (attaquant
+			// avec un cookie volé, ou compte qu'on cherche justement à reprendre
+			// en main) — même geste que l'action self-service équivalente
+			// (`auth/settings` action `password`), mais sans recréer de session
+			// ici : c'est le compte de quelqu'un d'autre, pas celui de l'admin.
+			const passwordChanged = passwordHash != null && passwordHash.trim() !== '';
+			if (passwordChanged || isMfaEnabled !== user.isMfaEnabled) {
+				await invalidateUserSessions(id);
+			}
+
 			// 3. Mise à jour des adresses
 			await Promise.all(
 				addresses.map((address) =>
-					updateAddress(address.id, {
-						userId: id,
-						first_name: address.first_name,
-						last_name: address.last_name,
-						phone: address.phone,
-						company: address.company,
-						street_number: address.street_number,
-						street: address.street,
-						city: address.city,
-						county: address.county,
-						state: address.state,
-						stateLetter: address.stateLetter,
-						state_code: address.state_code,
-						zip: address.zip,
-						country: address.country,
-						country_code: address.country_code,
-						ISO_3166_1_alpha_3: address.ISO_3166_1_alpha_3,
-						updatedAt: new Date() // Mise à jour automatique
-					})
+					// ownerId = id (compte cible) : garde-fou de cohérence (§4.3
+					// audit) — vérifie que l'adresse appartient bien au compte en
+					// cours d'édition avant d'écrire, au cas où un id d'adresse
+					// altéré/mal formé serait soumis dans le formulaire.
+					updateAddress(
+						address.id,
+						{
+							userId: id,
+							first_name: address.first_name,
+							last_name: address.last_name,
+							phone: address.phone,
+							company: address.company,
+							street_number: address.street_number,
+							street: address.street,
+							city: address.city,
+							county: address.county,
+							state: address.state,
+							stateLetter: address.stateLetter,
+							state_code: address.state_code,
+							zip: address.zip,
+							country: address.country,
+							country_code: address.country_code,
+							ISO_3166_1_alpha_3: address.ISO_3166_1_alpha_3,
+							updatedAt: new Date() // Mise à jour automatique
+						},
+						id
+					)
 				)
 			);
 

@@ -9,16 +9,16 @@
 	let { data } = $props();
 
 	const userColumns = [
-		{ key: 'invoiceNumber', label: 'N°' },
+		{ key: 'invoiceNumber', label: 'N°', sortable: false },
 		{
 			key: 'amount',
 			label: 'Montant',
 			formatter: (value: unknown) => formatMoney(typeof value === 'number' ? value : Number(value))
 		},
-		{ key: 'customer_details_name', label: 'Nom commande' },
-		{ key: 'customer_details_email', label: 'Email commande' },
-		{ key: 'app_user_email', label: 'Email compte' },
-		{ key: 'app_user_name', label: 'Nom compte' },
+		{ key: 'customer_details_name', label: 'Nom commande', sortable: false },
+		{ key: 'customer_details_email', label: 'Email commande', sortable: false },
+		{ key: 'app_user_email', label: 'Email compte', sortable: false },
+		{ key: 'app_user_name', label: 'Nom compte', sortable: false },
 		{
 			key: 'createdAt',
 			label: 'Date de création',
@@ -27,9 +27,10 @@
 		{
 			key: 'disputeLabel',
 			label: 'Litige',
-			formatter: (value: unknown) => (typeof value === 'string' ? value : '—')
+			formatter: (value: unknown) => (typeof value === 'string' ? value : '—'),
+			sortable: false
 		},
-		{ key: 'riskLevel', label: 'Risque' }
+		{ key: 'riskLevel', label: 'Risque', sortable: false }
 	];
 
 	const transactionActions = [

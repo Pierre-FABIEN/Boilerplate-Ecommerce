@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { runCartRecoveryJob } from '$lib/server/jobs/cartRecovery';
 import { getQStashReceiver } from '$lib/server/qstash';
+import { matchesCronSecret } from '$lib/server/cronAuth';
 
 /**
  * Relance des paniers abandonnés — voir `$lib/server/jobs/cartRecovery.ts`.
@@ -24,7 +25,7 @@ async function assertAuthorized(request: Request): Promise<void> {
 	if (!secret) {
 		throw error(500, 'CRON_SECRET non configuré');
 	}
-	if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+	if (!matchesCronSecret(request.headers.get('authorization'), secret)) {
 		throw error(401, 'Non autorisé');
 	}
 }

@@ -39,6 +39,11 @@
 	let user = $derived(data.user ?? null);
 	let sidebarOpen = $state(false);
 
+	// §3.1 de l'audit : ce libellé suivait le taux réel du calcul (`$cart.tax`)
+	// mais restait figé au texte "5,5 %" — `data.vatRate` vient de
+	// `+layout.server.ts` (`StoreSettings.vatRate`).
+	let vatRatePercent = $derived((data.vatRate ?? 0.055) * 100);
+
 	/*  Valeur dérivée et réactive du store mode  */
 	let currentMode = $derived(modeStore); // ✅ pas de $
 
@@ -285,7 +290,7 @@
 									<span>{($cart.subtotal ?? 0).toFixed(2)} €</span>
 								</div>
 								<div class="flex justify-between">
-									<span>TVA (5,5 %) :</span>
+									<span>TVA ({vatRatePercent.toLocaleString('fr-FR')} %) :</span>
 									<span>{($cart.tax ?? 0).toFixed(2)} €</span>
 								</div>
 								<div class="flex justify-between font-semibold text-xl">

@@ -15,3 +15,15 @@ export function resolveAppUrl(): string | null {
 	}
 	return null;
 }
+
+/**
+ * Variante pour les liens dans un e-mail (§3.2 de l'audit fonctionnel) : un
+ * repli `?? ''` produit une URL relative, invalide dans un client email —
+ * ici, à défaut d'`APP_URL`/`VERCEL_URL`, on retombe sur le port de
+ * `npm run dev` plutôt que de renvoyer un lien cassé silencieusement. Ne pas
+ * utiliser pour QStash, qui a besoin d'une URL publique réelle et doit
+ * échouer explicitement (`resolveAppUrl`) si aucune n'est configurée.
+ */
+export function resolveAppUrlOrDefault(): string {
+	return resolveAppUrl() ?? 'http://localhost:2000';
+}

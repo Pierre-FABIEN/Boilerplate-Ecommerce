@@ -24,7 +24,7 @@
 
 	// Define table columns
 	const userColumns = $state<TableColumn[]>([
-		{ key: 'name', label: 'Nom' },
+		{ key: 'name', label: 'Nom', sortable: false },
 		{ key: 'email', label: 'Email' },
 		{ key: 'role', label: 'Role' }
 	]);

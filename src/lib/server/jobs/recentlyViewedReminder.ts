@@ -24,7 +24,7 @@ import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { withDuration } from '$lib/server/metrics';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
-import { resolveAppUrl } from '$lib/server/app-url';
+import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 
 const VIEW_REMINDER_DELAY_HOURS = 24;
 const DIGEST_MAX_PRODUCTS = 5;
@@ -36,7 +36,7 @@ export interface RecentlyViewedReminderResult {
 }
 
 function productUrl(slug: string): string {
-	return `${resolveAppUrl() ?? ''}/products/${slug}`;
+	return `${resolveAppUrlOrDefault()}/products/${slug}`;
 }
 
 type Candidate = {

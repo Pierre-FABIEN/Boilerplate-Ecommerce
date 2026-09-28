@@ -1126,9 +1126,9 @@ model GiftCard {
   code           String    @unique
   initialValue   Float
   /// Solde restant, décrémenté à chaque utilisation en caisse (voir
-  /// PROMO-PLUGIN : même moment que `PromoCode.usageCount`, c'est-à-dire à la
-  /// création de la session Stripe, pas à la confirmation du paiement — un
-  /// panier Stripe abandonné consomme donc le solde, comme pour un code promo).
+  /// PROMO-PLUGIN : même moment que `PromoCode.usageCount`, c'est-à-dire dans
+  /// le webhook Stripe après confirmation du paiement, pas à la création de
+  /// la session — un panier Stripe abandonné ne consomme donc pas le solde).
   balance        Float
   active         Boolean   @default(true)
   expiresAt      DateTime?
