@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { runReviewReminderJob } from '$lib/server/jobs/reviewReminder';
 import { getQStashReceiver } from '$lib/server/qstash';
+import { matchesCronSecret } from '$lib/server/cronAuth';
 
 /**
  * Relance avis produit post-livraison — voir `$lib/server/jobs/reviewReminder.ts`.
@@ -24,7 +25,7 @@ async function assertAuthorized(request: Request): Promise<void> {
 	if (!secret) {
 		throw error(500, 'CRON_SECRET non configuré');
 	}
-	if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+	if (!matchesCronSecret(request.headers.get('authorization'), secret)) {
 		throw error(401, 'Non autorisé');
 	}
 }

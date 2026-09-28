@@ -14,6 +14,7 @@ import { getPublicIdFromUrl } from '$lib/prisma/getPublicIdFromUrl';
 import { getAllTaxonomiesWithValues } from '$lib/prisma/taxonomies/taxonomies';
 import { getTaxonomyValuesByIds } from '$lib/prisma/taxonomies/taxonomyValues';
 import { requireAdmin } from '$lib/admin/guards';
+import { validateImageUpload } from '$lib/server/imageUpload';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -86,6 +87,10 @@ export const actions: Actions = {
 				if (typeof image === 'string') {
 					uploadedImageUrls.push(image);
 				} else if (image instanceof File) {
+					const invalid = validateImageUpload(image);
+					if (invalid) {
+						return fail(400, { message: invalid });
+					}
 					try {
 						const buffer = await image.arrayBuffer();
 						const base64String = Buffer.from(buffer).toString('base64');

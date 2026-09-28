@@ -63,7 +63,7 @@ export const load = (async ({ locals }) => {
 		const productIds = pendingOrder?.items.map((item) => item.productId) ?? [];
 		const vatRate = await getVatRate();
 		const productTotalTTC = (pendingOrder?.items ?? []).reduce(
-			(sum, item) => sum + item.product.price * (1 + vatRate) * item.quantity,
+			(sum, item) => sum + item.price * (1 + vatRate) * item.quantity,
 			0
 		);
 		bundleDiscountEligible = (await computeBundleDiscount(productIds, productTotalTTC)) > 0;
@@ -124,6 +124,17 @@ export const actions: Actions = {
 			throw err;
 		}
 
+		// Les deux ids d'adresse viennent du formulaire : sans ce contrôle, un
+		// compte authentifié pourrait faire livrer et facturer sa commande à
+		// l'adresse d'un tiers, puis la lire dans sa propre facture.
+		const addressIds = [...new Set([shippingAddressId, billingAddressId])];
+		const ownedAddressCount = await prisma.address.count({
+			where: { id: { in: addressIds }, userId }
+		});
+		if (ownedAddressCount !== addressIds.length) {
+			error(403, 'Adresse invalide.');
+		}
+
 		// Après la vérification de propriété (autorisation), jamais avant : ce
 		// n'est qu'une règle métier/légale, pas une frontière de sécurité.
 		if (formData.get('cgvAccepted') !== 'on') {
@@ -153,9 +164,11 @@ export const actions: Actions = {
 
 		// PROMO-PLUGIN ▼ hors périmètre commerce ; conservé pour que le tunnel compile.
 		const vatRate = await getVatRate();
+		// Même base que la session Stripe (`createCheckoutSession`) : `item.price`
+		// porte la surcharge de prix de la variante, pas `item.product.price`.
 		const productTotalTTC = parseFloat(
 			order.items
-				.reduce((sum, item) => sum + item.product.price * (1 + vatRate) * item.quantity, 0)
+				.reduce((sum, item) => sum + item.price * (1 + vatRate) * item.quantity, 0)
 				.toFixed(2)
 		);
 		const promoResult = await validatePromo(promoCode, productTotalTTC);

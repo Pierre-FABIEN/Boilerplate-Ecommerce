@@ -18,6 +18,7 @@ import { buildCreditNoteView } from '$lib/server/creditNote/view';
 import { sendCreditNoteEmail } from '$lib/server/creditNote/email';
 import { getInvoiceCompany } from '$lib/server/invoice/company';
 import { withLock } from '$lib/server/lock';
+import { bumpCacheVersion } from '$lib/server/cache';
 
 /**
  * Gestion admin des demandes de retour (`ReturnRequest`).
@@ -96,6 +97,10 @@ export const actions: Actions = {
 
 				const updated = await markReturnApproved(id, refund.id);
 
+				// Les articles retournés viennent de revenir en stock : même
+				// invalidation que le décrément côté webhook de paiement.
+				await bumpCacheVersion('catalog');
+
 				try {
 					const creditNote = buildCreditNoteView(
 						returnRequest.transaction,
@@ -168,6 +173,8 @@ export const actions: Actions = {
 			});
 
 			const updated = await markReturnCredited(id, giftCard.id);
+
+			await bumpCacheVersion('catalog');
 
 			await sendMail({
 				to: returnRequest.user.email,

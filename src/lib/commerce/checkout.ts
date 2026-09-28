@@ -124,9 +124,11 @@ export async function createCheckoutSession(params: {
 
 	const vatRate = await getVatRate();
 
+	// `item.price` (et non `item.product.price`) : prix HT figé à l'ajout au
+	// panier, seul à intégrer la surcharge éventuelle de `ProductVariant.price`.
 	const productTotalTTC = parseFloat(
 		order.items
-			.reduce((sum, item) => sum + item.product.price * (1 + vatRate) * item.quantity, 0)
+			.reduce((sum, item) => sum + item.price * (1 + vatRate) * item.quantity, 0)
 			.toFixed(2)
 	);
 	const discountFactor =
@@ -163,7 +165,7 @@ export async function createCheckoutSession(params: {
 	}
 
 	const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((item) => {
-		const ttcPrice = item.product.price * (1 + vatRate);
+		const ttcPrice = item.price * (1 + vatRate);
 		const discountedUnitAmount = Math.round(ttcPrice * 100 * discountFactor);
 		return {
 			price_data: {

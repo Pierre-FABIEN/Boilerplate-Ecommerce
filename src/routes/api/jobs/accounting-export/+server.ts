@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { runAccountingExportJob } from '$lib/server/jobs/accountingExport';
 import { getQStashReceiver } from '$lib/server/qstash';
+import { matchesCronSecret } from '$lib/server/cronAuth';
 
 /**
  * Export comptable mensuel — voir `$lib/server/jobs/accountingExport.ts`.
@@ -25,7 +26,7 @@ async function assertAuthorized(request: Request): Promise<void> {
 	if (!secret) {
 		throw error(500, 'CRON_SECRET non configuré');
 	}
-	if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+	if (!matchesCronSecret(request.headers.get('authorization'), secret)) {
 		throw error(401, 'Non autorisé');
 	}
 }
