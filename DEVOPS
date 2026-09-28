@@ -1,0 +1,17 @@
+[ ] git push (3 commits locaux en attente)
+[ ] Stripe : clés live + webhook prod (docs/deployment/README.md §Stripe)
+[ ] Sendcloud : compte + clés API
+[ ] /admin/identite : vraie identité entreprise (SIRET, adresse, capital)
+[ ] /admin/tva : vrai taux (5,5% par défaut, 20% probable)
+[ ] /admin/livraison : vrai délai
+[ ] Catalogue réel (remplace le seed démo)
+[ ] Médiateur de la consommation à désigner (mentions légales)
+[ ] Google OAuth : redirect URI prod
+[ ] Sentry DSN (SENTRY_DSN + PUBLIC_SENTRY_DSN)
+[ ] Brevo : SPF/DKIM/DMARC vérifiés
+[ ] Toutes les vars de .env.example → Vercel (Production + Preview)
+[ ] APP_URL fixé sur le domaine de prod
+[ ] Webhooks Stripe/Sendcloud/Google → domaine de prod
+[ ] npx prisma migrate deploy sur la base de prod
+[ ] Plan Vercel Hobby ? → adapter vercel.json (cron 30min interdit)
+[ ] Smoke test final (doc §8)
