@@ -74,6 +74,18 @@ Production. **Toujours définir** `APP_URL` explicitement sur l'environnement
 Production, avec le domaine stable (custom domain ou `*.vercel.app` de
 production) — ne pas compter sur `VERCEL_URL` en dehors des Previews.
 
+Dépendent aussi de cette résolution (`resolveAppUrlOrDefault()`, repli
+`http://localhost:2000` si ni l'une ni l'autre n'est définie) les liens
+inclus dans les e-mails de sécurité du compte : alerte « nouvelle
+connexion détectée », confirmation de changement de mot de passe, alerte
+« tentatives de connexion échouées », et le lien de révocation à distance
+« Ce n'était pas moi » (`$lib/server/newDeviceAlert.ts`,
+`passwordChangedAlert.ts`, `failedLoginAlert.ts`). Un `APP_URL` absent en
+Preview n'empêche rien de fonctionner (repli sur `VERCEL_URL`, toujours
+fourni par Vercel), mais vérifier au moins une fois qu'un de ces e-mails
+contient bien un lien cliquable vers le bon domaine avant la mise en
+production réelle.
+
 ## Base de données — Neon
 
 1. Créer un projet Neon, récupérer les deux chaînes de connexion : celle avec
@@ -100,7 +112,15 @@ production) — ne pas compter sur `VERCEL_URL` en dehors des Previews.
      sciemment, pas fait par défaut dans ce dépôt.
 
 4. `npm run seed` (compte admin de démo + données) ne doit être lancé qu'en
-   développement/démo, jamais contre la base de production.
+   développement/démo, jamais contre la base de production — désormais
+   **refusé par le script lui-même** si `VERCEL_ENV=production` (posé
+   automatiquement par Vercel), sauf `FORCE_SEED=1` explicite. Ne couvre que
+   le cas où le script serait, par erreur, câblé dans un déploiement — un
+   lancement manuel local avec des identifiants de prod dans `.env` reste
+   possible, à la seule vigilance de qui l'exécute. Le mot de passe partagé
+   des comptes de démo (`DemoPass!2026` par défaut) est surchargeable via
+   `SEED_DEMO_PASSWORD` si ce jeu de données doit exister ailleurs qu'un
+   poste de dev local.
 
 ## Stripe
 
@@ -276,3 +296,9 @@ Avant de la rendre bloquante (`reportOnly` → `directives` dans
 7. Smoke test manuel : inscription + vérification e-mail, connexion Google,
    ajout panier → checkout → paiement test Stripe → réception facture,
    upload d'image produit (Cloudinary), création d'étiquette Sendcloud.
+8. Sécurité du compte (aucune config supplémentaire, dépend seulement de
+   SMTP + `APP_URL` déjà vérifiés ci-dessus) : se connecter depuis un
+   second navigateur/appareil → e-mail « nouvelle connexion détectée » reçu
+   avec un lien « Ce n'était pas moi » cliquable ; changer son mot de passe
+   depuis `/auth/settings` → e-mail de confirmation reçu ; vérifier que
+   `/auth/settings/sessions` liste bien la session et son historique.
