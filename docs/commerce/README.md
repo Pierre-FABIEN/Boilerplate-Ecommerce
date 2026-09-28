@@ -114,6 +114,15 @@ verrou (`invoice-email:<transaction id>`). `runPostPaymentJob`
 commande ou une étiquette Sendcloud a un coût réel, un retry ne doit jamais
 en recréer une seconde.
 
+L'écriture de ces deux marqueurs suit toujours un appel réseau Sendcloud
+déjà réussi : un simple timeout DB à cet instant précis ne doit pas se
+traduire par un retry QStash qui referait l'appel réseau. `persistSendcloudMarker`
+(`$lib/server/sendcloud-marker.ts`) retente l'écriture (3 tentatives, léger
+backoff) ; si elle échoue quand même, le job s'arrête sans relancer
+(`SendcloudMarkerPersistError`, journalisé en `ERROR` + Sentry
+`deadLetter: 'sendcloud-marker'`) plutôt que de laisser QStash retenter et
+recréer la commande/étiquette.
+
 ### Résilience Sendcloud (disjoncteur + dead-letter)
 
 Les appels `createSendcloudOrder`/`createSendcloudLabel` passent par

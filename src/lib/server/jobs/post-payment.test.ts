@@ -147,4 +147,24 @@ describe('runPostPaymentJob — déclenchement Sendcloud', () => {
 		expect(createSendcloudOrder).not.toHaveBeenCalled();
 		expect(createSendcloudLabel).not.toHaveBeenCalled();
 	});
+
+	it('n’appelle jamais l’étiquette si seule l’écriture du marqueur de commande échoue (§2.1 audit)', async () => {
+		// La commande Sendcloud a déjà été créée (réseau OK) : seul l'`update`
+		// qui pose `sendcloudOrderCreatedAt` échoue, comme un timeout DB juste
+		// après l'appel réseau. Un retry du job recréerait la commande — donc
+		// le job ne doit ni relancer Sendcloud ici, ni throw.
+		transactionUpdate.mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+			if ('sendcloudOrderCreatedAt' in data) {
+				return Promise.reject(new Error('DB timeout'));
+			}
+			currentTransaction = { ...currentTransaction, ...data };
+			return Promise.resolve({ ...currentTransaction });
+		});
+
+		const { runPostPaymentJob } = await import('./post-payment');
+		await expect(runPostPaymentJob(baseTransaction.id)).resolves.toBeUndefined();
+
+		expect(createSendcloudOrder).toHaveBeenCalledTimes(1);
+		expect(createSendcloudLabel).not.toHaveBeenCalled();
+	});
 });

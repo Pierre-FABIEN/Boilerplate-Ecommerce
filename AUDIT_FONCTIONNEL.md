@@ -21,22 +21,22 @@ en première passe se sont révélées être des faux positifs après vérificat
 
 ## 0. Résumé exécutif
 
-| #   | Constat                                                                                                                   | Sévérité | Domaine       |
-| --- | ------------------------------------------------------------------------------------------------------------------------- | -------- | ------------- |
-| 1   | ✅ Carte cadeau + code promo débités **avant** confirmation du paiement Stripe, erreurs avalées silencieusement (corrigé) | 🔴       | Commerce      |
-| 2   | ✅ Solde de carte cadeau décrémenté sans atomicité (race condition) (corrigé)                                             | 🔴       | Commerce      |
-| 3   | ✅ Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives (corrigé)                                | 🔴       | Auth/Admin    |
-| 4   | `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry   | 🔴       | Jobs          |
-| 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                                | 🟡       | Transverse    |
-| 6   | Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible                                 | 🟡       | Commerce      |
-| 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                              | 🟡       | Jobs          |
-| 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                        | 🟡       | Jobs          |
-| 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                         | 🟡       | Transverse    |
-| 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                       | 🟡       | Produits      |
-| 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                        | 🔵       | Admin         |
-| 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                            | 🔵       | Auth          |
-| 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                      | 🔵       | Auth/Admin    |
-| 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                                | 🔵       | Qualité tests |
+| #   | Constat                                                                                                                              | Sévérité | Domaine       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------- |
+| 1   | ✅ Carte cadeau + code promo débités **avant** confirmation du paiement Stripe, erreurs avalées silencieusement (corrigé)            | 🔴       | Commerce      |
+| 2   | ✅ Solde de carte cadeau décrémenté sans atomicité (race condition) (corrigé)                                                        | 🔴       | Commerce      |
+| 3   | ✅ Admin change mot de passe/2FA d'un compte sans invalider ses sessions actives (corrigé)                                           | 🔴       | Auth/Admin    |
+| 4   | ✅ `post-payment.ts` : marqueur d'idempotence Sendcloud posé après l'appel réseau → commande/étiquette dupliquée sur retry (corrigé) | 🔴       | Jobs          |
+| 5   | Taux de TVA affiché en dur "5,5 %" alors que le taux réel est configurable                                                           | 🟡       | Transverse    |
+| 6   | Approbation de retour : statut vérifié hors verrou → double remboursement Stripe possible                                            | 🟡       | Commerce      |
+| 7   | Emails de relance wishlist potentiellement dupliqués (marquage après l'envoi, erreur avalée)                                         | 🟡       | Jobs          |
+| 8   | Cartes cadeaux de parrainage potentiellement orphelines/dupliquées                                                                   | 🟡       | Jobs          |
+| 9   | Liens relatifs (cassés) dans 5 emails de relance si `APP_URL`/`VERCEL_URL` absent                                                    | 🟡       | Transverse    |
+| 10  | Prix barré masqué dès qu'une variante est sélectionnée, même sans surcharge de prix                                                  | 🟡       | Produits      |
+| 11  | Boutons de tri actifs sur des colonnes non triables (ventes, fraude, utilisateurs)                                                   | 🔵       | Admin         |
+| 12  | Redondance dans le flux 2FA (marquage de session juste avant son invalidation)                                                       | 🔵       | Auth          |
+| 13  | Mise à jour d'adresse admin sans vérification d'appartenance (défense en profondeur)                                                 | 🔵       | Auth/Admin    |
+| 14  | Test e2e variantes obsolète + donnée de test corrompue trouvée et corrigée pendant l'audit                                           | 🔵       | Qualité tests |
 
 **Déjà corrigé aujourd'hui, avant cet audit** : stock produit/variante non
 décrémenté à la vente (webhook Stripe) — voir historique de commit, non
@@ -192,7 +192,17 @@ actions, ou re-vérifier le statut dans la même transaction que
 
 ## 2. Jobs asynchrones / Webhooks sortants
 
-### 2.1 🔴 Commande/étiquette Sendcloud potentiellement dupliquée
+### 2.1 🔴 ✅ Corrigé — Commande/étiquette Sendcloud potentiellement dupliquée
+
+> **Corrigé le 2026-09-28** : l'écriture des marqueurs `sendcloudOrderCreatedAt`/
+> `sendcloudParcelId` passe désormais par `persistSendcloudMarker`
+> (`$lib/server/sendcloud-marker.ts`, 3 tentatives avec backoff). Si elle
+> échoue quand même, le job s'arrête (dead-letter, `SendcloudMarkerPersistError`)
+> **sans jamais relancer** l'appel réseau déjà réussi — au lieu de laisser
+> QStash retenter tout le job et recréer une commande/étiquette. Vérifié par
+> un nouveau test dans `src/lib/server/jobs/post-payment.test.ts` (échec de
+> l'écriture du marqueur de commande → étiquette jamais appelée, job ne
+> relance rien).
 
 **Fichier** : [src/lib/server/jobs/post-payment.ts](src/lib/server/jobs/post-payment.ts#L153-L165)
 
