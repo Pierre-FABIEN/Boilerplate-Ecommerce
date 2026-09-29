@@ -44,6 +44,10 @@ function applyRemoteCart(remote: CartState) {
 const persistCart = async () => {
 	const currentCart = get(cart);
 
+	console.error(
+		`[diag persistCart] authenticated=${authenticated} id="${currentCart.id}" items=${currentCart.items.length} lastModified=${currentCart.lastModified} lastSynced=${lastSynced}`
+	);
+
 	if (isSyncing) {
 		retryPending = true;
 		return;

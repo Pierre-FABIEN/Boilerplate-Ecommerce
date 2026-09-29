@@ -25,7 +25,56 @@ async function withRetry<T>(operation: () => Promise<T>, attempts = 5): Promise<
 	throw lastError;
 }
 
+/**
+ * Routes `/api/jobs/*` sollicitées par la suite. Vite dev transforme le graphe
+ * de modules SSR d'une route au PREMIER accès : mesuré à 81,7 s pour
+ * `accounting-export` (5,7 ms au second appel). Le test qui tombe le premier
+ * sur une de ces routes dépasse donc `actionTimeout` quoi qu'il fasse.
+ * On paie ce coût ici, une fois, hors du chrono des tests.
+ *
+ * Appel sans en-tête d'autorisation : la garde rejette avant d'exécuter le job,
+ * donc aucun effet de bord (ni e-mail, ni écriture) — seul le module est chargé.
+ */
+const WARMUP_ROUTES = [
+	'accounting-export',
+	'cart-recovery',
+	'cleanup',
+	'post-payment',
+	'recently-viewed-reminder',
+	'review-reminder'
+];
+
+function warmUpJobRoutes() {
+	const port = Number(process.env.E2E_PORT ?? 2001);
+	const startedAt = Date.now();
+
+	const requests = WARMUP_ROUTES.map(async (route) => {
+		try {
+			await fetch(`http://localhost:${port}/api/jobs/${route}`, {
+				method: 'POST',
+				signal: AbortSignal.timeout(180_000)
+			});
+		} catch {
+			// Un préchauffage raté ne doit jamais empêcher la suite de démarrer :
+			// le test concerné paiera la compilation lui-même, comme avant.
+		}
+	});
+
+	return async () => {
+		await Promise.allSettled(requests);
+		console.log(
+			`[e2e] ${WARMUP_ROUTES.length} route(s) /api/jobs préchauffée(s) en ${Math.round(
+				(Date.now() - startedAt) / 1000
+			)} s.`
+		);
+	};
+}
+
 export default async function globalSetup() {
+	// Lancé avant les migrations pour que la compilation Vite se recouvre avec
+	// elles ; attendu juste avant de rendre la main aux tests.
+	const awaitWarmUp = warmUpJobRoutes();
+
 	// Réveille le compute Neon via le pooler (DATABASE_URL) avant migrate,
 	// qui parle au host direct (DIRECT_URL) et échoue à froid.
 	await withRetry(() => db.$queryRawUnsafe('SELECT 1'));
@@ -85,6 +134,8 @@ export default async function globalSetup() {
 	console.log(
 		`[e2e] boîte de réception : SMTP sur 127.0.0.1:${smtpPort}, lecture sur 127.0.0.1:${httpPort}`
 	);
+
+	await awaitWarmUp();
 
 	return async () => {
 		await sink.close();
