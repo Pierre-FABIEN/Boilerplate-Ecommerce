@@ -80,7 +80,7 @@ test.describe('Avis produit', () => {
 						(response) =>
 							response.url().includes('deleteReview') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 
 				const user = await requireUser(account.email);

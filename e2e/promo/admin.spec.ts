@@ -55,7 +55,7 @@ test.describe('Administration — codes promo', () => {
 						(response) =>
 							response.url().includes('deletePromo') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				expect(await findPromoCode(removable.id)).toBeNull();
 			});

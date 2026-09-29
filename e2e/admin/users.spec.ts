@@ -138,7 +138,7 @@ test.describe('Administration — utilisateurs', () => {
 						(response) =>
 							response.url().includes('deleteUser') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				await expect(page.getByRole('cell', { name: victimEmail })).toHaveCount(0, {
 					timeout: 15_000

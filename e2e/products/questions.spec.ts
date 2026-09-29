@@ -101,7 +101,7 @@ test.describe('Questions produit', () => {
 						(response) =>
 							response.url().includes('deleteQuestion') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 
 				await page.goto(`/products/${created.product.slug}`);

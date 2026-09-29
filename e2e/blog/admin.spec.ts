@@ -65,7 +65,7 @@ test.describe('Administration — blog', () => {
 						(response) =>
 							response.url().includes('deleteBlogPost') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				expect(await getBlogPostById(removable.post.id)).toBeNull();
 			});

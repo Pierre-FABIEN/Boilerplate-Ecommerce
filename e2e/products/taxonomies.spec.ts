@@ -130,7 +130,7 @@ test.describe('Administration — taxonomies', () => {
 						(response) =>
 							response.url().includes('?/deleteTaxonomy') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 
 				expect(await getTaxonomyById(taxonomyId!)).toBeNull();

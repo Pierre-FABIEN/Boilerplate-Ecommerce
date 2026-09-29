@@ -329,6 +329,16 @@ async function ensureCatalogTaxonomy() {
 	);
 }
 
+/**
+ * Image des produits de test — servie par l'application elle-même.
+ *
+ * Une URL externe (`https://example.test/...`) forçait le navigateur à tenter
+ * une résolution DNS vouée à l'échec sur CHAQUE page produit, avec un délai
+ * variable selon le résolveur : source d'échecs intermittents sur l'ajout au
+ * panier, et violation de la CSP (`img-src 'self' data:`) à chaque rendu.
+ */
+const E2E_PRODUCT_IMAGE = '/pwa/NoticeModele.png';
+
 /** Catalogue : produit de test isolé (image factice, pas d'upload Cloudinary). */
 export async function createCatalogProduct(overrides?: {
 	name?: string;
@@ -348,7 +358,7 @@ export async function createCatalogProduct(overrides?: {
 				price: overrides?.price ?? 12.5,
 				compareAtPrice: overrides?.compareAtPrice ?? null,
 				stock: overrides?.stock ?? 10,
-				images: ['https://example.test/e2e-product.jpg'],
+				images: [E2E_PRODUCT_IMAGE],
 				colorProduct: '#112233',
 				taxonomyValues: { create: { taxonomyValueId: category.id } }
 			}
@@ -373,7 +383,7 @@ export async function createOldCatalogProduct(daysAgo: number, overrides?: { nam
 				description: 'Produit de test e2e pour la purge.',
 				price: 12.5,
 				stock: 10,
-				images: ['https://example.test/e2e-product.jpg'],
+				images: [E2E_PRODUCT_IMAGE],
 				colorProduct: '#112233',
 				createdAt: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000),
 				taxonomyValues: { create: { taxonomyValueId: category.id } }

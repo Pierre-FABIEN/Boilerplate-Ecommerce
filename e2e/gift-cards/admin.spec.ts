@@ -64,7 +64,7 @@ test.describe('Administration — cartes cadeaux', () => {
 						(response) =>
 							response.url().includes('deleteGiftCard') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				expect(await getGiftCardById(removable.id)).toBeNull();
 			});

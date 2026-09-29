@@ -90,7 +90,7 @@ test.describe('Administration — produits', () => {
 						(response) =>
 							response.url().includes('deleteProduct') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				expect(await getProductById(removable.product.id)).toBeNull();
 			});
@@ -106,7 +106,7 @@ test.describe('Administration — produits', () => {
 						(response) =>
 							response.url().includes('deleteProduct') && response.request().method() === 'POST'
 					),
-					page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click()
+					page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 				]);
 				expect(await getProductById(locked.product.id)).not.toBeNull();
 			});

@@ -28,13 +28,34 @@ const basePromoSchema = z.object({
 		.optional()
 });
 
+/**
+ * `validatePromo` plafonne déjà la remise au total de la commande : une valeur
+ * aberrante ne produit jamais de facture négative, elle se comporte
+ * silencieusement comme 100 %. On refuse la saisie plutôt que de laisser
+ * croire à une remise de 500 %.
+ */
+const percentageWithinBounds = (
+	data: { type: z.infer<typeof promoTypeEnum>; value: number },
+	ctx: z.RefinementCtx
+) => {
+	if (data.type === 'PERCENTAGE' && data.value > 100) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ['value'],
+			message: 'Une remise en pourcentage ne peut pas dépasser 100.'
+		});
+	}
+};
+
 // Schéma de création
-const createPromoSchema = basePromoSchema;
+const createPromoSchema = basePromoSchema.superRefine(percentageWithinBounds);
 
 // Schéma de mise à jour
-const updatePromoSchema = basePromoSchema.extend({
-	id: z.string()
-});
+const updatePromoSchema = basePromoSchema
+	.extend({
+		id: z.string()
+	})
+	.superRefine(percentageWithinBounds);
 
 // Schéma de suppression
 const deletePromoSchema = z.object({
