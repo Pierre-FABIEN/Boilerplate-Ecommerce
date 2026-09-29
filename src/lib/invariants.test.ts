@@ -111,4 +111,33 @@ describe('Invariants du dépôt', () => {
 			`Prix de base utilisé au lieu de \`item.price\` :\n${violations.join('\n')}`
 		).toEqual([]);
 	});
+
+	/**
+	 * `RETRY_FRIENDLY_FORM` lève la protection anti-double-soumission de
+	 * Superforms. C'est sans conséquence sur un formulaire dont l'action est
+	 * idempotente ou rattrapée par une contrainte d'unicité — destructeur
+	 * ailleurs. La règle vivait en commentaire ; elle a été franchie dès
+	 * l'application en masse aux routes admin.
+	 */
+	it("n'applique pas RETRY_FRIENDLY_FORM aux formulaires non idempotents", () => {
+		// Chaque entrée dit ce que coûterait une seconde soumission.
+		const forbidden: Record<string, string> = {
+			'src/routes/auth/2fa/+page.svelte': 'réémet la session',
+			'src/routes/auth/2fa/setup/+page.svelte': 'réémet la session',
+			'src/routes/auth/2fa/reset/+page.svelte': 'réémet la session',
+			'src/routes/auth/reset-password/2fa/+page.svelte': 'réémet la session',
+			'src/routes/checkout/+page.svelte': 'ouvrirait deux sessions Stripe',
+			'src/routes/admin/gift-cards/create/+page.svelte':
+				'émettrait deux cartes valides (code généré unique à chaque appel)'
+		};
+
+		const violations = Object.entries(forbidden)
+			.filter(([file]) => readFileSync(join(ROOT, file), 'utf8').includes('RETRY_FRIENDLY_FORM'))
+			.map(([file, why]) => `${file} → ${why}`);
+
+		expect(
+			violations,
+			`Protection anti-double-soumission levée à tort :\n${violations.join('\n')}`
+		).toEqual([]);
+	});
 });

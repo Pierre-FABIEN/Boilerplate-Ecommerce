@@ -185,3 +185,7 @@ Règles actuelles :
 2. Les montants du tunnel de paiement doivent venir de `OrderItem.price`, pas
    de `product.price` — lire le prix de base facturait le mauvais montant sur
    les produits à variantes.
+3. `RETRY_FRIENDLY_FORM` interdit sur les formulaires non idempotents (2FA,
+   checkout, création de carte cadeau). La règle ne vivait qu'en commentaire :
+   elle a été franchie dès l'application en masse aux routes admin, exposant à
+   l'émission de deux cartes cadeaux valides sur un double-clic.
