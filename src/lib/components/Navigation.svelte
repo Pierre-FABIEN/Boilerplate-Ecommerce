@@ -39,7 +39,7 @@
 		<Drawer.Root bind:open={drawerOpen}>
 			<!-- Trigger (burger) -->
 			<Drawer.Trigger
-				aria-label="Open navigation"
+				aria-label="Ouvrir la navigation"
 				class={buttonVariants({ variant: 'ghost', size: 'icon' }) + ' md:hidden'}
 			>
 				<Menu size="24" />

@@ -358,7 +358,7 @@ test.describe('Parcours complet', () => {
 			await logIn(page, currentEmail, THIRD_PASSWORD);
 			await waitForPath(page, '/auth/2fa');
 
-			await submitCode(page, WRONG_TOTP_CODE, 'Verify');
+			await submitCode(page, WRONG_TOTP_CODE, 'Vérifier');
 			await expectMessage(page, 'Invalid TOTP code');
 
 			// Tant que le second facteur n'est pas validé, les pages du compte
@@ -366,7 +366,7 @@ test.describe('Parcours complet', () => {
 			await page.goto('/auth/settings');
 			await waitForPath(page, '/auth/2fa');
 
-			await submitCode(page, await currentTotpCode(currentEmail), 'Verify');
+			await submitCode(page, await currentTotpCode(currentEmail), 'Vérifier');
 			await waitForPath(page, '/auth');
 		});
 
@@ -375,7 +375,7 @@ test.describe('Parcours complet', () => {
 			await logIn(page, currentEmail, THIRD_PASSWORD);
 			await waitForPath(page, '/auth/2fa');
 
-			await page.getByRole('link', { name: 'Use recovery code instead' }).click();
+			await page.getByRole('link', { name: 'Utiliser un code de récupération' }).click();
 			await waitForPath(page, '/auth/2fa/reset');
 
 			await submitCode(page, 'trop-court');

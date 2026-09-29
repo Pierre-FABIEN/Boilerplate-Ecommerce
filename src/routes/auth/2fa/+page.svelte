@@ -32,20 +32,22 @@
 
 <div class="w-screen h-screen ccc">
 	<div class="w-[300px] mx-auto p-6 border shadow-lg rounded-lg backdrop-blur-3xl">
-		<h1 class="text-2xl font-semibold mb-6 text-center">Two-factor Authentication</h1>
-		<p class="text-center mb-4 text-gray-600">Enter the code from your authenticator app.</p>
+		<h1 class="text-2xl font-semibold mb-6 text-center">Authentification à deux facteurs</h1>
+		<p class="text-center mb-4 text-gray-600">
+			Saisissez le code affiché par votre application d'authentification.
+		</p>
 
 		<!-- Formulaire TOTP -->
 		<form method="POST" action="?/totp" use:totpEnhance class="space-y-6">
 			<div>
 				<Form.Field name="code" form={totpForm}>
 					<Form.Control>
-						<Form.Label>Authentication Code</Form.Label>
+						<Form.Label>Code d'authentification</Form.Label>
 						<Input
 							type="text"
 							name="code"
 							bind:value={$totpData.code}
-							placeholder="Enter your code"
+							placeholder="Entrez votre code"
 							autocomplete="one-time-code"
 							required
 						/>
@@ -55,14 +57,15 @@
 			</div>
 
 			<div class="mt-6">
-				<Button type="submit" class="w-full">Verify</Button>
+				<Button type="submit" class="w-full">Vérifier</Button>
 			</div>
 		</form>
 
 		<!-- Lien pour utiliser le code de récupération -->
 		<div class="mt-4 text-center">
-			<a href="/auth/2fa/reset" class="text-orange-700 hover:underline">Use recovery code instead</a
-			>
+			<a href="/auth/2fa/reset" class="text-orange-700 hover:underline">
+				Utiliser un code de récupération
+			</a>
 		</div>
 	</div>
 </div>

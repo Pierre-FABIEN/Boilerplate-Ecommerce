@@ -159,7 +159,7 @@
 			/>
 		{/each}
 		<div class="mt-6">
-			<Button type="submit">update address</Button>
+			<Button type="submit">Mettre à jour l'adresse</Button>
 		</div>
 	</form>
 </div>
