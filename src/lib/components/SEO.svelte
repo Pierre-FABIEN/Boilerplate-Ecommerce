@@ -115,9 +115,7 @@
 					...websiteData,
 					// Sans `image`, Google n'affiche aucune miniature à côté du résultat.
 					// Même résolution en URL absolue que la fiche produit.
-					image: finalImage.startsWith('http')
-						? finalImage
-						: `${seoConfig.site.url}${finalImage}`,
+					image: finalImage.startsWith('http') ? finalImage : `${seoConfig.site.url}${finalImage}`,
 					author: {
 						'@type': 'Person',
 						name: finalAuthor

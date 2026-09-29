@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import { test, expect } from '../support/fixtures';
 import { hasLiveBrevo, hasLiveInbox } from '../support/third-party';
-import { sendVerificationEmail } from '../../src/lib/server/smtp-mail';
 
 const LIVE_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as const;
 
@@ -52,6 +51,10 @@ test.describe('Live — Brevo SMTP', () => {
 		if (!hasLiveInbox()) return;
 
 		await test.step('2. sendVerificationEmail vers E2E_LIVE_INBOX', async () => {
+			// Import paresseux : `smtp-mail` tire `$lib/server` puis `$app/environment`,
+			// module virtuel que seul Vite fournit. En tête de fichier, il fait échouer
+			// la collecte de TOUTE la suite Playwright, même quand ce test est ignoré.
+			const { sendVerificationEmail } = await import('../../src/lib/server/smtp-mail');
 			const inbox = process.env.E2E_LIVE_INBOX!.trim();
 			const restore = applyLiveSmtp();
 			try {

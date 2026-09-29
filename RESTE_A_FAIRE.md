@@ -147,7 +147,7 @@ dynamiques par page, `canonical`, Open Graph et Twitter Card, JSON-LD `Product`
   affichée à côté du résultat de recherche.
 
 **Reste ouvert — images sans `width`/`height`** (`products/[slug]`, lignes 247,
-366, 398, et le catalogue). C'est un vrai sujet de *Cumulative Layout Shift*
+366, 398, et le catalogue). C'est un vrai sujet de _Cumulative Layout Shift_
 sur les pages qui convertissent, mais **non corrigeable au jugé** :
 `optimizedImageUrl` ne fixe que la largeur (`w_800`) sans recadrage, la hauteur
 dépend donc du ratio de chaque image source. Déclarer un ratio arbitraire
