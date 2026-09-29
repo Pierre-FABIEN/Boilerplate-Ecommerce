@@ -13,18 +13,31 @@ unitaires · ESLint 0 erreur / 12 avertissements · suite `e2e/commerce/` 33/33.
 
 ---
 
-## 1. Sécurité des dépendances — 8 vulnérabilités
+## 1. Sécurité des dépendances — ✅ risque production levé
 
 **Preuve** : `npm audit` (4 _low_, 4 _moderate_, aucune _high_/_critical_).
 
-| Paquet                         | Nature                                                  | Correctif                   |
-| ------------------------------ | ------------------------------------------------------- | --------------------------- |
-| `cookie` (via `@sveltejs/kit`) | caractères hors bornes acceptés dans nom/chemin/domaine | montée majeure de SvelteKit |
-| `@sveltejs/adapter-vercel`     | empoisonnement de cache                                 | montée majeure              |
-| `@vitest/mocker`               | traversée de chemin / lecture de fichier arbitraire     | Vitest 5                    |
+| Paquet                         | Nature                                                  | Correctif                |
+| ------------------------------ | ------------------------------------------------------- | ------------------------ |
+| `cookie` (via `@sveltejs/kit`) | caractères hors bornes acceptés dans nom/chemin/domaine | aucune 2.x ne le corrige |
+| `@vitest/mocker`               | traversée de chemin / lecture de fichier arbitraire     | Vitest 5                 |
 
-Les trois sont marqués _breaking_ par npm. C'est donc un chantier de montée
-de version à planifier, pas un `npm audit fix`.
+**Triage fait le 29/09.** La seule vulnérabilité qui touchait la
+**production** est corrigée : `@sveltejs/adapter-vercel` 5.10.3 → **6.3.4**
+(empoisonnement de cache). npm l'annonçait comme _breaking_, mais son
+`peerDependency` est `@sveltejs/kit ^2.4.0` alors que le projet est en 2.70.3 :
+la montée est compatible, et `nodejs20.x` reste un runtime valide en v6.
+Vérifié par un `npm run build` complet.
+
+Les deux restantes ne sont **pas exploitables ici** :
+
+- `cookie` : la faille exige un nom, chemin ou domaine de cookie issu d'une
+  entrée utilisateur. Vérifié — tous sont des constantes (Lucia utilise son
+  nom par défaut, `path: '/'` partout).
+- `@vitest/mocker` : `devDependency`, absente du bundle de production.
+
+⚠️ Ne pas les « corriger » à l'aveugle : `npm audit fix --force` propose de
+descendre `@sveltejs/kit` en **0.0.30**, ce qui détruirait le projet.
 
 **Piège connu** : `npm install <pkg>@<version>` remplace un épinglage exact
 par un accent circonflexe. Plusieurs dépendances de ce dépôt sont épinglées
@@ -33,29 +46,28 @@ rétablir le pin après manipulation.
 
 ---
 
-## 2. Soumission silencieusement avalée — ~38 formulaires restants
-
-**Preuve** : bug reproduit en isolation, cause identifiée dans `superForm()`.
+## 2. Soumission silencieusement avalée — ✅ CLOS le 29/09
 
 Superforms laisse son état interne bloqué sur « soumission en cours » après un
 refus. Avec son défaut `multipleSubmits: 'prevent'`, le clic suivant est
-annulé **sans requête, sans message, sans erreur** pendant ~8 s. Sur un
-formulaire où l'on corrige une erreur et où l'on resoumet aussitôt,
-l'application paraît morte.
+annulé **sans requête, sans message, sans erreur** pendant ~8 s.
 
-- **Corrigé** : 10 formulaires, via `RETRY_FRIENDLY_FORM`
-  (`src/lib/forms/superformOptions.ts`).
-- **Restant** : 4 formulaires 2FA + 34 formulaires hors `src/routes/auth/`.
+**État final** : 42 formulaires sur 48 portent `RETRY_FRIENDLY_FORM`
+(`src/lib/forms/superformOptions.ts`). Les 6 restants sont des **exclusions
+volontaires**, dont l'action n'est pas idempotente :
 
-⚠️ **Les 4 formulaires 2FA ne peuvent PAS recevoir ce contournement.** Leur
-action invalide puis recrée la session : une seconde soumission détruit celle
-que la première vient d'émettre. Vérifié — l'appliquer fait échouer
-`e2e/auth/journey.spec.ts` aux étapes 15 et 16. Même raisonnement pour
-`/checkout` (deux sessions Stripe).
+| Formulaire                                                                    | Coût d'une seconde soumission                                                                                 |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `/auth/2fa`, `/auth/2fa/setup`, `/auth/2fa/reset`, `/auth/reset-password/2fa` | Détruit la session que la première vient d'émettre (vérifié : échec de `journey.spec.ts` aux étapes 15 et 16) |
+| `/checkout`                                                                   | Ouvrirait deux sessions Stripe                                                                                |
+| `/admin/gift-cards/create`                                                    | Émettrait deux cartes valides — le code est généré unique à chaque appel, rien ne rattrape le doublon         |
 
-Le correctif de fond serait amont, mais la montée en 2.30.2 **ne le corrige
-pas** (vérifié en retirant tous les contournements : échec de nouveau à
-l'étape 5). Le correctif 2.28.0 visait un autre scénario.
+Cette liste est **contrainte par `src/lib/invariants.test.ts`** (règle 3) : le
+test échoue si l'un d'eux reçoit l'option.
+
+Le correctif de fond serait amont, mais la montée en superforms 2.30.2 **ne le
+corrige pas** — vérifié en retirant tous les contournements : échec de nouveau
+à l'étape 5. Le correctif 2.28.0 visait un autre scénario.
 
 ---
 
@@ -113,21 +125,43 @@ correctement cette frontière**, pas seulement réduire le `select`.
 
 ---
 
-## 5. Zones jamais auditées
+## 5. Zones jamais auditées — ✅ toutes couvertes
 
-Les audits de cette session ont couvert : sécurité OWASP, intégrité des
-données et concurrence, les deux lots d'authentification récents, et la
-performance des requêtes.
+Ont été couverts : sécurité OWASP, intégrité des données et concurrence, les
+deux lots d'authentification récents, la performance des requêtes, puis les
+domaines **blog / promo / produits admin**, l'**accessibilité**, les
+**anti-patterns Svelte 5** (propres), les **textes non traduits**,
+l'**observabilité** et enfin le **SEO**.
 
-**N'ont pas été examinés** :
+**SEO — audité le 29/09.** L'infrastructure est saine : `title`/`description`
+dynamiques par page, `canonical`, Open Graph et Twitter Card, JSON-LD `Product`
+(avec `aggregateRating` uniquement si des avis existent) et `Article`,
+`robots.txt` et sitemap corrects. Deux correctifs appliqués :
 
-- Domaines **admin**, **blog**, **produits**, **promo** (hors points croisés).
-- **Accessibilité** — jamais auditée, et c'est une exigence réglementaire pour
-  un site marchand européen.
-- **Anti-patterns Svelte 5** sur l'ensemble des composants. Un piège connu est
-  documenté (`$effect` écrivant dans un store classique → boucle infinie,
-  invisible pour `svelte-check`).
-- **SEO** au-delà du sitemap.
+- `lastmod` retiré des pages statiques du sitemap : il valait `new Date()`,
+  donc chaque page se déclarait modifiée à l'instant **à chaque requête**.
+  Google en déduit que les dates du sitemap ne veulent rien dire et cesse de
+  s'y fier, y compris pour les produits et articles dont la date est réelle.
+  Le champ étant facultatif, l'omettre vaut mieux que mentir.
+- `image` ajoutée au JSON-LD `Article` : sans elle, aucune miniature n'est
+  affichée à côté du résultat de recherche.
+
+**Reste ouvert — images sans `width`/`height`** (`products/[slug]`, lignes 247,
+366, 398, et le catalogue). C'est un vrai sujet de *Cumulative Layout Shift*
+sur les pages qui convertissent, mais **non corrigeable au jugé** :
+`optimizedImageUrl` ne fixe que la largeur (`w_800`) sans recadrage, la hauteur
+dépend donc du ratio de chaque image source. Déclarer un ratio arbitraire
+créerait un décalage différent, pas une amélioration. La correction propre est
+un `aspect-ratio` CSS sur le conteneur — c'est une **décision de design**
+(quel ratio pour les visuels produit ?), pas un correctif technique.
+
+**Écarté après vérification — `rel=prev/next` sur la pagination.** Google a
+officiellement annoncé en 2019 ne plus utiliser ces balises pour l'indexation.
+Les ajouter n'aurait aucun effet sur le référencement.
+
+À surveiller par ailleurs : les avertissements ESLint sur `{@html}` (3) sont
+**sans risque** — le contenu blog est assaini par DOMPurify côté serveur avant
+stockage (vérifié).
 
 ---
 

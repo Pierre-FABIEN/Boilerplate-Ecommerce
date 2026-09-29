@@ -114,8 +114,11 @@ const generateSitemap = (
 	blogPosts: Array<{ slug: string; updatedAt: Date }>,
 	products: Array<{ slug: string; updatedAt: Date }>
 ) => {
-	const currentDate = new Date().toISOString();
-
+	// Pas de `lastmod` sur les pages statiques : il valait `new Date()`, donc
+	// chaque page se déclarait modifiée à l'instant, à chaque requête du
+	// sitemap. Google apprend ainsi que ces dates ne veulent rien dire et cesse
+	// de s'y fier — y compris pour les produits et articles, dont la date est
+	// pourtant réelle. Le champ est facultatif : l'omettre vaut mieux que mentir.
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
 ${paths
@@ -124,7 +127,6 @@ ${paths
         <loc>${escapeXml(sitemapConfig.site + path)}</loc>
         <changefreq>${escapeXml(changefreq)}</changefreq>
         <priority>${escapeXml(priority)}</priority>
-        <lastmod>${escapeXml(currentDate)}</lastmod>
     </url>`
 	)
 	.join('\n')}
