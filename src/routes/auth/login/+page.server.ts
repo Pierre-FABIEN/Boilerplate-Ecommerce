@@ -64,7 +64,6 @@ export const actions: Actions = {
 		}
 
 		const user = await getUserFromEmail(email);
-		console.log(user);
 
 		if (user === null) {
 			return message(form, 'Le compte nexiste pas');

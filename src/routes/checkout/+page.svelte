@@ -476,17 +476,10 @@
 		customId?: string,
 		variantId?: string
 	) {
-		console.log('🔄 changeQuantity appelée:', { productId, quantity, customId });
-		console.log('📦 Avant mise à jour - Store:', $cartStore.items);
-
 		updateCartItemQuantity(productId, quantity, customId, variantId);
 
 		// Le montant du panier a changé : on invalide le code promo appliqué
 		resetPromo();
-
-		console.log('📦 Après mise à jour - Store:', $cartStore.items);
-		console.log('💰 Nouveau sous-total:', $cartStore.subtotal);
-		console.log('🧾 Nouvelle TVA:', $cartStore.tax);
 
 		// Recharger les options de livraison après changement de quantité
 		if (selectedAddressId && !hasCustomItems) {

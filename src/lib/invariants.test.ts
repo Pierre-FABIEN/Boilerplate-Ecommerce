@@ -140,4 +140,40 @@ describe('Invariants du dépôt', () => {
 			`Protection anti-double-soumission levée à tort :\n${violations.join('\n')}`
 		).toEqual([]);
 	});
+
+	/**
+	 * Trois fuites de secrets vers les journaux ont été trouvées dans ce dépôt :
+	 * deux fois un identifiant de session, puis un `console.log(user)` nu qui
+	 * publiait `totpKey` — le second facteur — à chaque tentative de connexion.
+	 *
+	 * La règle 1 ne couvre que les sessions. Celle-ci vise la cause commune :
+	 * journaliser un objet entier issu de la base, dont la composition évolue et
+	 * finit par contenir un secret.
+	 */
+	it('ne journalise jamais un objet entier ni un champ secret', () => {
+		const SECRET_FIELDS = ['totpKey', 'recoveryCode', 'passwordHash'];
+
+		const files = walk(join(ROOT, 'src')).filter(
+			(file) => /\.(ts|svelte)$/.test(file) && !file.endsWith('.test.ts')
+		);
+
+		const violations: string[] = [];
+		for (const file of files) {
+			for (const { line, number } of sourceLines(file)) {
+				// `console.log(x)` sans message : on ne choisit pas les champs publiés,
+				// c'est la forme exacte qui a fait fuiter `totpKey`.
+				if (/console\.log\(\s*[a-zA-Z_$][\w$.]*\s*\)/.test(line)) {
+					violations.push(`${rel(file)}:${number} → objet entier : ${line.trim()}`);
+					continue;
+				}
+				const isLogCall = /console\.\w+\s*\(|\blog\s*\(/.test(line);
+				const secret = SECRET_FIELDS.find((field) => line.includes(field));
+				if (isLogCall && secret) {
+					violations.push(`${rel(file)}:${number} → ${secret} : ${line.trim()}`);
+				}
+			}
+		}
+
+		expect(violations, `Secret ou objet entier journalisé :\n${violations.join('\n')}`).toEqual([]);
+	});
 });

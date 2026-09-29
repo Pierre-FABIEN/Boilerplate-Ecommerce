@@ -6,6 +6,7 @@
  * l'action admin, le remboursement/crédit est déjà acquis (voir l'appelant).
  */
 import { isDummySecret } from '$lib/server/dummy-secrets';
+import { log } from '$lib/server/log';
 import { sendMail } from '$lib/server/smtp-mail';
 import { formatMoney } from '$lib/utils/formatMoney';
 import { renderCreditNotePdf } from './pdf';
@@ -55,6 +56,7 @@ export async function sendCreditNoteEmail(creditNote: CreditNoteView): Promise<b
 		]
 	});
 
-	console.log('📧 Avoir envoyé à', to);
+	// Même règle que pour les factures : une référence, jamais l'adresse.
+	log('INFO', 'creditNote:email', 'Avoir envoyé', { creditNoteNumber: creditNote.number });
 	return true;
 }

@@ -7,6 +7,7 @@
 import { isDummySecret } from '$lib/server/dummy-secrets';
 import { resolveAppUrlOrDefault } from '$lib/server/app-url';
 import { sendMail } from '$lib/server/smtp-mail';
+import { log } from '$lib/server/log';
 import { formatMoney } from '$lib/utils/formatMoney';
 import { renderInvoicePdf } from './pdf';
 import { buildInvoiceView, type InvoiceSource } from './view';
@@ -62,6 +63,8 @@ export async function sendInvoiceEmail(source: InvoiceSource): Promise<boolean> 
 		]
 	});
 
-	console.log('📧 Facture envoyée à', to);
+	// Le numéro de facture suffit au support pour retrouver l'envoi : journaliser
+	// l'adresse du destinataire recopierait une donnée personnelle dans les logs.
+	log('INFO', 'invoice:email', 'Facture envoyée', { invoiceNumber: invoice.number });
 	return true;
 }

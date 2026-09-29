@@ -2,6 +2,7 @@
 // depuis le webhook ; retirer Sendcloud n'empêche pas d'enregistrer la Transaction.
 // $lib/sendcloud/order-v3.ts
 import dotenv from 'dotenv';
+import { log } from '$lib/server/log';
 dotenv.config();
 
 type SendcloudOrderProduct = {
@@ -163,14 +164,23 @@ export async function createSendcloudOrderV3(tx: TxForV3) {
 		body: JSON.stringify(body)
 	});
 
-	console.log('[sendcloud.v3.orders] status=', res.status);
+	log('DEBUG', 'sendcloud:orders', 'Réponse reçue', { status: res.status });
 	if (!res.ok) {
 		const txt = await res.text().catch(() => '');
 		throw new Error(`Sendcloud V3 Orders failed (${res.status}): ${txt}`);
 	}
 
-	const data = await res.json().catch(() => ({}));
-	console.log('[sendcloud.v3.orders] created=', Array.isArray(data?.data) ? data.data.length : 0);
+	// Un corps illisible était jusqu'ici remplacé par `{}` : l'appelant
+	// (`post-payment.ts`) ignore la valeur de retour et posait quand même
+	// `sendcloudOrderCreatedAt`, dont la garde d'idempotence interdisait ensuite
+	// toute nouvelle tentative — commande jamais créée, sans trace.
+	const data = await res.json();
+	if (!Array.isArray(data?.data)) {
+		throw new Error(
+			`Réponse Sendcloud V3 Orders inexploitable (${res.status}) : ${JSON.stringify(data).slice(0, 300)}`
+		);
+	}
+	log('INFO', 'sendcloud:orders', 'Commande créée', { count: data.data.length });
 	return data;
 }
 
