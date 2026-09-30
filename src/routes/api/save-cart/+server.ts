@@ -8,7 +8,11 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { saveCartForUser } from '$lib/commerce/cart';
-import { CartForbiddenError, UnknownProductError } from '$lib/commerce/errors';
+import {
+	CartForbiddenError,
+	InvalidCustomizationError,
+	UnknownProductError
+} from '$lib/commerce/errors';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const userId = locals.user?.id;
@@ -31,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (err instanceof CartForbiddenError) {
 			error(403, err.message);
 		}
-		if (err instanceof UnknownProductError) {
+		if (err instanceof UnknownProductError || err instanceof InvalidCustomizationError) {
 			return json({ error: err.message }, { status: 400 });
 		}
 		console.error('Error updating order:', err);

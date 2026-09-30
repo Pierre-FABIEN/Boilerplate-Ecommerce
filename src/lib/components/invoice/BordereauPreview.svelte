@@ -57,7 +57,16 @@
 					<li class="text-muted-foreground">Aucun article enregistré</li>
 				{:else}
 					{#each bordereau.productLines as line (line.name)}
-						<li>{line.name} × {line.quantity}</li>
+						<li>
+							{line.name} × {line.quantity}
+							{#if line.customizations?.length}
+								<ul class="mt-1 ml-4 list-disc text-xs text-muted-foreground">
+									{#each line.customizations as custom (custom.image)}
+										<li>{custom.userMessage || 'Personnalisation sans message'}</li>
+									{/each}
+								</ul>
+							{/if}
+						</li>
 					{/each}
 				{/if}
 			</ul>

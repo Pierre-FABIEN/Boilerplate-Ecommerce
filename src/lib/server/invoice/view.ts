@@ -51,7 +51,23 @@ type RawProduct = {
 	name?: unknown;
 	price?: unknown;
 	quantity?: unknown;
+	customizations?: unknown;
 };
+
+export function readCustomizations(
+	raw: unknown
+): Array<{ image: string; userMessage: string }> | undefined {
+	if (!Array.isArray(raw) || raw.length === 0) return undefined;
+	const entries = raw
+		.map((entry) => {
+			const c = (entry ?? {}) as { image?: unknown; userMessage?: unknown };
+			const image = typeof c.image === 'string' ? c.image : '';
+			const userMessage = typeof c.userMessage === 'string' ? c.userMessage : '';
+			return image ? { image, userMessage } : null;
+		})
+		.filter((entry): entry is { image: string; userMessage: string } => entry !== null);
+	return entries.length > 0 ? entries : undefined;
+}
 
 function asNumber(value: unknown, fallback = 0): number {
 	const n = typeof value === 'number' ? value : Number(value);
@@ -69,7 +85,8 @@ function readLines(raw: unknown): InvoiceLine[] {
 			name,
 			quantity,
 			unitPrice,
-			lineTotal: unitPrice * quantity
+			lineTotal: unitPrice * quantity,
+			customizations: readCustomizations(product.customizations)
 		};
 	});
 }

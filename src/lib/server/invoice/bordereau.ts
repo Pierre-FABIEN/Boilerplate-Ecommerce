@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { BordereauView } from '$lib/invoice/types';
 import { formatMoney } from '$lib/utils/formatMoney';
-import type { InvoiceSource } from './view';
+import { readCustomizations, type InvoiceSource } from './view';
 
 export type { BordereauView };
 
@@ -37,11 +37,16 @@ export function buildBordereauView(source: InvoiceSource): BordereauView {
 		amountLabel: formatMoney(source.amount, source.currency || 'EUR'),
 		addressLines: [street, zipCity, regionCountry].filter((line) => line.length > 0),
 		productLines: products.map((entry) => {
-			const product = (entry ?? {}) as { name?: unknown; quantity?: unknown };
+			const product = (entry ?? {}) as {
+				name?: unknown;
+				quantity?: unknown;
+				customizations?: unknown;
+			};
 			const quantity = Number(product.quantity);
 			return {
 				name: typeof product.name === 'string' && product.name.trim() ? product.name : 'Article',
-				quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+				quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+				customizations: readCustomizations(product.customizations)
 			};
 		})
 	};
@@ -66,13 +71,32 @@ export function renderBordereauPdf(view: BordereauView): Buffer {
 		doc.text(line, 14, 88 + index * 8);
 	});
 
+	// Message de personnalisation client (photo + texte, voir `Custom` en
+	// base) : seul le texte est repris ici, l'image reste consultable dans
+	// l'aperçu admin — l'embarquer dans ce PDF demanderait un fetch/encodage
+	// dédié (voir `fetchLogoForPdf`), hors périmètre de ce correctif.
+	const hasCustomizations = view.productLines.some((line) => line.customizations?.length);
+
 	autoTable(doc, {
 		startY: 120,
-		head: [['Produit', 'Quantité']],
+		head: hasCustomizations
+			? [['Produit', 'Quantité', 'Personnalisation']]
+			: [['Produit', 'Quantité']],
 		body:
 			view.productLines.length > 0
-				? view.productLines.map((line) => [line.name, String(line.quantity)])
-				: [['—', '—']]
+				? view.productLines.map((line) => {
+						const row = [line.name, String(line.quantity)];
+						if (hasCustomizations) {
+							row.push(
+								line.customizations
+									?.map((c) => c.userMessage)
+									.filter(Boolean)
+									.join(' / ') ?? ''
+							);
+						}
+						return row;
+					})
+				: [hasCustomizations ? ['—', '—', '—'] : ['—', '—']]
 	});
 
 	return Buffer.from(doc.output('arraybuffer'));

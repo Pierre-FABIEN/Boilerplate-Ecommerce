@@ -102,6 +102,27 @@
 								<td class="py-2 pr-3">{line.quantity}</td>
 								<td class="py-2 text-right">{formatMoney(line.lineTotal, currency)}</td>
 							</tr>
+							{#if line.customizations?.length}
+								<tr class="border-b bg-muted/30">
+									<td colspan="4" class="py-2">
+										<p class="mb-2 text-xs font-medium text-muted-foreground">
+											Personnalisation demandée
+										</p>
+										<div class="flex flex-col gap-2">
+											{#each line.customizations as custom (custom.image)}
+												<div class="flex items-center gap-3">
+													<img
+														src={custom.image}
+														alt="Personnalisation demandée par le client"
+														class="h-16 w-16 rounded object-cover"
+													/>
+													<p class="text-sm">{custom.userMessage || '—'}</p>
+												</div>
+											{/each}
+										</div>
+									</td>
+								</tr>
+							{/if}
 						{/each}
 					{/if}
 				</tbody>

@@ -30,3 +30,10 @@ export class InvalidShippingError extends Error {
 		this.name = 'InvalidShippingError';
 	}
 }
+
+export class InvalidCustomizationError extends Error {
+	constructor(message = 'La personnalisation fournie pour un article est invalide.') {
+		super(message);
+		this.name = 'InvalidCustomizationError';
+	}
+}

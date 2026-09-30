@@ -17,6 +17,10 @@ export type InvoiceLine = {
 	quantity: number;
 	unitPrice: number;
 	lineTotal: number;
+	/** Personnalisation client (photo + message) présente au moment du
+	 * paiement — voir `Custom`, `prisma/schema.prisma`. Absent pour un
+	 * article standard. */
+	customizations?: Array<{ image: string; userMessage: string }>;
 };
 
 export type InvoiceView = {
@@ -47,5 +51,9 @@ export type BordereauView = {
 	issuedAt: string;
 	amountLabel: string;
 	addressLines: string[];
-	productLines: Array<{ name: string; quantity: number }>;
+	productLines: Array<{
+		name: string;
+		quantity: number;
+		customizations?: Array<{ image: string; userMessage: string }>;
+	}>;
 };

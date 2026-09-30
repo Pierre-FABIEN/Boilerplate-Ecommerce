@@ -4,10 +4,21 @@
  * COMMERCE-PLUGIN : `findPendingOrder` ne voit que `PENDING`. Les prix des
  * lignes sont toujours relus depuis `Product` — jamais ceux du JSON client.
  */
+import { z } from 'zod';
 import { prisma } from '$lib/server';
 import cloudinary from '$lib/server/cloudinary';
-import { UnknownProductError } from '$lib/commerce/errors';
+import { InvalidCustomizationError, UnknownProductError } from '$lib/commerce/errors';
 import { getVatRate } from '$lib/server/vat';
+
+// Forme réelle d'une entrée `custom` à ce stade du pipeline : `image` est déjà
+// une URL (uploadée en amont), pas un `File` — `customSchema.ts`
+// (`$lib/schema/products/customSchema.ts`) valide un `File` et sert à un
+// futur formulaire d'upload, pas à cette écriture-ci.
+const CUSTOM_ENTRY_SCHEMA = z.object({
+	image: z.string().trim().min(1).max(2048),
+	userMessage: z.string().trim().max(500)
+});
+const MAX_CUSTOM_ITEM_QUANTITY = 10000;
 
 export const findPendingOrder = async (userId: string) => {
 	return await prisma.order.findFirst({
@@ -136,14 +147,30 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 			}
 
 			const catalogPrice = variantPrice ?? catalogProduct.price;
-			const quantity = Math.max(1, Math.trunc(Number(newItem.quantity) || 1));
 
 			// Normaliser newItem.custom en tableau
-			const newCustomArray = Array.isArray(newItem.custom)
+			const rawCustomArray = Array.isArray(newItem.custom)
 				? newItem.custom
 				: newItem.custom
 					? [newItem.custom]
 					: [];
+
+			// Un article personnalisé (photo + message) n'a pas de borne haute de
+			// quantité par défaut plus stricte que les autres — mais reste borné
+			// pour éviter qu'un appel direct à l'API (sans passer par une UI) ne
+			// crée un nombre de lignes `Custom` arbitraire pour un seul article.
+			const quantity = Math.min(
+				rawCustomArray.length > 0 ? MAX_CUSTOM_ITEM_QUANTITY : Number.MAX_SAFE_INTEGER,
+				Math.max(1, Math.trunc(Number(newItem.quantity) || 1))
+			);
+
+			const newCustomArray = rawCustomArray.map((entry) => {
+				const parsed = CUSTOM_ENTRY_SCHEMA.safeParse(entry);
+				if (!parsed.success) {
+					throw new InvalidCustomizationError();
+				}
+				return parsed.data;
+			});
 
 			if (matchingExisting) {
 				// -> Mise à jour
