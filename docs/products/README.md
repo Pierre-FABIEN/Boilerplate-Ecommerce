@@ -18,6 +18,16 @@ s'affiche sur la vitrine (`/products` et la fiche produit) que si le module
 est actif ET que la date est dans le futur — indépendant de `compareAtPrice`
 mais généralement combiné avec lui pour le prix barré.
 
+`Product.price`/`ProductVariant.price`/`compareAtPrice` sont stockés **HT**
+en base (le panier calcule la TVA séparément, voir
+[docs/commerce](../commerce/README.md#contrat-serveur)). La vitrine
+(catalogue, fiche produit, ventes croisées, récemment consultés, liste
+d'envies) affiche systématiquement le prix **TTC**
+(`toTTC(price, vatRate)`, `$lib/utils/price.ts`, taux configurable depuis
+`/admin/tva`) — conversion à l'affichage uniquement, jamais réécrite en
+base ni transmise telle quelle au panier (Arrêté du 3 déc. 1987 : le prix
+annoncé au consommateur doit être TTC).
+
 Il est conçu pour être retirable d'un bloc. La procédure complète est dans
 [retrait.md](./retrait.md) ; ce document décrit son fonctionnement.
 

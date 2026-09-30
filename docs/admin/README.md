@@ -76,6 +76,9 @@ naissent par inscription.
 | `/admin/metrics`    | compteurs applicatifs (cache, rate-limit, jobs) en lecture seule                                                                                                               |
 | `/admin/exports`    | export CSV, purge ciblée par ancienneté, import (restauration) — ventes, utilisateurs, produits, blog, promo, contacts ; export comptable mensuel automatisé (voir ci-dessous) |
 | `/admin/settings`   | activation des modules e-commerce optionnels (voir ci-dessous)                                                                                                                 |
+| `/admin/tva`        | taux de TVA du catalogue (`StoreSettings.vatRate`, affiché TTC côté vitrine, voir [docs/products](../products/README.md))                                                      |
+| `/admin/livraison`  | délai de livraison affiché au checkout (`StoreSettings.estimatedDelivery{Min,Max}Days`)                                                                                        |
+| `/admin/identite`   | identité légale de l'entreprise (raison sociale, SIRET, logo...) — source unique pour `/mentions-legales` et les factures/avoirs                                               |
 
 Les listes d'utilisateurs n'exposent jamais `passwordHash`, `totpKey` ni
 `recoveryCode`.
@@ -132,10 +135,17 @@ n'envoie rien (log `WARN`), comme un module `StoreSettings` désactivé.
 
 ### Modules e-commerce optionnels — `/admin/settings`
 
-Huit modules de la roadmap post-audit sont derrière un interrupteur plutôt
-qu'activés en dur : liste d'envies, ventes croisées, espace retour/SAV,
-moyen de paiement enregistré, palier de fidélité, cartes cadeaux, questions
-& réponses produit, relance panier abandonné. Réglage unique
+Une quinzaine de modules sont derrière un interrupteur plutôt qu'activés en
+dur : liste d'envies, ventes croisées, espace retour/SAV, moyen de paiement
+enregistré, palier de fidélité, cartes cadeaux, questions & réponses
+produit, relance panier abandonné, ventes flash (`flashSaleEnabled`),
+parrainage (`referralEnabled`, voir [docs/promo](../promo/README.md)),
+alertes de réassort (`stockAlertsEnabled`), produits fréquemment achetés
+ensemble (`frequentlyBoughtTogetherEnabled`), relance d'avis
+(`reviewReminderEnabled`), alerte de baisse de prix sur liste d'envies
+(`wishlistPriceAlertEnabled`), détection et blocage de fraude
+(`fraudDetectionEnabled`/`fraudBlockingEnabled`), relance « récemment
+consultés » (`recentlyViewedReminderEnabled`). Réglage unique
 (`StoreSettings`, ligne `id = "singleton"`, `$lib/server/storeSettings.ts`),
 lu par chaque route publique concernée — un module désactivé ne se contente
 pas d'être masqué à l'écran, sa route reste fermée (ex. `/auth/settings/wishlist`

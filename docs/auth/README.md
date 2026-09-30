@@ -9,14 +9,18 @@ Il est conçu pour être retirable d'un bloc. La procédure complète est dans
 
 ## Frontière du module
 
-Tout le code d'authentification vit dans quatre emplacements :
+Tout le code d'authentification vit dans ces emplacements :
 
-| Emplacement                                                                     | Contenu                                                            |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `src/lib/lucia/`                                                                | logique : sessions, mots de passe, 2FA, emails, chiffrement, OAuth |
-| `src/routes/auth/`                                                              | pages et endpoints du parcours                                     |
-| `src/lib/schema/auth/`                                                          | schémas Zod des formulaires                                        |
-| `src/lib/prisma/{session,emailVerificationRequest,passwordResetSession,email}/` | accès aux tables d'authentification                                |
+| Emplacement                                                                     | Contenu                                                                    |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `src/lib/lucia/`                                                                | logique : sessions, mots de passe, 2FA, emails, chiffrement, OAuth         |
+| `src/routes/auth/`                                                              | pages et endpoints du parcours, dont `not-me/` (révocation sans connexion) |
+| `src/lib/schema/auth/`                                                          | schémas Zod des formulaires                                                |
+| `src/lib/prisma/{session,emailVerificationRequest,passwordResetSession,email}/` | accès aux tables d'authentification                                        |
+| `src/lib/prisma/loginEvent/`                                                    | historique des connexions (voir « Sécurité du compte » ci-dessous)         |
+| `src/lib/prisma/sessionRevokeToken/`                                            | jetons à usage unique du lien « Ce n'était pas moi »                       |
+| `src/lib/prisma/user/anonymizeUser.ts`                                          | suppression de compte par anonymisation (self-service et admin)            |
+| `src/lib/server/{newDeviceAlert,passwordChangedAlert,failedLoginAlert}.ts`      | alertes email de sécurité du compte                                        |
 
 Le module s'accroche au reste du projet en **un seul point** : le hook
 `authHandle` (`src/lib/lucia/hooks.ts`), branché dans `src/hooks.server.ts`.
@@ -36,14 +40,16 @@ Deux règles maintiennent cette frontière :
 
 ## Modèle de données
 
-Quatre tables, décrites dans `prisma/schema.prisma`.
+Six tables, décrites dans `prisma/schema.prisma`.
 
-| Table                         | Rôle                                                               | Durée de vie        |
-| ----------------------------- | ------------------------------------------------------------------ | ------------------- |
-| `users`                       | identifiants, email vérifié, secrets 2FA, identifiant Google, rôle | permanente          |
-| `sessions`                    | sessions ouvertes, avec le drapeau 2FA validée                     | 30 jours, glissante |
-| `email_verification_requests` | code à 8 caractères pour valider une adresse                       | 10 minutes          |
-| `password_reset_sessions`     | progression d'une réinitialisation (code, 2FA, mot de passe)       | 10 minutes          |
+| Table                         | Rôle                                                                                             | Durée de vie        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ | ------------------- |
+| `users`                       | identifiants, email vérifié, secrets 2FA, identifiant Google, rôle                               | permanente          |
+| `sessions`                    | sessions ouvertes, avec le drapeau 2FA validée, appareil/localisation approximative              | 30 jours, glissante |
+| `email_verification_requests` | code à 8 caractères pour valider une adresse                                                     | 10 minutes          |
+| `password_reset_sessions`     | progression d'une réinitialisation (code, 2FA, mot de passe)                                     | 10 minutes          |
+| `login_events`                | historique des connexions (appareil, localisation, méthode), survit à l'expiration de la session | 90 jours            |
+| `session_revoke_tokens`       | jeton à usage unique du lien « Ce n'était pas moi » (email de nouvel appareil)                   | 7 jours             |
 
 `users` est partagé avec le commerce : `Address`, `Order` et `Transaction` s'y
 rattachent. Les trois autres tables appartiennent exclusivement au module et
@@ -128,6 +134,33 @@ réinitialisation, ce qui interdit d'accéder directement à la dernière page :
 Changer le mot de passe invalide toutes les autres sessions du compte : une
 session volée ne survit pas à une réinitialisation.
 
+### Sécurité du compte et RGPD self-service
+
+Chaque connexion réussie (mot de passe, Google, réinitialisation — jamais une
+simple réémission de session comme la validation 2FA) enregistre un
+`LoginEvent` (`src/lib/prisma/loginEvent/loginEvent.ts`), avec appareil et
+localisation approximative (en-têtes de géolocalisation Vercel, jamais un
+service tiers séparé). Si l'appareil ne correspond à aucune connexion des 90
+derniers jours, un email « nouvel appareil » part
+(`src/lib/server/newDeviceAlert.ts`) avec un lien de révocation sans connexion
+(`/auth/not-me/[token]`, jeton à usage unique `SessionRevokeToken`, 7 jours).
+
+Deux autres alertes email suivent le même principe (informer sans bloquer) :
+un changement de mot de passe (`src/lib/server/passwordChangedAlert.ts`, avec
+lien vers « mot de passe oublié ») et des tentatives de connexion échouées
+répétées sur un compte (`src/lib/server/failedLoginAlert.ts`, seuil de 3 en
+15 minutes, une seule alerte par fenêtre).
+
+`/auth/settings/sessions` liste les sessions actives (appareil, IP,
+localisation, dernière activité) avec révocation individuelle ou groupée
+(« déconnecter les autres appareils »). `/auth/settings/donnees` couvre les
+droits RGPD à la portabilité (export JSON complet) et à l'effacement — jamais
+une suppression physique du compte : `anonymizeUser()`
+(`src/lib/prisma/user/anonymizeUser.ts`) scrube les champs identifiants et
+supprime les données de préférence sans valeur de conservation, mais conserve
+`Order`/`Transaction` (obligation comptable, Code de commerce L123-22). Le
+flux admin (`/admin/users?/deleteUser`) utilise la même fonction.
+
 ### Espace compte
 
 `/auth/settings` couvre le changement d'adresse (avec revalidation par code), le
@@ -139,9 +172,14 @@ de commande, réinitialisation de mot de passe), toujours envoyés quel que
 soit son état ; au 16/09/2026 rien ne consomme encore ce champ pour l'envoi
 de campagnes, c'est une préférence enregistrée en avance de la fonctionnalité.
 
-Deux sections hébergées sous `/auth/settings` relèvent du commerce et non de
-l'authentification : `address/` (carnet d'adresses) et `factures/` (transactions).
-Elles sont à déplacer, pas à supprimer, en cas de retrait du module.
+Cinq sections hébergées sous `/auth/settings` relèvent d'autres modules et non
+de l'authentification, chacune marquée dans son code (`COMMERCE-PLUGIN`/
+`PRODUCT-PLUGIN`, ou conditionnée à un `StoreSettings.*Enabled`) :
+`address/` (carnet d'adresses), `factures/` (transactions), `returns/`
+(retours/SAV), `saved-payments/` (moyens de paiement enregistrés) et
+`wishlist/` (liste d'envies) ; `referral/` (parrainage) dépend en plus de
+`StoreSettings.referralEnabled`. Elles sont à déplacer, pas à supprimer, en
+cas de retrait du module.
 
 ## Gardes d'accès
 
@@ -218,10 +256,19 @@ code reste consultable en base pendant sa durée de validité.
 
 ## Tests
 
-Un seul scénario : `e2e/auth/journey.spec.ts`. Les numéros sont ceux des
-`test.step`. Pour changer la procédure : cette liste → le step du spec → le
-code sous `/auth`. Détail (limiteurs, `fillStable`, hors périmètre) :
-[../../e2e/README.md](../../e2e/README.md).
+Le scénario principal : `e2e/auth/journey.spec.ts`. Les numéros ci-dessous
+sont ceux des `test.step`. Pour changer la procédure : cette liste → le step
+du spec → le code sous `/auth`. Détail (limiteurs, `fillStable`, hors
+périmètre) : [../../e2e/README.md](../../e2e/README.md).
+
+Sept autres specs couvrent chacune un flux distinct de la sous-section
+« Sécurité du compte et RGPD self-service » ci-dessus, non repris dans le
+tableau (un scénario dédié par flux plutôt que des étapes supplémentaires
+dans `journey.spec.ts`) : `google.spec.ts` (connexion Google), `address.spec.ts`
+(carnet d'adresses), `new-device-alert.spec.ts` (alerte nouvel appareil +
+« Ce n'était pas moi »), `sessions.spec.ts` (sessions actives self-service),
+`password-changed-alert.spec.ts`, `gdpr-data.spec.ts` (export + anonymisation),
+`failed-login-alert.spec.ts`.
 
 | #   | Étape                                        | Refusé                                 | Accepté                             |
 | --- | -------------------------------------------- | -------------------------------------- | ----------------------------------- |

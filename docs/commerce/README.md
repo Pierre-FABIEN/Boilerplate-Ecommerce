@@ -73,6 +73,11 @@ Les projets sur-mesure (`Custom`, `no_shipping`) restent de la dette atelier.
   (`Cart.svelte`) et du récapitulatif checkout (`CartSummary.svelte`,
   reçoit `vatRate` en prop depuis `checkout/+page.svelte`) reflète ce taux
   dynamiquement — il n'y a plus de pourcentage figé dans le markup.
+- Délai de livraison estimé (`StoreSettings.estimatedDelivery{Min,Max}Days`,
+  configurable depuis `/admin/livraison`, `null` par défaut) : affiché au
+  checkout avant validation de commande une fois renseigné — conformité
+  Code conso. L216-1 (délai de livraison engagé), même principe que le taux
+  de TVA (rien affiché tant que l'admin n'a pas saisi une vraie estimation).
 - Invité : `localStorage` seulement ; fusion au compte à signup / login
   (même `productId` **et** même `variantId` → quantités additionnées,
   plafonnées au stock de la ligne ; deux variantes du même produit ne
@@ -317,8 +322,19 @@ Module activable depuis `/admin/settings` (`StoreSettings.returnsEnabled`, voir
 Une commande payée (`Transaction`) peut faire l'objet d'une seule demande de
 retour (`ReturnRequest`, `transactionId` unique) : le compte la crée depuis
 `/auth/settings/returns` (liste ses factures) puis
-`/auth/settings/returns/[transactionId]` (motif libre). Ces deux routes
-répondent 404 si le module est désactivé, comme les autres modules optionnels.
+`/auth/settings/returns/[transactionId]`. Ces deux routes répondent 404 si
+le module est désactivé, comme les autres modules optionnels.
+
+`ReturnRequest.kind` distingue deux motifs juridiquement différents
+(`ReturnKind` : `WITHDRAWAL`/`WARRANTY`) : la **rétractation légale** (Code
+conso. L221-18 à L221-28, 14 jours, sans motif requis) et le **SAV/garantie**
+(motif obligatoire). L'option rétractation est masquée côté client et
+revérifiée côté serveur si `Transaction.shippingOption === 'no_shipping'`
+(biens personnalisés/sur-mesure, exclus légalement du droit de rétractation,
+Code conso. L221-28 3°). Les deux types partagent le même workflow
+d'approbation ci-dessous — la distinction ne change que le formulaire client
+et l'affichage admin (badge du type sur `/admin/returns`), pas le traitement
+du remboursement.
 
 Côté admin, `/admin/returns` liste les demandes (page dédiée, pas le
 composant `Table.svelte` générique — son dialogue de confirmation est câblé
@@ -380,6 +396,23 @@ mais une capacité de retour qui semble ne jamais avoir été activée au niveau
 du compte/contrat transporteur : **à vérifier et activer côté panneau
 Sendcloud avant qu'un retour (v2 ou v3) puisse fonctionner en production**,
 indépendamment de la suspension pour fraude mentionnée ci-dessus.
+
+## Litiges Stripe (chargebacks)
+
+Le webhook (`src/routes/api/webhooks/+server.ts`) écoute aussi
+`charge.dispute.created`/`.closed` — pas d'interrupteur `StoreSettings`,
+toujours actif dès que Stripe est configuré. À l'ouverture, la `Transaction`
+correspondante (`findTransactionForDispute`) est mise à jour
+(`disputeId`, `disputeStatus`, `disputeReason`, `disputeAmount`,
+`disputeOpenedAt`) et un e-mail part à `DISPUTE_ALERT_EMAIL`
+(`src/lib/server/disputeAlert.ts`) — jamais bloquant : un email non envoyé
+(variable absente, échec SMTP) n'empêche pas la mise à jour de la
+`Transaction`, seulement un `WARN` en log. À la clôture
+(`charge.dispute.closed`), `disputeStatus`/`disputeClosedAt` sont posés et
+une seconde alerte part. Idempotent par construction : un retry du même
+événement webhook (Stripe relivre parfois deux fois) est détecté via
+`transaction.disputeId`/`disputeClosedAt` déjà renseignés, pas de double
+alerte ni de double écriture.
 
 ## Détection de fraude
 

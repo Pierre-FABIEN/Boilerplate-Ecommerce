@@ -27,24 +27,37 @@ rm -rf src/lib/lucia \
        src/lib/prisma/emailVerificationRequest \
        src/lib/prisma/passwordResetSession \
        src/lib/prisma/email \
+       src/lib/prisma/loginEvent \
+       src/lib/prisma/sessionRevokeToken \
+       src/lib/prisma/user/anonymizeUser.ts \
+       src/lib/server/newDeviceAlert.ts \
+       src/lib/server/passwordChangedAlert.ts \
+       src/lib/server/failedLoginAlert.ts \
        e2e
 ```
 
-Puis les routes, **en préservant les deux sections de commerce qu'elles
-hébergent** :
+Puis les routes, **en préservant les cinq sections d'autres modules
+qu'elles hébergent** (voir « Espace compte » dans le README) :
 
 ```bash
-# à conserver : carnet d'adresses et factures du client
+# à conserver : carnet d'adresses, factures, retours, moyens de paiement,
+# liste d'envies du client (et parrainage si le module promo est actif)
 mkdir -p src/routes/compte
-mv src/routes/auth/settings/address   src/routes/compte/adresses
-mv src/routes/auth/settings/factures  src/routes/compte/factures
+mv src/routes/auth/settings/address        src/routes/compte/adresses
+mv src/routes/auth/settings/factures       src/routes/compte/factures
+mv src/routes/auth/settings/returns        src/routes/compte/retours
+mv src/routes/auth/settings/saved-payments src/routes/compte/moyens-paiement
+mv src/routes/auth/settings/wishlist       src/routes/compte/liste-envies
+mv src/routes/auth/settings/referral       src/routes/compte/parrainage  # si promo/referral actif
 
+# `settings/donnees` (export/suppression RGPD) et `not-me` (révocation de
+# session) restent propres au module, supprimés avec le reste ci-dessous
 rm -rf src/routes/auth
 ```
 
-Ces deux sections gardent une dépendance à l'identité (`locals.user.id` pour
-filtrer les adresses et les transactions) : elles devront lire l'identifiant du
-client depuis le mécanisme retenu à l'étape 4.
+Ces sections gardent une dépendance à l'identité (`locals.user.id` pour
+filtrer leurs données) : elles devront lire l'identifiant du client depuis le
+mécanisme retenu à l'étape 4.
 
 ## 2. Traiter les points de couplage
 
@@ -88,12 +101,14 @@ hook global et le formulaire de contact, et reste en place.
 
 ## 3. Base de données
 
-Dans `prisma/schema.prisma`, supprimer les trois modèles exclusivement liés à
+Dans `prisma/schema.prisma`, supprimer les modèles exclusivement liés à
 l'authentification, ainsi que les relations correspondantes dans `User` :
 
 - `Session`
 - `EmailVerificationRequest`
 - `PasswordResetSession`
+- `LoginEvent`
+- `SessionRevokeToken`
 
 Puis les champs d'identification de `User`, selon la trajectoire retenue :
 `passwordHash`, `recoveryCode`, `emailVerified`, `isMfaEnabled`, `totpKey`,
