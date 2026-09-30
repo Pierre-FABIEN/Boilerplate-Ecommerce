@@ -699,6 +699,25 @@ export async function createRawSession(userId: string) {
 }
 
 /**
+ * Insère directement une session déjà expirée — sert à prouver que le job de
+ * purge (`/api/jobs/cleanup`, `runCleanupJob`) la supprime bien, sans avoir à
+ * attendre 30 jours ou à trafiquer `expiresAt` après coup (contrairement à
+ * `updatedAt`, ce champ n'est pas géré par `@updatedAt`, un `create` avec une
+ * date passée suffit).
+ */
+export async function createExpiredSession(userId: string) {
+	return resilient(() =>
+		db.session.create({
+			data: {
+				id: randomBytes(20).toString('hex'),
+				userId,
+				expiresAt: new Date(Date.now() - 60 * 60 * 1000)
+			}
+		})
+	);
+}
+
+/**
  * Insère une session « autre appareil » directement en base, sans passer par
  * un vrai navigateur — suffisant pour tester la liste/révocation
  * (`/auth/settings/sessions`), qui ne lit que les colonnes de `Session`,
