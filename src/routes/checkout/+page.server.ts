@@ -13,7 +13,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-import { getOrderById, findPendingOrder } from '$lib/prisma/order/prendingOrder';
+import { getOrderById } from '$lib/prisma/order/prendingOrder';
 import { getUserAddresses } from '$lib/prisma/addresses/addresses';
 import { OrderSchema } from '$lib/schema/order/order';
 import { validatePromo } from '$lib/prisma/promo/promo';
@@ -59,7 +59,7 @@ export const load = (async ({ locals }) => {
 	if (frequentlyBoughtTogetherEnabled) {
 		// Déjà chargée par `pendingOrderHandle` (hooks.server.ts) pour cette
 		// même requête : pas besoin d'un second `findPendingOrder`.
-		const pendingOrder = locals.pendingOrder as Awaited<ReturnType<typeof findPendingOrder>>;
+		const pendingOrder = locals.pendingOrder;
 		const productIds = pendingOrder?.items.map((item) => item.productId) ?? [];
 		const vatRate = await getVatRate();
 		const productTotalTTC = (pendingOrder?.items ?? []).reduce(

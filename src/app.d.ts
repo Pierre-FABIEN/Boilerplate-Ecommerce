@@ -1,4 +1,6 @@
 // Voir https://svelte.dev/docs/kit/types#app.d.ts
+import type { findPendingOrder } from '$lib/prisma/order/prendingOrder';
+
 declare global {
 	namespace App {
 		// interface Error {}
@@ -21,7 +23,7 @@ declare global {
 			// AUTH-PLUGIN ▲
 
 			/** Commande en cours du visiteur connecté (panier serveur). COMMERCE-PLUGIN */
-			pendingOrder: import('@prisma/client').Order | null;
+			pendingOrder: Awaited<ReturnType<typeof findPendingOrder>> | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

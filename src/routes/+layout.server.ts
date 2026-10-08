@@ -52,9 +52,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		// AUTH-PLUGIN ▲
 
 		// COMMERCE-PLUGIN ▼ hydratation du panier client depuis la commande PENDING.
-		pendingOrder: locals.pendingOrder
-			? toPublicCart(locals.pendingOrder as Parameters<typeof toPublicCart>[0])
-			: null
+		pendingOrder: locals.pendingOrder ? toPublicCart(locals.pendingOrder) : null
 		// COMMERCE-PLUGIN ▲
 	};
 };

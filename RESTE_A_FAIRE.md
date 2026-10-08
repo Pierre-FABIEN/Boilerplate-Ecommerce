@@ -31,37 +31,37 @@ dédié — ils ne sont pas repris ici.
 
 ### 🔴 Critique — code sensible à l'argent/la sécurité, zéro filet de test
 
-| #   | Trou                                                                                                                | Pourquoi c'est critique                                                               | Détail                                         |
-| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| 1   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais testé                          | De l'argent réel part sans aucun test sur le chemin nominal, seul l'échec est couvert | [A.3 #2](#a3-couverture-e2e--trous-identifiés) |
-| 2   | `admin/promo/create` (mutation d'argent) jamais testée par e2e                                                      | Création de code promo jamais exercée, régression possible invisible                  | [A.3 #7](#a3-couverture-e2e--trous-identifiés) |
-| 3   | Routes cron `loyalty-check`/`stock-alerts`/`invoice-email` — authentification HTTP (secret/signature) jamais testée | Un bug d'auth sur ces routes ne serait détecté qu'en prod                             | [A.3 #6](#a3-couverture-e2e--trous-identifiés) |
+| #   | Trou                                                                                                                | Pourquoi c'est critique                                                               | Détail                                              |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais testé                          | De l'argent réel part sans aucun test sur le chemin nominal, seul l'échec est couvert | [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s) |
+| 2   | `admin/promo/create` (mutation d'argent) jamais testée par e2e                                                      | Création de code promo jamais exercée, régression possible invisible                  | [A.3 #7](#a3-couverture-e2e--trous-identifi%C3%A9s) |
+| 3   | Routes cron `loyalty-check`/`stock-alerts`/`invoice-email` — authentification HTTP (secret/signature) jamais testée | Un bug d'auth sur ces routes ne serait détecté qu'en prod                             | [A.3 #6](#a3-couverture-e2e--trous-identifi%C3%A9s) |
 
 ### 🟠 Élevé — dette/logique à trancher, risque de régression ou de fragilité
 
-| #   | Sujet                                                                                                                                                          | Pourquoi                                                                                                                                                | Détail                                                        |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| 1   | `findPendingOrder` — ne reprendre l'allègement qu'après avoir correctement typé la frontière `as`                                                              | Tentative précédente mesurée : ~80 % → ~29 % de réussite, cause = frontière non vérifiée par le compilateur                                             | [A.2.2](#a22-findpendingorder-trop-lourde)                    |
-| 2   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--détection-nouvel-appareil) |
-| 3   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifiés)    |
+| #   | Sujet                                                                                                                                                          | Pourquoi                                                                                                                                                | Détail                                                             |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1   | `findPendingOrder` — ne reprendre l'allègement qu'après avoir correctement typé la frontière `as`                                                              | Tentative précédente mesurée : \~80 % → \~29 % de réussite, cause = frontière non vérifiée par le compilateur                                           | [A.2.2](#a22-findpendingorder-trop-lourde)                         |
+| 2   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil) |
+| 3   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifi%C3%A9s)    |
 
 ### 🟡 Moyen — dette réelle, pas de risque immédiat
 
-| #   | Sujet                                                                          | Détail                                                                                                                   |
-| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Migration des montants `Float` → `Decimal`/centimes                            | Gros chantier, aucun bug actif aujourd'hui (`money2()` encadre les calculs) — [A.2.1](#a21-montants-monétaires-en-float) |
-| 2   | e2e mineurs restants : `createVariant`, `updateTaxonomy`/`deleteTaxonomyValue` | Mutations catalogue jamais exercées — [A.3 #9](#a3-couverture-e2e--trous-identifiés)                                     |
-| 3   | 14 vulnérabilités npm restantes (dev-only/non exploitables en prod)            | À resurveiller périodiquement, pas d'action immédiate — [A.1](#a1-sécurité-des-dépendances)                              |
+| #   | Sujet                                                                          | Détail                                                                                                                        |
+| --- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Migration des montants `Float` → `Decimal`/centimes                            | Gros chantier, aucun bug actif aujourd'hui (`money2()` encadre les calculs) — [A.2.1](#a21-montants-mon%C3%A9taires-en-float) |
+| 2   | e2e mineurs restants : `createVariant`, `updateTaxonomy`/`deleteTaxonomyValue` | Mutations catalogue jamais exercées — [A.3 #9](#a3-couverture-e2e--trous-identifi%C3%A9s)                                     |
+| 3   | 14 vulnérabilités npm restantes (dev-only/non exploitables en prod)            | À resurveiller périodiquement, pas d'action immédiate — [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)                    |
 
 ### 🟢 Faible — déjà tranché, aucune action attendue
 
-- Avertissements ESLint (12) — justifiés (icônes `Table.svelte`, `@html` maîtrisé) — [A.2.3](#a23-avertissements-eslint-12-confirmés-le-08102026).
-- Fichiers signalés par `knip` (2) — conservés volontairement, raison documentée — [A.2.4](#a24-fichiers-signalés-inutilisés-par-knip-2-intentionnels).
+- Avertissements ESLint (12) — justifiés (icônes `Table.svelte`, `@html` maîtrisé) — [A.2.3](#a23-avertissements-eslint-12-confirm%C3%A9s-le-08102026).
+- Fichiers signalés par `knip` (2) — conservés volontairement, raison documentée — [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels).
 - Aucune dette documentaire identifiée dans le code/tests actuellement (garde-fous `A.7` et historique `A.8` à jour).
 
 ## Sommaire
 
-- [Priorités — hiérarchie de criticité (code, logique, tests, doc)](#priorités--hiérarchie-de-criticité-code-logique-tests-doc)
+- [Priorités — hiérarchie de criticité (code, logique, tests, doc)](#priorit%C3%A9s--hi%C3%A9rarchie-de-criticit%C3%A9-code-logique-tests-doc)
 - [Partie A — Reste à faire (dette technique)](#partie-a--reste-%C3%A0-faire-dette-technique)
   - [A.1 Sécurité des dépendances](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)
   - [A.2 Dette technique de fond](#a2-dette-technique-de-fond)
@@ -71,7 +71,6 @@ dédié — ils ne sont pas repris ici.
   - [A.6 À ne pas refaire](#a6-%C3%A0-ne-pas-refaire--d%C3%A9cisions-d%C3%A9j%C3%A0-tranch%C3%A9es)
   - [A.7 Garde-fous en place](#a7-garde-fous-en-place)
   - [A.8 Historique des audits](#a8-historique-des-audits-r%C3%A9sum%C3%A9-d%C3%A9tail-dans-git-log)
-
 - [Partie B — Idées de features futures](#partie-b--id%C3%A9es-de-features-futures)
 - [Partie C — Conformité réglementaire](#partie-c--conformit%C3%A9-r%C3%A9glementaire-e-commerce)
   - [C.1 RGPD / CNIL](#c1-protection-des-donn%C3%A9es-personnelles-rgpd--cnil)
