@@ -20,55 +20,48 @@ avocat/expert-comptable avant toute mise en production réelle.
 avertissements · 62 fichiers e2e Playwright · `npx knip` 2 fichiers
 potentiellement inutilisés (voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
 
-## Priorités — hiérarchie de criticité
+## Priorités — hiérarchie de criticité (code, logique, tests, doc)
 
-Vue d'ensemble transversale (Parties A à D) classée par criticité, pas
-par partie d'origine — pour savoir par quoi commencer. Les sections
-détaillées plus bas restent la source de vérité ; ceci n'est qu'un index
-de tri.
+Portée volontairement restreinte à ce qui touche le code, la logique
+métier, les tests et la documentation technique (Partie A). Les
+arbitrages légaux/business/RGPD (identité de l'entreprise, TVA, médiateur
+de la consommation, titrage métaux précieux, signature du registre RGPD…)
+relèvent de la mise en production et sont déjà couverts par un document
+dédié — ils ne sont pas repris ici.
 
-### 🔴 Critique — bloque une mise en production réelle/légale
+### 🔴 Critique — code sensible à l'argent/la sécurité, zéro filet de test
 
-| #   | Tâche                                                                                                     | Pourquoi c'est bloquant                                                                         | Détail                                                                                                                               |
-| --- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Saisir l'identité légale de l'entreprise (`/admin/identite`) — raison sociale, SIRET, adresse, capital... | Sans ça, mentions légales et factures restent `[À COMPLÉTER]` : illégal de vendre en l'état     | [A.4 #3](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.3](#c3-mentions-l%C3%A9gales--identification-lcen)       |
-| 2   | Confirmer et saisir le vrai taux de TVA (`/admin/tva`, 20 % attendu vs 5,5 % par défaut)                  | Facturer au mauvais taux est une infraction fiscale, pas un détail cosmétique                   | [A.4 #2](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.4](#c4-facturation-prix--fiscalit%C3%A9)                 |
-| 3   | Vérifier si `StoreSettings.fraudBlockingEnabled` est actif en prod, et valider l'Art. 22 RGPD avant       | Un blocage de commande 100 % automatisé sans intervention humaine peut être illégal tel quel    | [D.9](#partie-d--registre-des-traitements-rgpd-art-30)                                                                               |
-| 4   | Désigner le responsable de traitement réel (+ DPO si applicable) pour signer le registre RGPD             | Le registre art. 30 actuel n'est qu'un brouillon technique, pas opposable sans signature réelle | [A.4 #6](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [Partie D](#partie-d--registre-des-traitements-rgpd-art-30) |
+| #   | Trou                                                                                                                | Pourquoi c'est critique                                                               | Détail                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 1   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais testé                          | De l'argent réel part sans aucun test sur le chemin nominal, seul l'échec est couvert | [A.3 #2](#a3-couverture-e2e--trous-identifiés) |
+| 2   | `admin/promo/create` (mutation d'argent) jamais testée par e2e                                                      | Création de code promo jamais exercée, régression possible invisible                  | [A.3 #7](#a3-couverture-e2e--trous-identifiés) |
+| 3   | Routes cron `loyalty-check`/`stock-alerts`/`invoice-email` — authentification HTTP (secret/signature) jamais testée | Un bug d'auth sur ces routes ne serait détecté qu'en prod                             | [A.3 #6](#a3-couverture-e2e--trous-identifiés) |
 
-### 🟠 Élevé — risque financier/légal réel, à traiter rapidement après le 🔴
+### 🟠 Élevé — dette/logique à trancher, risque de régression ou de fragilité
 
-| #   | Tâche                                                                                                | Pourquoi                                                                                   | Détail                                                                                                                               |
-| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Ajouter un test e2e sur `admin/returns` → `approve` chemin de **succès** (remboursement Stripe réel) | De l'argent réel part sans aucun filet de test sur le chemin nominal                       | [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                  |
-| 2   | Ajouter un test e2e sur `admin/promo/create`                                                         | Mutation d'argent (création de code promo) jamais exercée par e2e                          | [A.3 #7](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                  |
-| 3   | Désigner un médiateur de la consommation réel et le contractualiser                                  | Obligation légale (Code conso. L616-1), actuellement 2 options listées sans choix ferme    | [A.4 #4](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)  |
-| 4   | Trancher une durée de conservation pour `FraudBlock` et `AdminAuditLog`                              | Aucune purge auto aujourd'hui = rétention indéfinie, contraire au principe de minimisation | [A.4 #5](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [Partie D](#partie-d--registre-des-traitements-rgpd-art-30) |
-| 5   | Vérifier précisément ce que Sentry capture (IP, corps de requête, PII potentielle)                   | Sous-traitant RGPD confirmé mais jamais audité pour son contenu réel                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)                                                                          |
+| #   | Sujet                                                                                                                                                          | Pourquoi                                                                                                                                                | Détail                                                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | `findPendingOrder` — ne reprendre l'allègement qu'après avoir correctement typé la frontière `as`                                                              | Tentative précédente mesurée : ~80 % → ~29 % de réussite, cause = frontière non vérifiée par le compilateur                                             | [A.2.2](#a22-findpendingorder-trop-lourde)                    |
+| 2   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--détection-nouvel-appareil) |
+| 3   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifiés)    |
 
 ### 🟡 Moyen — dette réelle, pas de risque immédiat
 
-| #   | Tâche                                                                                                                                                      | Détail                                                                                                                                  |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | e2e manquants restants : saved-payments `attach`, blog admin, `createProduct`, cron `loyalty-check`/`stock-alerts`/`invoice-email`, `marketingEmailsOptIn` | [A.3](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                        |
-| 2   | Arbitrer la détection « nouvel appareil » (fatigue d'alerte liée aux mises à jour Chrome)                                                                  | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil)                                                                      |
-| 3   | Saisir le titrage/poinçon métal précieux par produit (infra déjà prête via les taxonomies)                                                                 | [A.4 #7](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
-| 4   | Vérifier manuellement le contraste des couleurs (RGAA) — pas calculable sans rendu réel                                                                    | [C.7](#c7-accessibilit%C3%A9-num%C3%A9rique)                                                                                            |
-| 5   | Reprendre l'allègement de `findPendingOrder` **après** avoir correctement typé la frontière `as`                                                           | [A.2.2](#a22-findpendingorder-trop-lourde)                                                                                              |
-| 6   | Planifier la migration des montants `Float` → `Decimal`/centimes (gros chantier, aucun bug actif)                                                          | [A.2.1](#a21-montants-mon%C3%A9taires-en-float)                                                                                         |
-| 7   | Activer « Dependabot alerts » sur le repo (gain rapide, juste un clic admin GitHub)                                                                        | [A.5 #1](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)                                                                          |
+| #   | Sujet                                                                          | Détail                                                                                                                   |
+| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Migration des montants `Float` → `Decimal`/centimes                            | Gros chantier, aucun bug actif aujourd'hui (`money2()` encadre les calculs) — [A.2.1](#a21-montants-monétaires-en-float) |
+| 2   | e2e mineurs restants : `createVariant`, `updateTaxonomy`/`deleteTaxonomyValue` | Mutations catalogue jamais exercées — [A.3 #9](#a3-couverture-e2e--trous-identifiés)                                     |
+| 3   | 14 vulnérabilités npm restantes (dev-only/non exploitables en prod)            | À resurveiller périodiquement, pas d'action immédiate — [A.1](#a1-sécurité-des-dépendances)                              |
 
-### 🟢 Faible — cosmétique ou simple surveillance
+### 🟢 Faible — déjà tranché, aucune action attendue
 
-- Les 14 vulnérabilités npm restantes (dev-only ou non exploitables en prod) — voir [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances), à resurveiller périodiquement, pas d'action immédiate.
-- e2e mineurs restants (`createVariant`, `updateTaxonomy`/`deleteTaxonomyValue`) — [A.3 #9](#a3-couverture-e2e--trous-identifi%C3%A9s).
-- Avertissements ESLint (12) et fichiers `knip` (2) — déjà tranchés comme justifiés, aucune action attendue ([A.2.3](#a23-avertissements-eslint-12-confirm%C3%A9s-le-08102026), [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
-- Guichet unique TVA (OSS) — pertinent seulement au-delà de 10 000 €/an de ventes hors France vers l'UE ([C.4](#c4-facturation-prix--fiscalit%C3%A9)).
-- Décider d'un stockage de secrets chiffré dédié — seulement si l'équipe grandit ([A.5 #2](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)).
+- Avertissements ESLint (12) — justifiés (icônes `Table.svelte`, `@html` maîtrisé) — [A.2.3](#a23-avertissements-eslint-12-confirmés-le-08102026).
+- Fichiers signalés par `knip` (2) — conservés volontairement, raison documentée — [A.2.4](#a24-fichiers-signalés-inutilisés-par-knip-2-intentionnels).
+- Aucune dette documentaire identifiée dans le code/tests actuellement (garde-fous `A.7` et historique `A.8` à jour).
 
 ## Sommaire
 
-- [Priorités — hiérarchie de criticité](#priorités--hiérarchie-de-criticité)
+- [Priorités — hiérarchie de criticité (code, logique, tests, doc)](#priorités--hiérarchie-de-criticité-code-logique-tests-doc)
 - [Partie A — Reste à faire (dette technique)](#partie-a--reste-%C3%A0-faire-dette-technique)
   - [A.1 Sécurité des dépendances](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)
   - [A.2 Dette technique de fond](#a2-dette-technique-de-fond)
@@ -79,8 +72,8 @@ de tri.
   - [A.7 Garde-fous en place](#a7-garde-fous-en-place)
   - [A.8 Historique des audits](#a8-historique-des-audits-r%C3%A9sum%C3%A9-d%C3%A9tail-dans-git-log)
 
-* [Partie B — Idées de features futures](#partie-b--id%C3%A9es-de-features-futures)
-* [Partie C — Conformité réglementaire](#partie-c--conformit%C3%A9-r%C3%A9glementaire-e-commerce)
+- [Partie B — Idées de features futures](#partie-b--id%C3%A9es-de-features-futures)
+- [Partie C — Conformité réglementaire](#partie-c--conformit%C3%A9-r%C3%A9glementaire-e-commerce)
   - [C.1 RGPD / CNIL](#c1-protection-des-donn%C3%A9es-personnelles-rgpd--cnil)
   - [C.2 Droit de la consommation](#c2-droit-de-la-consommation--vente-%C3%A0-distance)
   - [C.3 Mentions légales (LCEN)](#c3-mentions-l%C3%A9gales--identification-lcen)
@@ -88,7 +81,7 @@ de tri.
   - [C.5 Paiement en ligne](#c5-paiement-en-ligne)
   - [C.6 Métaux précieux & diamants](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants)
   - [C.7 Accessibilité numérique](#c7-accessibilit%C3%A9-num%C3%A9rique)
-* [Partie D — Registre des traitements (RGPD art. 30)](#partie-d--registre-des-traitements-rgpd-art-30)
+- [Partie D — Registre des traitements (RGPD art. 30)](#partie-d--registre-des-traitements-rgpd-art-30)
 
 ---
 
