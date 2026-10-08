@@ -41,9 +41,10 @@ dédié — ils ne sont pas repris ici.
 
 | #   | Sujet                                                                                                                                                          | Pourquoi                                                                                                                                                | Détail                                                             |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1   | `findPendingOrder` — ne reprendre l'allègement qu'après avoir correctement typé la frontière `as`                                                              | Tentative précédente mesurée : \~80 % → \~29 % de réussite, cause = frontière non vérifiée par le compilateur                                           | [A.2.2](#a22-findpendingorder-trop-lourde)                         |
-| 2   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil) |
-| 3   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifi%C3%A9s)    |
+| 1   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil) |
+| 2   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifi%C3%A9s)    |
+
+✅ _Fermé_ — `findPendingOrder` : frontière `as` typée correctement (commit `9722f55`), voir [A.2.2](#a22-findpendingorder-trop-lourde).
 
 ### 🟡 Moyen — dette réelle, pas de risque immédiat
 
@@ -135,10 +136,18 @@ planifier — **effort élevé**, touche la quasi-totalité du code commerce.
 visiteur connecté (hors `/admin` et `/api`), avec `include: { product: true, variant: true, custom: true }`.
 
 ⚠️ **Tentative d'allègement abandonnée** (mesurée : référence \~80 % de
-réussite, version allégée \~29 %). La donnée traverse une frontière typée
-par un simple `as`, non vérifiée par le compilateur. Une reprise doit
-d'abord **typer correctement cette frontière**, pas seulement réduire le
-`select`.
+réussite, version allégée \~29 %). La donnée traversait une frontière
+typée par un simple `as`, non vérifiée par le compilateur.
+
+✅ **Frontière typée correctement** (commit `9722f55`) : `App.Locals.pendingOrder`
+dans `src/app.d.ts` utilise désormais `Awaited<ReturnType<typeof findPendingOrder>>`
+(import `type` top-level, pas de type-query inline dans `declare global` —
+voir piège documenté dans `/memories/repo/`), les deux casts `as` dans
+`checkout/+page.server.ts` et `+layout.server.ts` sont supprimés. Validé
+par `npm run check` (0 erreur) et 4/4 e2e commerce (`cart`, `checkout`,
+`quantity`, `fraud-detection`). Une **reprise de l'allègement du `select`**
+reste à faire séparément, mais peut maintenant s'appuyer sur un
+compilateur qui vérifiera réellement la frontière.
 
 ### A.2.3 Avertissements ESLint (12, confirmés le 08/10/2026)
 
