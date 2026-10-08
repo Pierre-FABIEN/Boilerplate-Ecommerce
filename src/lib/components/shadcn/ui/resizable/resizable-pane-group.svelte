@@ -3,7 +3,6 @@
 	import { cn } from '$lib/components/shadcn/utils.js';
 
 	let {
-		ref = $bindable(null),
 		this: paneGroup = $bindable(),
 		class: className,
 		...restProps
