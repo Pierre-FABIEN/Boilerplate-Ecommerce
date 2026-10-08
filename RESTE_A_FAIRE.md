@@ -31,9 +31,9 @@ dédié — ils ne sont pas repris ici.
 
 ### 🔴 Critique — code sensible à l'argent/la sécurité, zéro filet de test
 
-| #   | Trou                                                                                       | Pourquoi c'est critique                                                               | Détail                                              |
-| --- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 1   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais testé | De l'argent réel part sans aucun test sur le chemin nominal, seul l'échec est couvert | [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s) |
+Plus aucun item ouvert dans cette catégorie.
+
+📌 _Décision_ — `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) : reste **volontairement non testé en e2e** (limitation technique de Stripe Checkout, pas un oubli) — voir [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s) et la justification détaillée en [A.3.2](#a32-admin-returns--succès-remboursement-stripe--limitation-acceptée-pas-un-chantier).
 
 ✅ _Fermé_ — `admin/promo/create` testé par e2e, bug « actif par défaut » corrigé au passage (commit `7662986`), voir [A.3 #7](#a3-couverture-e2e--trous-identifi%C3%A9s).
 
@@ -198,7 +198,7 @@ jour le 08/10/2026 (plusieurs items fermés depuis) :
 | #   | Trou                                                                                                                                         | Risque    | Statut                                                                                                                                                                                                                                                                                                                                                                                         |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `auth/reset-password/2fa` (reset de mdp sur compte 2FA actif) jamais testé bout en bout                                                      | 🔴 élevé  | ✅ **Fermé** — `e2e/auth/reset-password-2fa.spec.ts` (commit `d58788f`)                                                                                                                                                                                                                                                                                                                        |
-| 2   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais vérifié                                                 | 🔴 élevé  | ⬜ Ouvert — seul l'échec est testé aujourd'hui                                                                                                                                                                                                                                                                                                                                                 |
+| 2   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais vérifié                                                 | 🔴 élevé  | 📌 Accepté — limitation technique, voir [A.3.2](#a32-admin-returns--succès-remboursement-stripe--limitation-acceptée-pas-un-chantier)                                                                                                                                                                                                                                                         |
 | 3   | `auth/settings/saved-payments` → `attach`/`setup-intent` (enregistrement carte) jamais exercé                                                | 🟡 moyen  | ⬜ Ouvert                                                                                                                                                                                                                                                                                                                                                                                      |
 | 4   | Module blog admin (création/édition d'article, taxonomies blog) — zéro couverture                                                            | 🟡 moyen  | ⬜ Ouvert                                                                                                                                                                                                                                                                                                                                                                                      |
 | 5   | `admin/products/(edit)/create` → `createProduct` — testé seulement par un spec `skip` (Cloudinary réel requis), jamais exécuté en CI         | 🟡 moyen  | ⬜ Ouvert                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -221,6 +221,34 @@ JS, erreurs console, HTTP ≥ 400) au rapport en cas d'échec.
 
 **Règle de méthode** : ne jamais éditer de fichier source pendant qu'une
 suite e2e tourne, repartir d'un serveur propre avant toute comparaison A/B.
+
+### A.3.2 `admin/returns` → succès remboursement Stripe : limitation acceptée, pas un chantier
+
+**Recherche menée le 08/10/2026** : la route `approve` appelle réellement
+l'API Stripe (`checkout.sessions.retrieve` puis `refunds.create`) sur un
+`stripePaymentId` qui, en production, référence une vraie Checkout Session
+créée au moment de l'achat. Pour tester le chemin de succès en e2e, il
+faudrait disposer d'une session Stripe test-mode dont le paiement a
+réellement abouti.
+
+Or Stripe ne fournit aucune API pour faire aboutir une Checkout Session
+sans interaction navigateur — seule la page hébergée (saisie carte) le
+permet. Vérifié concrètement : la page est bien accessible depuis cet
+environnement, mais le formulaire carte est éclaté dans plusieurs iframes
+Stripe.js dont les noms sont régénérés aléatoirement à chaque session,
+rendant toute automatisation Playwright intrinsèquement fragile.
+
+Alternative écartée : migrer le checkout de Stripe Checkout (redirection
+hébergée) vers Stripe Elements (carte embarquée, confirmable par API) —
+rejetée car ce serait réécrire le tunnel de paiement de production
+uniquement pour satisfaire un test, à l'inverse de l'ordre normal des
+priorités.
+
+**Décision** : le chemin de succès reste couvert uniquement par relecture
+de code et vérification manuelle ponctuelle en sandbox Stripe test-mode
+avant toute modification de cette route. Le chemin d'échec, lui, reste
+testé automatiquement (`e2e/commerce/returns.spec.ts`, test « approbation
+gère un remboursement Stripe impossible sans planter »).
 
 ## A.4 Arbitrages produit en attente — pas à moi de trancher
 
