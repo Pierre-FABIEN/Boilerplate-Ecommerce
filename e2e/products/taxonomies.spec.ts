@@ -4,11 +4,14 @@ import { pageOrigin, signUpAndVerify } from '../support/admin';
 import { taxonomyAdminRow } from '../support/products';
 import {
 	createCatalogProduct,
+	createTaxonomy,
+	createTaxonomyValue,
 	deleteCatalogProduct,
 	deleteTaxonomy,
 	getProductById,
 	getTaxonomyByName,
 	getTaxonomyById,
+	getTaxonomyValueById,
 	promoteToAdmin
 } from '../support/db';
 
@@ -156,5 +159,46 @@ test.describe('Administration — taxonomies', () => {
 			headers: { Origin: origin }
 		});
 		expect(await getTaxonomyByName(taxonomyName)).toBeNull();
+	});
+
+	test('suppression explicite d\u2019une valeur (?/deleteTaxonomyValue), la taxonomie et les autres valeurs survivent', async ({
+		page,
+		account
+	}) => {
+		const taxonomy = await createTaxonomy();
+		const kept = await createTaxonomyValue(taxonomy.id, { value: `e2e-value-kept-${Date.now()}` });
+		const removed = await createTaxonomyValue(taxonomy.id, {
+			value: `e2e-value-removed-${Date.now()}`
+		});
+
+		try {
+			await signUpAndVerify(page, account);
+			await promoteToAdmin(account.email);
+
+			await page.goto(`/admin/products/taxonomies/${taxonomy.id}`, {
+				waitUntil: 'domcontentloaded'
+			});
+			await expect(page.getByText(removed.value, { exact: true }).first()).toBeVisible({
+				timeout: 60_000
+			});
+
+			const row = page.locator('tbody tr', { hasText: removed.value });
+			await row.locator('[data-alert-dialog-trigger]').click();
+			await expect(page.getByRole('alertdialog')).toBeVisible();
+			await Promise.all([
+				page.waitForResponse(
+					(response) =>
+						response.url().includes('?/deleteTaxonomyValue') &&
+						response.request().method() === 'POST'
+				),
+				page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+			]);
+
+			expect(await getTaxonomyValueById(removed.id)).toBeNull();
+			expect(await getTaxonomyValueById(kept.id)).not.toBeNull();
+			expect(await getTaxonomyById(taxonomy.id)).not.toBeNull();
+		} finally {
+			await deleteTaxonomy(taxonomy.id);
+		}
 	});
 });
