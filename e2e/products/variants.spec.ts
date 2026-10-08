@@ -4,6 +4,7 @@ import { pageOrigin, signUpAndVerify } from '../support/admin';
 import {
 	createCatalogProduct,
 	createProductVariant,
+	db,
 	deleteCatalogProduct,
 	deleteProductVariant,
 	deleteUser,
@@ -180,6 +181,45 @@ test.describe('Variantes produit', () => {
 			await deleteProductVariant(locked.id);
 			await deleteCatalogProduct(created.product.id);
 			await deleteUser(ownerEmail);
+		}
+	});
+
+	test('administration : création via le formulaire (?/createVariant)', async ({
+		page,
+		account
+	}) => {
+		const created = await createCatalogProduct();
+		const label = `e2e-var-created-${Date.now()}`;
+		let createdVariantId: string | undefined;
+
+		try {
+			await signUpAndVerify(page, account);
+			await promoteToAdmin(account.email);
+
+			await test.step('1. Le formulaire crée la variante et redirige vers la liste', async () => {
+				await page.goto(`/admin/products/${created.product.id}/variants/create`);
+				await page.locator('input[name="label"]').fill(label);
+				await page.locator('input[name="sku"]').fill(`${label}-sku`);
+				await page.locator('input[name="price"]').fill('12.5');
+				await page.locator('input[name="stock"]').fill('7');
+				await page.getByRole('button', { name: 'Créer la variante' }).click();
+				await waitForPath(page, `/admin/products/${created.product.id}/variants`);
+				await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+			});
+
+			await test.step('2. La variante existe bien en base avec les bonnes valeurs', async () => {
+				const variant = await db.productVariant.findFirst({
+					where: { productId: created.product.id, label }
+				});
+				expect(variant).not.toBeNull();
+				createdVariantId = variant!.id;
+				expect(variant!.sku).toBe(`${label}-sku`);
+				expect(variant!.price?.toString()).toBe('12.5');
+				expect(variant!.stock).toBe(7);
+			});
+		} finally {
+			if (createdVariantId) await deleteProductVariant(createdVariantId);
+			await deleteCatalogProduct(created.product.id);
 		}
 	});
 
