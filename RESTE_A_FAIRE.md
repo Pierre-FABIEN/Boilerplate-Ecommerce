@@ -18,29 +18,77 @@ avocat/expert-comptable avant toute mise en production réelle.
 **État de référence** (vérifié le 08/10/2026) : `npm run check` 0 erreur ·
 `npx vitest run` 84 tests passés / 2 skippés · `npx eslint .` 0 erreur / 12
 avertissements · 62 fichiers e2e Playwright · `npx knip` 2 fichiers
-potentiellement inutilisés (voir [A.2.4](#a24-fichiers-signalés-inutilisés-par-knip-2-intentionnels)).
+potentiellement inutilisés (voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
+
+## Priorités — hiérarchie de criticité
+
+Vue d'ensemble transversale (Parties A à D) classée par criticité, pas
+par partie d'origine — pour savoir par quoi commencer. Les sections
+détaillées plus bas restent la source de vérité ; ceci n'est qu'un index
+de tri.
+
+### 🔴 Critique — bloque une mise en production réelle/légale
+
+| #   | Tâche                                                                                                     | Pourquoi c'est bloquant                                                                         | Détail                                                                                                                               |
+| --- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Saisir l'identité légale de l'entreprise (`/admin/identite`) — raison sociale, SIRET, adresse, capital... | Sans ça, mentions légales et factures restent `[À COMPLÉTER]` : illégal de vendre en l'état     | [A.4 #3](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.3](#c3-mentions-l%C3%A9gales--identification-lcen)       |
+| 2   | Confirmer et saisir le vrai taux de TVA (`/admin/tva`, 20 % attendu vs 5,5 % par défaut)                  | Facturer au mauvais taux est une infraction fiscale, pas un détail cosmétique                   | [A.4 #2](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.4](#c4-facturation-prix--fiscalit%C3%A9)                 |
+| 3   | Vérifier si `StoreSettings.fraudBlockingEnabled` est actif en prod, et valider l'Art. 22 RGPD avant       | Un blocage de commande 100 % automatisé sans intervention humaine peut être illégal tel quel    | [D.9](#partie-d--registre-des-traitements-rgpd-art-30)                                                                               |
+| 4   | Désigner le responsable de traitement réel (+ DPO si applicable) pour signer le registre RGPD             | Le registre art. 30 actuel n'est qu'un brouillon technique, pas opposable sans signature réelle | [A.4 #6](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [Partie D](#partie-d--registre-des-traitements-rgpd-art-30) |
+
+### 🟠 Élevé — risque financier/légal réel, à traiter rapidement après le 🔴
+
+| #   | Tâche                                                                                                | Pourquoi                                                                                   | Détail                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Ajouter un test e2e sur `admin/returns` → `approve` chemin de **succès** (remboursement Stripe réel) | De l'argent réel part sans aucun filet de test sur le chemin nominal                       | [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                  |
+| 2   | Ajouter un test e2e sur `admin/promo/create`                                                         | Mutation d'argent (création de code promo) jamais exercée par e2e                          | [A.3 #7](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                  |
+| 3   | Désigner un médiateur de la consommation réel et le contractualiser                                  | Obligation légale (Code conso. L616-1), actuellement 2 options listées sans choix ferme    | [A.4 #4](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)  |
+| 4   | Trancher une durée de conservation pour `FraudBlock` et `AdminAuditLog`                              | Aucune purge auto aujourd'hui = rétention indéfinie, contraire au principe de minimisation | [A.4 #5](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [Partie D](#partie-d--registre-des-traitements-rgpd-art-30) |
+| 5   | Vérifier précisément ce que Sentry capture (IP, corps de requête, PII potentielle)                   | Sous-traitant RGPD confirmé mais jamais audité pour son contenu réel                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)                                                                          |
+
+### 🟡 Moyen — dette réelle, pas de risque immédiat
+
+| #   | Tâche                                                                                                                                                      | Détail                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | e2e manquants restants : saved-payments `attach`, blog admin, `createProduct`, cron `loyalty-check`/`stock-alerts`/`invoice-email`, `marketingEmailsOptIn` | [A.3](#a3-couverture-e2e--trous-identifi%C3%A9s)                                                                                        |
+| 2   | Arbitrer la détection « nouvel appareil » (fatigue d'alerte liée aux mises à jour Chrome)                                                                  | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil)                                                                      |
+| 3   | Saisir le titrage/poinçon métal précieux par produit (infra déjà prête via les taxonomies)                                                                 | [A.4 #7](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher), [C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
+| 4   | Vérifier manuellement le contraste des couleurs (RGAA) — pas calculable sans rendu réel                                                                    | [C.7](#c7-accessibilit%C3%A9-num%C3%A9rique)                                                                                            |
+| 5   | Reprendre l'allègement de `findPendingOrder` **après** avoir correctement typé la frontière `as`                                                           | [A.2.2](#a22-findpendingorder-trop-lourde)                                                                                              |
+| 6   | Planifier la migration des montants `Float` → `Decimal`/centimes (gros chantier, aucun bug actif)                                                          | [A.2.1](#a21-montants-mon%C3%A9taires-en-float)                                                                                         |
+| 7   | Activer « Dependabot alerts » sur le repo (gain rapide, juste un clic admin GitHub)                                                                        | [A.5 #1](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)                                                                          |
+
+### 🟢 Faible — cosmétique ou simple surveillance
+
+- Les 14 vulnérabilités npm restantes (dev-only ou non exploitables en prod) — voir [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances), à resurveiller périodiquement, pas d'action immédiate.
+- e2e mineurs restants (`createVariant`, `updateTaxonomy`/`deleteTaxonomyValue`) — [A.3 #9](#a3-couverture-e2e--trous-identifi%C3%A9s).
+- Avertissements ESLint (12) et fichiers `knip` (2) — déjà tranchés comme justifiés, aucune action attendue ([A.2.3](#a23-avertissements-eslint-12-confirm%C3%A9s-le-08102026), [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
+- Guichet unique TVA (OSS) — pertinent seulement au-delà de 10 000 €/an de ventes hors France vers l'UE ([C.4](#c4-facturation-prix--fiscalit%C3%A9)).
+- Décider d'un stockage de secrets chiffré dédié — seulement si l'équipe grandit ([A.5 #2](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)).
 
 ## Sommaire
 
-- [Partie A — Reste à faire (dette technique)](#partie-a--reste-à-faire-dette-technique)
-  - [A.1 Sécurité des dépendances](#a1-sécurité-des-dépendances)
+- [Priorités — hiérarchie de criticité](#priorités--hiérarchie-de-criticité)
+- [Partie A — Reste à faire (dette technique)](#partie-a--reste-%C3%A0-faire-dette-technique)
+  - [A.1 Sécurité des dépendances](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)
   - [A.2 Dette technique de fond](#a2-dette-technique-de-fond)
-  - [A.3 Couverture e2e](#a3-couverture-e2e--trous-identifiés)
-  - [A.4 Arbitrages produit en attente](#a4-arbitrages-produit-en-attente--pas-à-moi-de-trancher)
-  - [A.5 Actions d'infrastructure](#a5-actions-dinfrastructure--accès-admin-requis)
-  - [A.6 À ne pas refaire](#a6-à-ne-pas-refaire--décisions-déjà-tranchées)
+  - [A.3 Couverture e2e](#a3-couverture-e2e--trous-identifi%C3%A9s)
+  - [A.4 Arbitrages produit en attente](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher)
+  - [A.5 Actions d'infrastructure](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)
+  - [A.6 À ne pas refaire](#a6-%C3%A0-ne-pas-refaire--d%C3%A9cisions-d%C3%A9j%C3%A0-tranch%C3%A9es)
   - [A.7 Garde-fous en place](#a7-garde-fous-en-place)
-  - [A.8 Historique des audits](#a8-historique-des-audits-résumé-détail-dans-git-log)
-- [Partie B — Idées de features futures](#partie-b--idées-de-features-futures)
-- [Partie C — Conformité réglementaire](#partie-c--conformité-réglementaire-e-commerce)
-  - [C.1 RGPD / CNIL](#c1-protection-des-données-personnelles-rgpd--cnil)
-  - [C.2 Droit de la consommation](#c2-droit-de-la-consommation--vente-à-distance)
-  - [C.3 Mentions légales (LCEN)](#c3-mentions-légales--identification-lcen)
-  - [C.4 Facturation, prix & fiscalité](#c4-facturation-prix--fiscalité)
+  - [A.8 Historique des audits](#a8-historique-des-audits-r%C3%A9sum%C3%A9-d%C3%A9tail-dans-git-log)
+
+* [Partie B — Idées de features futures](#partie-b--id%C3%A9es-de-features-futures)
+* [Partie C — Conformité réglementaire](#partie-c--conformit%C3%A9-r%C3%A9glementaire-e-commerce)
+  - [C.1 RGPD / CNIL](#c1-protection-des-donn%C3%A9es-personnelles-rgpd--cnil)
+  - [C.2 Droit de la consommation](#c2-droit-de-la-consommation--vente-%C3%A0-distance)
+  - [C.3 Mentions légales (LCEN)](#c3-mentions-l%C3%A9gales--identification-lcen)
+  - [C.4 Facturation, prix & fiscalité](#c4-facturation-prix--fiscalit%C3%A9)
   - [C.5 Paiement en ligne](#c5-paiement-en-ligne)
-  - [C.6 Métaux précieux & diamants](#c6-spécifique-métaux-précieux--diamants)
-  - [C.7 Accessibilité numérique](#c7-accessibilité-numérique)
-- [Partie D — Registre des traitements (RGPD art. 30)](#partie-d--registre-des-traitements-rgpd-art-30)
+  - [C.6 Métaux précieux & diamants](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants)
+  - [C.7 Accessibilité numérique](#c7-accessibilit%C3%A9-num%C3%A9rique)
+* [Partie D — Registre des traitements (RGPD art. 30)](#partie-d--registre-des-traitements-rgpd-art-30)
 
 ---
 
@@ -75,8 +123,7 @@ laisser dériver après une manipulation npm quelconque. **Autre piège
 vérifié le 08/10/2026** : un `npm audit fix` peut bumper en transitif des
 outils de lint (`typescript-eslint` 8.41→8.71 dans ce dépôt) et faire
 apparaître de **nouvelles erreurs ESLint bloquantes** sur du code non
-touché — toujours relancer `npx eslint .` (pas seulement `npm run
-check`/vitest) après un audit fix.
+touché — toujours relancer `npx eslint .` (pas seulement `npm run check`/vitest) après un audit fix.
 
 ## A.2 Dette technique de fond
 
@@ -93,11 +140,10 @@ planifier — **effort élevé**, touche la quasi-totalité du code commerce.
 ### A.2.2 `findPendingOrder` trop lourde
 
 **Preuve** : appelée par `pendingOrderHandle` à **chaque page vue** d'un
-visiteur connecté (hors `/admin` et `/api`), avec `include: { product: true,
-variant: true, custom: true }`.
+visiteur connecté (hors `/admin` et `/api`), avec `include: { product: true, variant: true, custom: true }`.
 
-⚠️ **Tentative d'allègement abandonnée** (mesurée : référence ~80 % de
-réussite, version allégée ~29 %). La donnée traverse une frontière typée
+⚠️ **Tentative d'allègement abandonnée** (mesurée : référence \~80 % de
+réussite, version allégée \~29 %). La donnée traverse une frontière typée
 par un simple `as`, non vérifiée par le compilateur. Une reprise doit
 d'abord **typer correctement cette frontière**, pas seulement réduire le
 `select`.
@@ -175,15 +221,15 @@ suite e2e tourne, repartir d'un serveur propre avant toute comparaison A/B.
 
 ## A.4 Arbitrages produit en attente — pas à moi de trancher
 
-| #   | Décision                                                                                                  | Source                                                       |
-| --- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 1   | Arbitrage détection « nouvel appareil » ([A.2.5](#a25-arbitrage-en-attente--détection--nouvel-appareil-)) | ce document                                                  |
-| 2   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable)              | [Partie C.4](#c4-facturation-prix--fiscalité)                |
-| 3   | Identité légale de l'entreprise à saisir dans `/admin/identite`                                           | [Partie C.3](#c3-mentions-légales--identification-lcen)      |
-| 4   | Désignation d'un médiateur de la consommation réel                                                        | [Partie C.2](#c2-droit-de-la-consommation--vente-à-distance) |
-| 5   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                                            | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)  |
-| 6   | Signature du registre RGPD art. 30 par le responsable de traitement réel                                  | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)  |
-| 7   | Titrage/poinçon métal précieux — saisie de données fournisseur                                            | [Partie C.6](#c6-spécifique-métaux-précieux--diamants)       |
+| #   | Décision                                                                                                       | Source                                                                |
+| --- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | Arbitrage détection « nouvel appareil » ([A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection--nouvel-appareil-)) | ce document                                                           |
+| 2   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable)                   | [Partie C.4](#c4-facturation-prix--fiscalit%C3%A9)                    |
+| 3   | Identité légale de l'entreprise à saisir dans `/admin/identite`                                                | [Partie C.3](#c3-mentions-l%C3%A9gales--identification-lcen)          |
+| 4   | Désignation d'un médiateur de la consommation réel                                                             | [Partie C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)     |
+| 5   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                                                 | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 6   | Signature du registre RGPD art. 30 par le responsable de traitement réel                                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 7   | Titrage/poinçon métal précieux — saisie de données fournisseur                                                 | [Partie C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
 
 ## A.5 Actions d'infrastructure — accès admin requis
 
@@ -194,15 +240,15 @@ suite e2e tourne, repartir d'un serveur propre avant toute comparaison A/B.
 
 ## A.6 À ne pas refaire — décisions déjà tranchées
 
-| Piste                                                                   | Verdict      | Raison                                                                                                                                                         |
-| ----------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `multipleSubmits: 'allow'` sur les formulaires 2FA/checkout/gift-card   | ❌           | Casse le parcours (session réémise, double session Stripe, double carte cadeau — cf. `src/lib/invariants.test.ts` règle 3)                                     |
-| Alléger `findPendingOrder` ([A.2.2](#a22-findpendingorder-trop-lourde)) | ❌ en l'état | Régression mesurée (80 % → 29 %)                                                                                                                               |
-| Rate limiting comme cause d'instabilité e2e                             | ❌ infirmé   | Zéro trace de quota dans les journaux ; fixtures isolées par `X-Forwarded-For`                                                                                 |
-| Règle lint anti-prix-TTC-en-dur dans les tests e2e                      | ❌           | Indistinguable statiquement d'un prix HT légitime ; Vitest ne scanne que `src/**`                                                                              |
-| Masquer appareil/localisation sur « Ce n'était pas moi »                | ❌           | C'est précisément ce qui permet à l'utilisateur de juger                                                                                                       |
-| Ré-implémenter une vraie PWA (service worker + cache offline)           | ❌           | Jamais demandée comme fonctionnalité produit ; scaffolding morte déjà retirée                                                                                  |
-| Supprimer en masse les fichiers/dépendances signalés par `knip`         | ❌           | Plusieurs sont des faux positifs transitifs — vérification individuelle obligatoire (voir [A.2.4](#a24-fichiers-signalés-inutilisés-par-knip-2-intentionnels)) |
+| Piste                                                                   | Verdict      | Raison                                                                                                                                                                   |
+| ----------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `multipleSubmits: 'allow'` sur les formulaires 2FA/checkout/gift-card   | ❌           | Casse le parcours (session réémise, double session Stripe, double carte cadeau — cf. `src/lib/invariants.test.ts` règle 3)                                               |
+| Alléger `findPendingOrder` ([A.2.2](#a22-findpendingorder-trop-lourde)) | ❌ en l'état | Régression mesurée (80 % → 29 %)                                                                                                                                         |
+| Rate limiting comme cause d'instabilité e2e                             | ❌ infirmé   | Zéro trace de quota dans les journaux ; fixtures isolées par `X-Forwarded-For`                                                                                           |
+| Règle lint anti-prix-TTC-en-dur dans les tests e2e                      | ❌           | Indistinguable statiquement d'un prix HT légitime ; Vitest ne scanne que `src/**`                                                                                        |
+| Masquer appareil/localisation sur « Ce n'était pas moi »                | ❌           | C'est précisément ce qui permet à l'utilisateur de juger                                                                                                                 |
+| Ré-implémenter une vraie PWA (service worker + cache offline)           | ❌           | Jamais demandée comme fonctionnalité produit ; scaffolding morte déjà retirée                                                                                            |
+| Supprimer en masse les fichiers/dépendances signalés par `knip`         | ❌           | Plusieurs sont des faux positifs transitifs — vérification individuelle obligatoire (voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)) |
 
 ## A.7 Garde-fous en place
 
@@ -217,20 +263,19 @@ contrainte de compilation. Détail des 4 règles actuelles dans
 Ce dépôt a traversé plusieurs vagues d'audit consécutives entre
 2026-09-14 et 2026-09-30, consolidées dans ce document le 08/10/2026 (les
 fichiers sources `AUDIT_TECHNIQUE.md`, `AUDIT_FONCTIONNEL.md` et
-`DIAGNOSTIC_FINAL.md` sont retirés, consultables via `git log --
-AUDIT_TECHNIQUE.md` puis `git show <hash>:AUDIT_TECHNIQUE.md`). Résultats :
+`DIAGNOSTIC_FINAL.md` sont retirés, consultables via `git log -- AUDIT_TECHNIQUE.md` puis `git show <hash>:AUDIT_TECHNIQUE.md`). Résultats :
 
 - **14 bugs métier réels trouvés et corrigés**, dont deux avec de l'argent
   réel en jeu (carte cadeau/promo consommés avant paiement confirmé,
   décrément de solde non atomique).
 - **1 faille XSS réelle corrigée** (`{@html}` non échappé dans `Table`).
 - **Dette lint/CI résorbée** : `svelte-check` 132→0 erreurs, ESLint
-  ~4900→12 avertissements (après exclusion du vendor `tinymce`), prettier
+  \~4900→12 avertissements (après exclusion du vendor `tinymce`), prettier
   383→0 fichiers non formatés, CI bloquante sur type-check + 3 règles
   ESLint de réactivité, `knip` en CI, couverture Vitest mesurée.
 - **Scan de vulnérabilités remplacé** : `npm audit` cassé silencieusement
   en CI → OSV-Scanner + Dependabot, complémentaires à `npm audit` ponctuel
-  (voir [A.1](#a1-sécurité-des-dépendances)).
+  (voir [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)).
 - **Conformité réglementaire mappée obligation par obligation** avec
   preuve de code (Partie C), registre RGPD art. 30 rédigé (Partie D),
   plusieurs vrais bugs trouvés au passage (prix HT affichés au lieu de
@@ -241,14 +286,14 @@ AUDIT_TECHNIQUE.md` puis `git show <hash>:AUDIT_TECHNIQUE.md`). Résultats :
   commit `330f479`).
 - **6 fichiers morts confirmés supprimés** (commit `72ca0ad`).
 - **Régression ESLint du 08/10/2026 corrigée** (commit `ea72d7e`) : voir
-  [A.1](#a1-sécurité-des-dépendances).
+  [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances).
 
 Verdict global : ce n'est pas un starter — c'est un socle qui a survécu à
 plusieurs vagues d'audit consécutives et en est ressorti plus solide à
 chaque fois. Ce qui reste dans cette Partie A n'est plus du « risque
-caché », mais de la dette de test ciblée ([A.3](#a3-couverture-e2e--trous-identifiés)),
-un chantier structurant différé ([A.2.1](#a21-montants-monétaires-en-float))
-et des décisions qui appartiennent à l'humain ([A.4](#a4-arbitrages-produit-en-attente--pas-à-moi-de-trancher)-[A.5](#a5-actions-dinfrastructure--accès-admin-requis)).
+caché », mais de la dette de test ciblée ([A.3](#a3-couverture-e2e--trous-identifi%C3%A9s)),
+un chantier structurant différé ([A.2.1](#a21-montants-mon%C3%A9taires-en-float))
+et des décisions qui appartiennent à l'humain ([A.4](#a4-arbitrages-produit-en-attente--pas-%C3%A0-moi-de-trancher)-[A.5](#a5-actions-dinfrastructure--acc%C3%A8s-admin-requis)).
 
 ---
 
@@ -328,7 +373,7 @@ rester dans l'esprit du dépôt.
   que les factures/bordereaux déjà en place, téléchargeable depuis
   `/auth/settings/factures/[id]` une fois la commande payée. Rejoint une
   vraie obligation de transparence pour les diamants, voir
-  [C.6](#c6-spécifique-métaux-précieux--diamants).
+  [C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants).
 
 ### Logistique & retrait
 
@@ -399,11 +444,11 @@ sections correspondantes plus bas, marquées ✅ mise à jour) :
 1. **Pages légales créées** — `/mentions-legales`, `/cgv`,
    `/confidentialite` + pied de page + bannière cookies + case CGV
    obligatoire au checkout. Les champs d'identité de l'entreprise (SIRET,
-   adresse, capital social...) sont désormais **saisissables depuis
-   `/admin/identite`** (`StoreSettings.company*`) et affichés
+   adresse, capital social...) sont désormais **saisissables depuis**
+   `/admin/identite` (`StoreSettings.company*`) et affichés
    dynamiquement sur `/mentions-legales` et les factures/avoirs — restent
    `[À COMPLÉTER]` tant que personne ne les a saisis, je ne peux pas les
-   inventer à la place de l'entreprise, voir [C.3](#c3-mentions-légales--identification-lcen).
+   inventer à la place de l'entreprise, voir [C.3](#c3-mentions-l%C3%A9gales--identification-lcen).
 2. **Taux de TVA configurable** — remplace l'ancienne constante figée à
    5,5 % : `StoreSettings.vatRate`, modifiable depuis `/admin/tva`.
    Le taux par défaut reste 5,5 % (comportement inchangé tant qu'un admin
@@ -423,7 +468,7 @@ Pour situer par rapport à la Partie A : la purge RGPD automatisée déjà en
 place (`$lib/server/jobs/cleanup.ts` — sessions expirées, tokens, paniers
 abandonnés) couvre le principe de minimisation des données (RGPD
 art. 5.1.e), **distinct** du droit à l'effacement sur demande d'une
-personne (art. 17) — désormais traité lui aussi, voir [C.1](#c1-protection-des-données-personnelles-rgpd--cnil).
+personne (art. 17) — désormais traité lui aussi, voir [C.1](#c1-protection-des-donn%C3%A9es-personnelles-rgpd--cnil).
 
 **RGPD** : les droits à la portabilité (art. 20) et à l'effacement
 (art. 17) sont en self-service depuis `/auth/settings/donnees` — export
@@ -490,7 +535,7 @@ partagent désormais la même fonction correcte
 **Identité de l'entreprise** : raison sociale, forme juridique, capital
 social, adresse du siège, SIRET, n° de TVA intracommunautaire, directeur
 de publication, téléphone et e-mail sont désormais saisissables depuis
-**`/admin/identite`** (page dédiée, retirée de `/admin/settings`,
+`/admin/identite` (page dédiée, retirée de `/admin/settings`,
 `StoreSettings.company*`) au lieu d'être figés en `[À COMPLÉTER]` dans le
 code ou pilotés uniquement par des variables d'environnement
 (`INVOICE_COMPANY_*`, conservées comme repli). Reste, comme avant, une
@@ -580,7 +625,7 @@ deux formulaires empilés en haut de la page « Modules e-commerce »
 (`/admin/settings`), ont chacun leur propre page (`/admin/tva`,
 `/admin/livraison`) avec une entrée dédiée dans la navigation admin —
 même principe que l'identité de l'entreprise (`/admin/identite`, voir
-[C.3](#c3-mentions-légales--identification-lcen)). `/admin/settings` ne
+[C.3](#c3-mentions-l%C3%A9gales--identification-lcen)). `/admin/settings` ne
 porte plus que les interrupteurs de modules.
 
 ## C.1 Protection des données personnelles (RGPD + CNIL)
@@ -617,12 +662,12 @@ porte plus que les interrupteurs de modules.
 
 ## C.4 Facturation, prix & fiscalité
 
-| Obligation                    | Base légale                             | État constaté           | Piste                                                                                                                                                                                                                                                                                             |
-| ----------------------------- | --------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Taux de TVA correct           | CGI art. 278 s.                         | 🟡 Configurable         | `StoreSettings.vatRate`, modifiable depuis `/admin/tva` — reste à saisir le bon taux (20 % attendu), décision volontairement laissée à un humain                                                                                                                                                  |
-| Mentions obligatoires facture | Code com. L441-9, CGI art. 242 nonies A | ✅ SIRET + TVA affichés | `InvoiceCompany.siret`/`.vat` imprimés sur le PDF facture/avoir et l'aperçu HTML — priorité à l'identité saisie depuis `/admin/identite` ([C.3](#c3-mentions-légales--identification-lcen)), repli sur `INVOICE_COMPANY_*` (env) puis sur un placeholder manifestement fictif si rien n'est saisi |
-| Affichage des prix TTC        | Arrêté du 3 déc. 1987                   | ✅ Corrigé              | Catalogue, fiche produit (+ ventes croisées, récemment consultés), liste d'envies affichaient le prix HT stocké sans conversion — désormais convertis en TTC à l'affichage (`toTTC()`, `$lib/utils/price.ts`) ; panier/commande restent inchangés (HT + TVA déjà détaillés séparément, conforme)  |
-| Guichet unique TVA (OSS)      | CGI art. 298 sexdecies-G                | ❌ Manquant             | Pertinent seulement au-delà de 10 000 €/an de ventes hors France vers l'UE                                                                                                                                                                                                                        |
+| Obligation                    | Base légale                             | État constaté           | Piste                                                                                                                                                                                                                                                                                                  |
+| ----------------------------- | --------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Taux de TVA correct           | CGI art. 278 s.                         | 🟡 Configurable         | `StoreSettings.vatRate`, modifiable depuis `/admin/tva` — reste à saisir le bon taux (20 % attendu), décision volontairement laissée à un humain                                                                                                                                                       |
+| Mentions obligatoires facture | Code com. L441-9, CGI art. 242 nonies A | ✅ SIRET + TVA affichés | `InvoiceCompany.siret`/`.vat` imprimés sur le PDF facture/avoir et l'aperçu HTML — priorité à l'identité saisie depuis `/admin/identite` ([C.3](#c3-mentions-l%C3%A9gales--identification-lcen)), repli sur `INVOICE_COMPANY_*` (env) puis sur un placeholder manifestement fictif si rien n'est saisi |
+| Affichage des prix TTC        | Arrêté du 3 déc. 1987                   | ✅ Corrigé              | Catalogue, fiche produit (+ ventes croisées, récemment consultés), liste d'envies affichaient le prix HT stocké sans conversion — désormais convertis en TTC à l'affichage (`toTTC()`, `$lib/utils/price.ts`) ; panier/commande restent inchangés (HT + TVA déjà détaillés séparément, conforme)       |
+| Guichet unique TVA (OSS)      | CGI art. 298 sexdecies-G                | ❌ Manquant             | Pertinent seulement au-delà de 10 000 €/an de ventes hors France vers l'UE                                                                                                                                                                                                                             |
 
 ## C.5 Paiement en ligne
 
@@ -636,7 +681,7 @@ porte plus que les interrupteurs de modules.
 | Obligation                         | Base légale                                 | État constaté  | Piste                                                                                                                                                                                                                                                                                  |
 | ---------------------------------- | ------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Titrage/poinçon métal précieux     | CGI art. 521 s.                             | 🟡 Infra dispo | Aucun champ dédié, mais le système générique de taxonomies (`/admin/products/taxonomies`, type `NUMBER` + unité) permet déjà de créer une taxonomie « Titrage » et de saisir une valeur par produit — reste une tâche de saisie de données réelles (fournisseur), pas de développement |
-| Traçabilité/certification diamants | Processus de Kimberley, normes sectorielles | 🟡 Partiel     | Rejoint l'idée « certificat d'authenticité » de la [Partie B](#partie-b--idées-de-features-futures) — ici adossée à une vraie obligation de transparence, pas qu'un argument marketing                                                                                                 |
+| Traçabilité/certification diamants | Processus de Kimberley, normes sectorielles | 🟡 Partiel     | Rejoint l'idée « certificat d'authenticité » de la [Partie B](#partie-b--id%C3%A9es-de-features-futures) — ici adossée à une vraie obligation de transparence, pas qu'un argument marketing                                                                                            |
 
 ## C.7 Accessibilité numérique
 
@@ -663,7 +708,7 @@ substitut.
 ### Responsable du traitement
 
 ⚠️ À compléter avec l'identité réelle de l'entreprise — voir
-[C.3](#c3-mentions-légales--identification-lcen) (mêmes informations que
+[C.3](#c3-mentions-l%C3%A9gales--identification-lcen) (mêmes informations que
 les mentions légales : raison sociale, adresse, SIRET, représentant
 légal). Délégué à la protection des données (DPO) : à désigner si
 l'obligation s'applique (traitement à grande échelle de données
@@ -775,7 +820,7 @@ de cette partie), pas juste une case à cocher.
 | Base légale               | Obligation légale (RGPD art. 15, 17, 20)                                                                                                                                                                                                                                                                                                                                                                        |
 | Où                        | `/auth/settings/donnees` — export JSON complet ; suppression par **anonymisation** (`$lib/prisma/user/anonymizeUser.ts`), jamais de suppression physique du compte                                                                                                                                                                                                                                              |
 | Détail de l'anonymisation | Vide les champs identifiants de `User` (email, nom, mot de passe...), supprime `SavedPaymentMethod` (+ détachement Stripe), `Address`, `WishlistItem`, `StockAlert`, `ProductView`, jetons de session/réinitialisation ; conserve `Order`/`Transaction`/`Review`/`ReturnRequest`/`ProductQuestion`/`LoyaltyAward`/`ReferralReward` rattachés au compte désormais anonyme, pour l'obligation comptable de 10 ans |
-| Même flux côté admin      | `/admin/users?/deleteUser` utilise la même fonction (un bug qui supprimait les commandes au lieu de les conserver a été corrigé, voir le résumé exécutif de la [Partie C](#partie-c--conformité-réglementaire-e-commerce))                                                                                                                                                                                      |
+| Même flux côté admin      | `/admin/users?/deleteUser` utilise la même fonction (un bug qui supprimait les commandes au lieu de les conserver a été corrigé, voir le résumé exécutif de la [Partie C](#partie-c--conformit%C3%A9-r%C3%A9glementaire-e-commerce))                                                                                                                                                                            |
 
 ## D.9 Détection de fraude / scoring de risque
 
@@ -787,7 +832,7 @@ de cette partie), pas juste une case à cocher.
 | Personnes concernées           | Clients                                                                                                                                                                                                                                                                                                                                          |
 | ⚠️ Point d'attention RGPD      | Si le blocage automatique est activé (`StoreSettings.fraudBlockingEnabled`), il s'agit d'une **décision automatisée produisant un effet juridique** (commande refusée) — l'article 22 RGPD peut s'appliquer (droit à une intervention humaine, à contester la décision). À faire trancher avec un juriste si ce module est activé en production. |
 | Destinataires / sous-traitants | Aucun                                                                                                                                                                                                                                                                                                                                            |
-| Durée de conservation          | **Non explicite dans le code — `FraudBlock` n'a aucune purge identifiée**, conservation actuellement permanente par défaut (voir « Points ouverts »)                                                                                                                                                                                             |
+| Durée de conservation          | **Non explicite dans le code —** `FraudBlock` n'a aucune purge identifiée, conservation actuellement permanente par défaut (voir « Points ouverts »)                                                                                                                                                                                             |
 
 ## D.10 Wishlist, alertes stock, navigation produit
 
@@ -834,7 +879,7 @@ de cette partie), pas juste une case à cocher.
 | SMTP (Brevo ou équivalent) | Envoi des e-mails transactionnels et marketing | Confirmé, en usage actif                                                                                                                                              |
 | Upstash (Redis + QStash)   | Cache, verrous, file d'attente de jobs         | Confirmé, en usage actif                                                                                                                                              |
 | Google                     | Connexion OAuth (si utilisée par le client)    | Confirmé, en usage conditionnel                                                                                                                                       |
-| **Sentry**                 | Monitoring d'erreurs (serveur + navigateur)    | **Confirmé présent (`SENTRY_DSN`), absent de l'audit précédent** — peut capturer des IP/contextes de requête ; aucun `Sentry.setUser()` explicite trouvé dans le code |
+| **Sentry**                 | Monitoring d'erreurs (serveur + navigateur)    | **Confirmé présent (**`SENTRY_DSN`), absent de l'audit précédent — peut capturer des IP/contextes de requête ; aucun `Sentry.setUser()` explicite trouvé dans le code |
 | **TinyMCE**                | Éditeur de texte riche (back-office)           | Clé API présente, SDK chargé côté client admin — à vérifier si le cloud TinyMCE est réellement utilisé ou seulement la version auto-hébergée                          |
 | api-adresse.data.gouv.fr   | Autocomplétion d'adresse                       | API publique gouvernementale, sans clé — pas un sous-traitant au sens RGPD                                                                                            |
 
@@ -843,21 +888,21 @@ Pixel, Matomo...), aucune IA/LLM, aucun SMS.
 
 ### Points ouverts (à trancher, pas des bugs)
 
-1. **`FraudBlock` n'a aucune purge automatique** — les tentatives de commande
+1. `FraudBlock` n'a aucune purge automatique — les tentatives de commande
    bloquées pour fraude sont conservées indéfiniment. À faire trancher :
    une durée de conservation raisonnable (ex. 1 à 3 ans) est probablement
    attendue au regard du principe de minimisation (art. 5.1.e).
-2. **`AdminAuditLog` n'a aucune purge automatique** — même remarque, avec la
+2. `AdminAuditLog` n'a aucune purge automatique — même remarque, avec la
    nuance que ce journal a une vraie justification de sécurité qui peut
    légitimer une conservation plus longue.
 3. **Blocage automatique de fraude = décision automatisée** (`fraudBlockingEnabled`)
    — vérifier l'applicabilité de l'art. 22 RGPD avant activation en
    production (droit à une intervention humaine).
-4. ~~**Contentful** semble être un sous-traitant configuré mais inutilisé~~
+4. **~~Contentful~~** ~~semble être un sous-traitant configuré mais inutilisé~~
    — retiré (`.env.example`, `.env.test.example`, CI) : clés supprimées,
    plus aucun accès à révoquer.
 5. **Sentry** ajouté à `/confidentialite` (était absent) — reste à vérifier
    ce qu'il capture réellement (IP, corps de requête, éventuel PII dans les
    messages d'erreur).
 6. **Identité du responsable de traitement et DPO** — voir en haut de
-   cette partie, même blocage que les mentions légales ([C.3](#c3-mentions-légales--identification-lcen)).
+   cette partie, même blocage que les mentions légales ([C.3](#c3-mentions-l%C3%A9gales--identification-lcen)).
