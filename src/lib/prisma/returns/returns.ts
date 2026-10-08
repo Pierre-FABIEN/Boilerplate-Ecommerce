@@ -10,6 +10,8 @@ import { prisma } from '$lib/server';
 import type { Prisma } from '@prisma/client';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
 import { nextCreditNoteNumber } from '$lib/server/creditNote/number';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
+import { toNumber } from '$lib/server/decimal';
 
 export async function getReturnRequestByTransactionId(transactionId: string) {
 	return prisma.returnRequest.findUnique({ where: { transactionId } });
@@ -48,14 +50,25 @@ export const getAllReturnRequests = async (params: ListParams = {}) => {
 		prisma.returnRequest.count()
 	]);
 
-	return { items, total, page, perPage, sort, dir };
+	return {
+		items: items.map((item) => ({
+			...item,
+			transaction: { ...item.transaction, amount: toNumber(item.transaction.amount) }
+		})),
+		total,
+		page,
+		perPage,
+		sort,
+		dir
+	};
 };
 
 export async function getReturnRequestById(id: string) {
-	return prisma.returnRequest.findUnique({
+	const request = await prisma.returnRequest.findUnique({
 		include: { transaction: true, user: { select: { email: true } } },
 		where: { id }
 	});
+	return request ? { ...request, transaction: mapTransaction(request.transaction) } : null;
 }
 
 /**

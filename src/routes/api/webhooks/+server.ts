@@ -20,6 +20,8 @@ import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 import { log } from '$lib/server/log';
 import { notifyDispute } from '$lib/server/disputeAlert';
 import { bumpCacheVersion } from '$lib/server/cache';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
+import { mapOrderFields, mapOrderItemWithProduct } from '$lib/prisma/order/mapOrder';
 
 /**
  * Webhook Stripe.
@@ -114,8 +116,9 @@ async function findTransactionForDispute(dispute: Stripe.Dispute) {
 			disputeId: dispute.id,
 			paymentIntentId
 		});
+		return null;
 	}
-	return transaction;
+	return mapTransaction(transaction);
 }
 
 async function handleChargeDisputeCreated(dispute: Stripe.Dispute) {
@@ -140,7 +143,7 @@ async function handleChargeDisputeCreated(dispute: Stripe.Dispute) {
 		}
 	});
 
-	await notifyDispute(updated, 'created');
+	await notifyDispute(mapTransaction(updated), 'created');
 }
 
 async function handleChargeDisputeClosed(dispute: Stripe.Dispute) {
@@ -161,7 +164,7 @@ async function handleChargeDisputeClosed(dispute: Stripe.Dispute) {
 		}
 	});
 
-	await notifyDispute(updated, 'closed');
+	await notifyDispute(mapTransaction(updated), 'closed');
 }
 
 /**
@@ -200,7 +203,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 	});
 	if (already) {
 		log('DEBUG', 'webhook:stripe', 'ℹ️ Transaction déjà enregistrée:', already.id);
-		return already;
+		return mapTransaction(already);
 	}
 
 	let createdTransaction;
@@ -214,7 +217,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 		// appel Sendcloud ici : un timeout réseau empêcherait la facture d'exister.
 		createdTransaction = await prisma.$transaction(async (prismaTx) => {
 			// Récupère la commande
-			const order = await prismaTx.order.findUnique({
+			const rawOrder = await prismaTx.order.findUnique({
 				where: { id: orderId },
 				include: {
 					user: true,
@@ -224,17 +227,22 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				}
 			});
 
-			if (!order) {
+			if (!rawOrder) {
 				throw new Error(`⚠️ Order ${orderId} not found`);
 			}
-			if (!order.shippingAddress) {
+			if (!rawOrder.shippingAddress) {
 				throw new Error(`⚠️ Order ${orderId} has no associated shipping address`);
 			}
-			if (!order.billingAddress) {
+			if (!rawOrder.billingAddress) {
 				throw new Error(`⚠️ Order ${orderId} has no associated billing address`);
 			}
-
-			// Décrémente le stock vendu — variante si sélectionnée, sinon produit
+			const { shippingAddress, billingAddress } = rawOrder;
+			const order = {
+				...mapOrderFields(rawOrder),
+				items: rawOrder.items.map(mapOrderItemWithProduct),
+				shippingAddress,
+				billingAddress
+			};
 			// (jamais les deux, `Cart.svelte` ne borne la quantité que sur
 			// `variant.stock` une fois une variante choisie). `decrement` est
 			// atomique (protège contre une double livraison webhook malgré le
@@ -423,7 +431,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				data: { status: 'PAID' }
 			});
 
-			return newTx;
+			return mapTransaction(newTx);
 		});
 	} catch (error) {
 		log(

@@ -7,12 +7,14 @@
  * exact généré par l'app (pas de recherche floue).
  */
 import { prisma } from '$lib/server';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
 
 export async function getTransactionByInvoiceAndEmail(invoiceNumber: string, email: string) {
-	return prisma.transaction.findFirst({
+	const transaction = await prisma.transaction.findFirst({
 		where: {
 			invoiceNumber,
 			customer_details_email: { equals: email, mode: 'insensitive' }
 		}
 	});
+	return transaction ? mapTransaction(transaction) : transaction;
 }

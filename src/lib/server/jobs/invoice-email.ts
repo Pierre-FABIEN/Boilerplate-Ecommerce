@@ -5,6 +5,7 @@ import { log } from '$lib/server/log';
 import { withDuration, incrementMetric } from '$lib/server/metrics';
 import { RefillingTokenBucket } from '$lib/server/rate-limit';
 import { reportIfRepeated } from '$lib/server/alerting';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
 
 /**
  * Débit volontairement conservateur envers le fournisseur SMTP (Brevo) :
@@ -24,7 +25,8 @@ const smtpSendBucket = new RefillingTokenBucket<string>(5, 1, 'smtp-send');
 export async function runInvoiceEmailJob(transactionId: string): Promise<void> {
 	await withDuration('job.invoice-email', () =>
 		withLock(`invoice-email:${transactionId}`, 60, async () => {
-			const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
+			const rawTransaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
+			const transaction = rawTransaction ? mapTransaction(rawTransaction) : rawTransaction;
 			if (!transaction) {
 				log(
 					'ERROR',

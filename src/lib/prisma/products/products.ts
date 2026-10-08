@@ -4,6 +4,8 @@ import { reportIfRepeated } from '$lib/server/alerting';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 import { enqueueStockAlertsJob, enqueueWishlistPriceAlertJob } from '$lib/server/qstash';
+import { mapProductPrice } from '$lib/prisma/products/mapProduct';
+import { toNumber } from '$lib/server/decimal';
 
 const PRODUCT_SORTABLE = ['name', 'price', 'stock', 'createdAt'] as const;
 
@@ -74,14 +76,15 @@ export const createProduct = async (productData: {
 	});
 	await bumpCacheVersion('catalog');
 	await checkLowStockAlert(product);
-	return product;
+	return mapProductPrice(product);
 };
 
 export const getProductById = async (productId: string) => {
-	return await prisma.product.findUnique({
+	const product = await prisma.product.findUnique({
 		where: { id: productId },
 		include: { categories: true, material: true, ...taxonomyValuesInclude }
 	});
+	return product ? mapProductPrice(product) : null;
 };
 
 /** Pour la suppression (unitaire/lot) : seules les images sont nécessaires
@@ -95,7 +98,7 @@ export const getProductImagesById = async (productId: string) => {
 };
 
 export const getProductBySlug = async (slug: string) => {
-	return prisma.product.findUnique({
+	const product = await prisma.product.findUnique({
 		where: { slug },
 		include: {
 			categories: {
@@ -105,6 +108,7 @@ export const getProductBySlug = async (slug: string) => {
 			...taxonomyValuesInclude
 		}
 	});
+	return product ? mapProductPrice(product) : null;
 };
 
 export const deleteProductById = async (productId: string) => {
@@ -184,7 +188,7 @@ export const getAllProducts = async (params: ListParams = {}) => {
 			}),
 			prisma.product.count({ where })
 		]);
-		return { items, total, page, perPage, search, sort, dir };
+		return { items: items.map(mapProductPrice), total, page, perPage, search, sort, dir };
 	} catch (error) {
 		console.error('Error fetching products:', error);
 		throw new Error('Could not fetch products');
@@ -224,6 +228,7 @@ export const updateProductById = async (
 					select: { stock: true, price: true, flashSaleEndsAt: true }
 				})
 			: null;
+	const previousPrice = previous ? toNumber(previous.price) : null;
 
 	const { flashSaleEndsAt, ...rest } = data;
 	const product = await prisma.product.update({
@@ -252,7 +257,7 @@ export const updateProductById = async (
 	// on ne fait que détecter qu'*un* changement pertinent a eu lieu sur le
 	// produit, pour éviter d'enfiler le job à chaque sauvegarde admin.
 	if (previous) {
-		const priceDropped = data.price !== undefined && product.price < previous.price;
+		const priceDropped = data.price !== undefined && toNumber(product.price) < (previousPrice ?? 0);
 		const flashSaleActivated =
 			data.flashSaleEndsAt !== undefined &&
 			product.flashSaleEndsAt !== null &&
@@ -267,5 +272,5 @@ export const updateProductById = async (
 		}
 	}
 
-	return product;
+	return mapProductPrice(product);
 };

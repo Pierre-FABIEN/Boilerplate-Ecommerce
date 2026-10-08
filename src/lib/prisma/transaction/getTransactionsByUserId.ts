@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
 
 const USER_TRANSACTION_SORTABLE = ['amount', 'createdAt', 'status'] as const;
 
@@ -36,7 +37,7 @@ export const getTransactionsByUserId = async (userId: string, params: ListParams
 		]);
 
 		const items = rows.map((transaction) => ({
-			...transaction,
+			...mapTransaction(transaction),
 			app_user_email: transaction.user?.email ?? '',
 			app_user_name: transaction.user?.name ?? '',
 			hasFacture: transaction.status === 'paid',

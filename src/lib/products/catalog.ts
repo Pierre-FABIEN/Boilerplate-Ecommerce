@@ -18,6 +18,7 @@ import { prisma } from '$lib/server';
 import { cached, getCacheVersion } from '$lib/server/cache';
 import { getAllTaxonomiesWithValues } from '$lib/prisma/taxonomies/taxonomies';
 import { resolveDescendantIds } from '$lib/prisma/taxonomies/taxonomyValues';
+import { toNumber } from '$lib/server/decimal';
 
 const publicProductInclude = {
 	categories: {
@@ -29,6 +30,20 @@ const publicProductInclude = {
 	taxonomyValues: { include: { taxonomyValue: { include: { taxonomy: true } } } },
 	variants: { orderBy: { position: 'asc' } }
 } as const;
+
+type PublicProductPayload = Prisma.ProductGetPayload<{ include: typeof publicProductInclude }>;
+
+/** `price`/`compareAtPrice` (produit) et `price` (variante) sont des
+ *  `Decimal` Prisma : convertis en `number` dès la lecture, jamais
+ *  propagés tels quels (cf. RESTE_A_FAIRE.md §A.2.1). */
+function mapPublicProduct(product: PublicProductPayload) {
+	return {
+		...product,
+		price: toNumber(product.price),
+		compareAtPrice: toNumber(product.compareAtPrice),
+		variants: product.variants.map((variant) => ({ ...variant, price: toNumber(variant.price) }))
+	};
+}
 
 export type PublicProduct = Awaited<ReturnType<typeof listProducts>>['products'][number];
 
@@ -157,7 +172,12 @@ export async function listProducts(options: ListProductsOptions = {}) {
 			prisma.product.count({ where })
 		]);
 
-		return { products, total, page: safePage, perPage: PRODUCTS_PER_PAGE };
+		return {
+			products: products.map(mapPublicProduct),
+			total,
+			page: safePage,
+			perPage: PRODUCTS_PER_PAGE
+		};
 	});
 }
 
@@ -223,8 +243,8 @@ export async function getCatalogFacets(
 		return {
 			taxonomies: taxonomyFacets.filter((t) => t.values.length > 0),
 			priceBounds: {
-				min: Math.floor(priceAgg._min.price ?? 0),
-				max: Math.ceil(priceAgg._max.price ?? 0)
+				min: Math.floor(toNumber(priceAgg._min.price) ?? 0),
+				max: Math.ceil(toNumber(priceAgg._max.price) ?? 0)
 			}
 		};
 	});
@@ -233,12 +253,13 @@ export async function getCatalogFacets(
 /** Fiche produit par slug, ou `null` si inconnu. */
 export async function getProductBySlug(slug: string) {
 	const key = await catalogKey(`product:${slug}`);
-	return cached(key, CACHE_TTL_SECONDS, () =>
-		prisma.product.findUnique({
+	return cached(key, CACHE_TTL_SECONDS, async () => {
+		const product = await prisma.product.findUnique({
 			where: { slug },
 			include: publicProductInclude
-		})
-	);
+		});
+		return product ? mapPublicProduct(product) : null;
+	});
 }
 
 const RELATED_PRODUCTS_LIMIT = 4;
@@ -253,8 +274,8 @@ export async function getRelatedProducts(productId: string, categoryIds: string[
 	if (categoryIds.length === 0) return [];
 
 	const key = await catalogKey(`related:${productId}:${categoryIds.slice().sort().join(',')}`);
-	return cached(key, CACHE_TTL_SECONDS, () =>
-		prisma.product.findMany({
+	return cached(key, CACHE_TTL_SECONDS, async () => {
+		const products = await prisma.product.findMany({
 			where: {
 				id: { not: productId },
 				categories: { some: { categoryId: { in: categoryIds } } }
@@ -262,6 +283,7 @@ export async function getRelatedProducts(productId: string, categoryIds: string[
 			include: publicProductInclude,
 			orderBy: { createdAt: 'desc' },
 			take: RELATED_PRODUCTS_LIMIT
-		})
-	);
+		});
+		return products.map(mapPublicProduct);
+	});
 }

@@ -7,6 +7,7 @@
 import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
+import { toNumber } from '$lib/server/decimal';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
 
 type CreateGiftCardInput = {
@@ -27,6 +28,19 @@ const GIFT_CARD_SORTABLE = ['code', 'initialValue', 'balance', 'expiresAt', 'cre
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans caractères ambigus (0/O, 1/I/L)
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+/** `initialValue`/`balance` sont des `Decimal` Prisma : jamais renvoyés tels
+ *  quels (non sérialisables par `devalue`, arithmétique incompatible avec
+ *  `number`) — voir RESTE_A_FAIRE.md §A.2.1. */
+function mapGiftCard<T extends { initialValue: Prisma.Decimal; balance: Prisma.Decimal }>(
+	giftCard: T
+): Omit<T, 'initialValue' | 'balance'> & { initialValue: number; balance: number } {
+	return {
+		...giftCard,
+		initialValue: toNumber(giftCard.initialValue),
+		balance: toNumber(giftCard.balance)
+	};
+}
 
 function randomSegment(length: number): string {
 	const bytes = randomBytes(length);
@@ -70,15 +84,17 @@ export const getAllGiftCards = async (params: ListParams = {}) => {
 		}),
 		prisma.giftCard.count({ where })
 	]);
-	return { items, total, page, perPage, search, sort, dir };
+	return { items: items.map(mapGiftCard), total, page, perPage, search, sort, dir };
 };
 
 export const getGiftCardById = async (id: string) => {
-	return await prisma.giftCard.findUnique({ where: { id } });
+	const giftCard = await prisma.giftCard.findUnique({ where: { id } });
+	return giftCard ? mapGiftCard(giftCard) : null;
 };
 
 export const getGiftCardByCode = async (code: string) => {
-	return await prisma.giftCard.findUnique({ where: { code: normalizeCode(code) } });
+	const giftCard = await prisma.giftCard.findUnique({ where: { code: normalizeCode(code) } });
+	return giftCard ? mapGiftCard(giftCard) : null;
 };
 
 /**
@@ -92,7 +108,7 @@ export const createGiftCard = async (
 	tx: Prisma.TransactionClient | typeof prisma = prisma
 ) => {
 	const code = await generateUniqueGiftCardCode(tx);
-	return await tx.giftCard.create({
+	const giftCard = await tx.giftCard.create({
 		data: {
 			code,
 			initialValue: data.initialValue,
@@ -102,6 +118,7 @@ export const createGiftCard = async (
 			expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
 		}
 	});
+	return mapGiftCard(giftCard);
 };
 
 /**
@@ -111,7 +128,7 @@ export const createGiftCard = async (
  * geste distinct et explicite plutôt qu'un champ parmi d'autres du formulaire.
  */
 export const updateGiftCard = async (id: string, data: UpdateGiftCardInput) => {
-	return await prisma.giftCard.update({
+	const giftCard = await prisma.giftCard.update({
 		where: { id },
 		data: {
 			active: data.active,
@@ -120,14 +137,16 @@ export const updateGiftCard = async (id: string, data: UpdateGiftCardInput) => {
 			expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
 		}
 	});
+	return mapGiftCard(giftCard);
 };
 
 /** Ajustement manuel du solde (SAV : geste commercial, remboursement partiel...). */
 export const adjustGiftCardBalance = async (id: string, newBalance: number) => {
-	return await prisma.giftCard.update({
+	const giftCard = await prisma.giftCard.update({
 		where: { id },
 		data: { balance: Math.max(0, newBalance) }
 	});
+	return mapGiftCard(giftCard);
 };
 
 export const deleteGiftCard = async (id: string) => {
@@ -204,9 +223,10 @@ export const decrementGiftCardBalance = async (
 	if (count === 0) return null;
 
 	const updated = await tx.giftCard.findUnique({ where: { id } });
-	if (updated && updated.balance <= 0 && updated.active) {
-		await tx.giftCard.update({ where: { id }, data: { active: false } });
-		return { ...updated, active: false };
+	if (!updated) return null;
+	if (updated.balance.lte(0) && updated.active) {
+		const deactivated = await tx.giftCard.update({ where: { id }, data: { active: false } });
+		return mapGiftCard(deactivated);
 	}
-	return updated;
+	return mapGiftCard(updated);
 };

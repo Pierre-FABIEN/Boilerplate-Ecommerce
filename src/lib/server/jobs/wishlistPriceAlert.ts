@@ -29,6 +29,7 @@ import {
 	listWishlistItemsForProduct,
 	markWishlistItemNotified
 } from '$lib/prisma/wishlist/wishlist';
+import { toNumber } from '$lib/server/decimal';
 
 /**
  * L'email est déjà parti quand cette fonction est appelée (§2.2 de l'audit
@@ -85,6 +86,7 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 				log('WARN', 'wishlist-price-alert', `Produit introuvable: ${productId}`);
 				return;
 			}
+			const productPrice = toNumber(product.price);
 
 			const items = await listWishlistItemsForProduct(productId);
 			if (items.length === 0) return;
@@ -96,7 +98,7 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 			let sent = 0;
 			for (const item of items) {
 				const priceDropped =
-					item.lastNotifiedPrice === null || product.price < item.lastNotifiedPrice;
+					item.lastNotifiedPrice === null || productPrice < item.lastNotifiedPrice;
 				const flashSaleChanged =
 					flashSaleActive &&
 					(item.lastNotifiedFlashSaleEndsAt === null ||
@@ -105,7 +107,7 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 				if (!priceDropped && !flashSaleChanged) continue;
 
 				const reasons: string[] = [];
-				if (priceDropped) reasons.push(`nouveau prix : ${product.price} €`);
+				if (priceDropped) reasons.push(`nouveau prix : ${productPrice} €`);
 				if (flashSaleChanged) reasons.push('vente flash en cours');
 
 				try {
@@ -127,7 +129,7 @@ export async function runWishlistPriceAlertJob(productId: string): Promise<void>
 				}
 
 				const marked = await persistWishlistNotification(item.id, {
-					price: product.price,
+					price: productPrice,
 					flashSaleEndsAt: flashSaleActive ? product.flashSaleEndsAt : null
 				});
 				if (marked) sent++;

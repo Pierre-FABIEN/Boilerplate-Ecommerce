@@ -6,6 +6,7 @@
 import { prisma } from '$lib/server';
 import type { Prisma, PromoType } from '@prisma/client';
 import { normalizeListParams, type ListParams } from '$lib/prisma/pagination';
+import { toNumber } from '$lib/server/decimal';
 
 type PromoInput = {
 	code: string;
@@ -21,6 +22,14 @@ type PromoInput = {
 const normalizeCode = (code: string) => code.trim().toUpperCase();
 
 const PROMO_SORTABLE = ['code', 'value', 'usageCount', 'expiresAt', 'createdAt'] as const;
+
+/** `value`/`minAmount` sont des `Decimal` Prisma : jamais renvoyés tels quels
+ *  (cf. RESTE_A_FAIRE.md §A.2.1). */
+function mapPromoCode<T extends { value: Prisma.Decimal; minAmount: Prisma.Decimal | null }>(
+	promo: T
+) {
+	return { ...promo, value: toNumber(promo.value), minAmount: toNumber(promo.minAmount) };
+}
 
 /** Liste paginée pour `/admin/promo` : recherche sur le code, tri sur les colonnes affichées. */
 export const getAllPromoCodes = async (params: ListParams = {}) => {
@@ -43,19 +52,21 @@ export const getAllPromoCodes = async (params: ListParams = {}) => {
 		}),
 		prisma.promoCode.count({ where })
 	]);
-	return { items, total, page, perPage, search, sort, dir };
+	return { items: items.map(mapPromoCode), total, page, perPage, search, sort, dir };
 };
 
 export const getPromoCodeById = async (id: string) => {
-	return await prisma.promoCode.findUnique({ where: { id } });
+	const promo = await prisma.promoCode.findUnique({ where: { id } });
+	return promo ? mapPromoCode(promo) : null;
 };
 
 export const getPromoCodeByCode = async (code: string) => {
-	return await prisma.promoCode.findUnique({ where: { code: normalizeCode(code) } });
+	const promo = await prisma.promoCode.findUnique({ where: { code: normalizeCode(code) } });
+	return promo ? mapPromoCode(promo) : null;
 };
 
 export const createPromoCode = async (data: PromoInput) => {
-	return await prisma.promoCode.create({
+	const promo = await prisma.promoCode.create({
 		data: {
 			code: normalizeCode(data.code),
 			type: data.type,
@@ -67,10 +78,11 @@ export const createPromoCode = async (data: PromoInput) => {
 			loyaltyThreshold: data.loyaltyThreshold ?? null
 		}
 	});
+	return mapPromoCode(promo);
 };
 
 export const updatePromoCode = async (id: string, data: PromoInput) => {
-	return await prisma.promoCode.update({
+	const promo = await prisma.promoCode.update({
 		where: { id },
 		data: {
 			code: normalizeCode(data.code),
@@ -83,6 +95,7 @@ export const updatePromoCode = async (id: string, data: PromoInput) => {
 			loyaltyThreshold: data.loyaltyThreshold ?? null
 		}
 	});
+	return mapPromoCode(promo);
 };
 
 export const deletePromoCode = async (id: string) => {
@@ -96,10 +109,11 @@ export const deletePromoCode = async (id: string) => {
  * `nextInvoiceNumber`/`nextCreditNoteNumber`).
  */
 export const incrementUsage = async (tx: Prisma.TransactionClient, id: string) => {
-	return await tx.promoCode.update({
+	const promo = await tx.promoCode.update({
 		where: { id },
 		data: { usageCount: { increment: 1 } }
 	});
+	return mapPromoCode(promo);
 };
 
 export type ValidatePromoResult = {

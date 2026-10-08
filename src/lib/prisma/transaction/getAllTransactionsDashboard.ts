@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { toNumber } from '$lib/server/decimal';
 
 /** Fenêtre du dashboard : les 3 graphiques (timeline, cumul du mois, top produits)
  * ne regardent jamais plus loin qu'un an en arrière. Sans cette borne, la requête
@@ -17,7 +18,7 @@ export const getAllTransactionsDashboard = async () => {
 		// Seuls `createdAt`/`amount`/`products` alimentent les 3 graphiques du
 		// dashboard (`+page.svelte`) : pas d'id, de statut, ni d'identité client
 		// à faire transiter jusqu'au navigateur pour cet usage.
-		return await prisma.transaction.findMany({
+		const rows = await prisma.transaction.findMany({
 			where: { createdAt: { gte: since } },
 			select: {
 				createdAt: true,
@@ -29,6 +30,7 @@ export const getAllTransactionsDashboard = async () => {
 			},
 			take: DASHBOARD_MAX_ROWS
 		});
+		return rows.map((row) => ({ ...row, amount: toNumber(row.amount) }));
 	} catch (error) {
 		console.error('Erreur lors de la récupération des transactions du dashboard:', error);
 		throw error;

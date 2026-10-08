@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import { getStoreFeatureFlags } from '$lib/server/storeSettings';
 import { createReturnRequest, getReturnRequestByTransactionId } from '$lib/prisma/returns/returns';
+import { toNumber } from '$lib/server/decimal';
 
 /**
  * Demande de retour sur une transaction payée.
@@ -61,7 +62,7 @@ export const load = (async ({ locals, params }) => {
 	);
 
 	return {
-		transaction,
+		transaction: { ...transaction, amount: toNumber(transaction.amount) },
 		returnRequest,
 		withdrawalEligible,
 		estimatedShippedAt,

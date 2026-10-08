@@ -312,18 +312,18 @@ model Order {
   // défaut au checkout).
   shippingAddressId   String?
   billingAddressId    String?
-  subtotal            Float       @default(0)
-  tax                 Float       @default(0)
-  total               Float       @default(0)
+  subtotal            Decimal     @default(0) @db.Decimal(10, 2)
+  tax                 Decimal     @default(0) @db.Decimal(10, 2)
+  total               Decimal     @default(0) @db.Decimal(10, 2)
   status              OrderStatus @default(PENDING)
   promoCode           String?
-  discountAmount      Float       @default(0)
+  discountAmount      Decimal     @default(0) @db.Decimal(10, 2)
   /// Carte cadeau appliquée : `giftCardAmount` est déjà inclus dans
   /// `discountAmount` ci-dessus (qui reste la remise totale utilisée par le
   /// calcul de facture) — ces deux champs ne servent qu'à l'affichage /
   /// l'audit du détail de la remise.
   giftCardCode        String?
-  giftCardAmount      Float       @default(0)
+  giftCardAmount      Decimal     @default(0) @db.Decimal(10, 2)
   /// Relance panier abandonné (`StoreSettings.cartRecoveryEnabled`,
   /// `$lib/server/jobs/cartRecovery.ts`) : horodatage de chaque email envoyé,
   /// pour ne jamais relancer deux fois le même palier sur la même commande.
@@ -347,7 +347,7 @@ model Order {
   items               OrderItem[]
 
   shippingOption String?
-  shippingCost   Float?
+  shippingCost   Decimal? @db.Decimal(10, 2)
 
   // Champs plats pour les informations du point relais
   servicePointId           String?
@@ -391,7 +391,7 @@ model OrderItem {
   /// `null` pour un produit sans variante — comportement inchangé.
   variantId String?
   quantity  Int
-  price     Float
+  price     Decimal  @db.Decimal(10, 2)
   custom    Custom[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -421,7 +421,7 @@ model ProductVariant {
   label     String
   sku       String?  @unique
   /// `null` = utilise `Product.price` tel quel.
-  price     Float?
+  price     Decimal? @db.Decimal(10, 2)
   stock     Int      @default(0)
   position  Int      @default(0)
   createdAt DateTime @default(now())
@@ -451,7 +451,7 @@ model Product {
   id              String                 @id @default(cuid())
   name            String
   description     String
-  price           Float
+  price           Decimal                @db.Decimal(10, 2)
   stock           Int
   images          String[]
   slug            String                 @unique
@@ -461,7 +461,7 @@ model Product {
   sku             String?                @unique
   /// Prix barré affiché à côté de `price` quand renseigné (`price` reste le
   /// prix réellement facturé — pas de logique de remise appliquée ici).
-  compareAtPrice  Float?
+  compareAtPrice  Decimal?               @db.Decimal(10, 2)
   /// Fin de vente flash : bandeau + compte à rebours vitrine tant que cette
   /// date est dans le futur. Se combine avec `compareAtPrice` pour le prix
   /// barré, mais fonctionne aussi seul (juste l'urgence du minuteur).
@@ -659,7 +659,7 @@ model Transaction {
   /// Nullable : la transaction est l'écriture permanente, la commande est transitoire.
   orderId         String?
   userId          String?
-  amount          Float
+  amount          Decimal @db.Decimal(10, 2)
   currency        String
 
   /// PaymentIntent Stripe de la session (`session.payment_intent`, déjà
@@ -676,7 +676,7 @@ model Transaction {
   disputeId       String?   @unique
   disputeStatus   String?
   disputeReason   String?
-  disputeAmount   Float?
+  disputeAmount   Decimal?  @db.Decimal(10, 2)
   disputeOpenedAt DateTime?
   disputeClosedAt DateTime?
 
@@ -689,7 +689,7 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   shippingOption String
-  shippingCost   Float
+  shippingCost   Decimal @db.Decimal(10, 2)
 
   // Informations sur le mode d'expédition
   shippingMethodId   Int
@@ -774,11 +774,11 @@ model Transaction {
   products Json
 
   /// Instantané fiscal figé au paiement (lot 2).
-  invoiceNumber  String? @unique
-  subtotalHt     Float   @default(0)
-  taxRate        Float   @default(5.5)
-  taxAmount      Float   @default(0)
-  discountAmount Float   @default(0)
+  invoiceNumber  String?  @unique
+  subtotalHt     Decimal  @default(0) @db.Decimal(10, 2)
+  taxRate        Float    @default(5.5)
+  taxAmount      Decimal  @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @db.Decimal(10, 2)
   promoCode      String?
 
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -851,8 +851,8 @@ model PromoCode {
   id               String    @id @default(cuid())
   code             String    @unique
   type             PromoType
-  value            Float
-  minAmount        Float?
+  value            Decimal   @db.Decimal(10, 2)
+  minAmount        Decimal?  @db.Decimal(10, 2)
   usageLimit       Int?
   usageCount       Int       @default(0)
   expiresAt        DateTime?
@@ -1178,12 +1178,12 @@ model ReferralReward {
 model GiftCard {
   id             String    @id @default(cuid())
   code           String    @unique
-  initialValue   Float
+  initialValue   Decimal   @db.Decimal(10, 2)
   /// Solde restant, décrémenté à chaque utilisation en caisse (voir
   /// PROMO-PLUGIN : même moment que `PromoCode.usageCount`, c'est-à-dire dans
   /// le webhook Stripe après confirmation du paiement, pas à la création de
   /// la session — un panier Stripe abandonné ne consomme donc pas le solde).
-  balance        Float
+  balance        Decimal   @db.Decimal(10, 2)
   active         Boolean   @default(true)
   expiresAt      DateTime?
   recipientEmail String?
@@ -1208,7 +1208,7 @@ model WishlistItem {
   /// `$lib/server/jobs/wishlistPriceAlert.ts` : une nouvelle alerte n'est
   /// envoyée que si le prix courant repasse strictement sous cette valeur,
   /// jamais deux fois pour la même baisse.
-  lastNotifiedPrice           Float?
+  lastNotifiedPrice           Decimal?  @db.Decimal(10, 2)
   /// Même principe pour la vente flash en cours : une nouvelle date (nouvelle
   /// vente flash) redéclenche une alerte, la même jamais deux fois.
   lastNotifiedFlashSaleEndsAt DateTime?

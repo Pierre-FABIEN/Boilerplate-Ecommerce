@@ -9,6 +9,12 @@ import { prisma } from '$lib/server';
 import cloudinary from '$lib/server/cloudinary';
 import { InvalidCustomizationError, UnknownProductError } from '$lib/commerce/errors';
 import { getVatRate } from '$lib/server/vat';
+import { toNumber } from '$lib/server/decimal';
+import {
+	mapOrderFields,
+	mapOrderItemWithProduct,
+	mapOrderItemWithProductAndVariant
+} from '$lib/prisma/order/mapOrder';
 
 // Forme réelle d'une entrée `custom` à ce stade du pipeline : `image` est déjà
 // une URL (uploadée en amont), pas un `File` — `customSchema.ts`
@@ -21,7 +27,7 @@ const CUSTOM_ENTRY_SCHEMA = z.object({
 const MAX_CUSTOM_ITEM_QUANTITY = 10000;
 
 export const findPendingOrder = async (userId: string) => {
-	return await prisma.order.findFirst({
+	const order = await prisma.order.findFirst({
 		where: {
 			userId: userId,
 			status: 'PENDING'
@@ -36,6 +42,8 @@ export const findPendingOrder = async (userId: string) => {
 			}
 		}
 	});
+	if (!order) return null;
+	return { ...mapOrderFields(order), items: order.items.map(mapOrderItemWithProductAndVariant) };
 };
 
 export const createPendingOrder = async (userId: string) => {
@@ -45,7 +53,7 @@ export const createPendingOrder = async (userId: string) => {
 			status: 'PENDING'
 		}
 	});
-	return { ...order, items: [] };
+	return { ...mapOrderFields(order), items: [] };
 };
 
 // Forme d'un item de commande tel qu'envoyé par le client (panier) —
@@ -114,8 +122,12 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 					})
 				: []
 		]);
-		const catalogProductById = new Map(catalogProducts.map((product) => [product.id, product]));
-		const catalogVariantById = new Map(catalogVariants.map((variant) => [variant.id, variant]));
+		const catalogProductById = new Map(
+			catalogProducts.map((product) => [product.id, { ...product, price: toNumber(product.price) }])
+		);
+		const catalogVariantById = new Map(
+			catalogVariants.map((variant) => [variant.id, { ...variant, price: toNumber(variant.price) }])
+		);
 
 		// IDs qu'on va conserver ou créer
 		const keptOrCreatedIds: string[] = [];
@@ -263,7 +275,7 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 		// Étape 5: Recalculer les totaux
 		const allItems = await prisma.orderItem.findMany({ where: { orderId } });
 
-		const subtotal = allItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+		const subtotal = allItems.reduce((sum, item) => sum + item.quantity * toNumber(item.price), 0);
 		const vatRate = await getVatRate();
 		const tax = parseFloat((subtotal * vatRate).toFixed(2));
 		const total = parseFloat((subtotal + tax).toFixed(2));
@@ -295,7 +307,11 @@ export async function updateOrderItems(orderId: string, incomingItems: IncomingO
 		// console.log('--- Successfully updated order items ---');
 		// console.log('Final updated order:', updatedOrderWithItems);
 
-		return updatedOrderWithItems;
+		if (!updatedOrderWithItems) return null;
+		return {
+			...mapOrderFields(updatedOrderWithItems),
+			items: updatedOrderWithItems.items.map(mapOrderItemWithProductAndVariant)
+		};
 	} catch (error) {
 		console.error('Error while updating order items (non-destructive):', error);
 		throw error;
@@ -371,13 +387,13 @@ export async function updateOrder(
 	// 3. Calcule le total final (produits TTC + port - remise)
 	// existingOrder.total = prix des articles + leur TVA
 	// shippingCostFloat = frais de port
-	const orderTotalHTWithoutShipping = existingOrder.total; // par hypothèse
+	const orderTotalHTWithoutShipping = toNumber(existingOrder.total); // par hypothèse
 
 	// total final (jamais négatif)
 	const finalTotal = Math.max(0, orderTotalHTWithoutShipping + shippingCostFloat - discount);
 
 	// 4. Met à jour la commande
-	return await prisma.order.update({
+	const updated = await prisma.order.update({
 		where: { id: orderId },
 		data: {
 			shippingAddressId,
@@ -397,10 +413,11 @@ export async function updateOrder(
 			servicePointExtraShopRef
 		}
 	});
+	return mapOrderFields(updated);
 }
 
 export async function getOrderById(orderId: string) {
-	return await prisma.order.findUnique({
+	const order = await prisma.order.findUnique({
 		where: { id: orderId },
 		include: {
 			items: {
@@ -411,6 +428,8 @@ export async function getOrderById(orderId: string) {
 			}
 		}
 	});
+	if (!order) return null;
+	return { ...mapOrderFields(order), items: order.items.map(mapOrderItemWithProduct) };
 }
 
 export async function getUserIdByOrderId(orderId: string) {

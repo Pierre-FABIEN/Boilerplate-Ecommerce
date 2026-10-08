@@ -7,14 +7,22 @@
  * mérite une alerte, pas seulement au-delà d'un seuil de répétition.
  */
 import * as Sentry from '@sentry/sveltekit';
-import type { Transaction } from '@prisma/client';
 import { sendMail } from '$lib/server/smtp-mail';
 import { log } from '$lib/server/log';
 import { formatDisputeStatus } from '$lib/server/dispute';
 import { formatMoney } from '$lib/utils/formatMoney';
 
+type DisputeTransaction = {
+	id: string;
+	invoiceNumber: string | null;
+	disputeStatus: string | null;
+	disputeAmount: number | null;
+	amount: number;
+	currency: string;
+};
+
 export async function notifyDispute(
-	transaction: Transaction,
+	transaction: DisputeTransaction,
 	phase: 'created' | 'closed'
 ): Promise<void> {
 	const reference = transaction.invoiceNumber ?? transaction.id;

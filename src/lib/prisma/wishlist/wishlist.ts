@@ -6,6 +6,8 @@
  * flag avant d'arriver ici ; ce fichier ne le revérifie pas lui-même.
  */
 import { prisma } from '$lib/server';
+import { toNumber } from '$lib/server/decimal';
+import { mapProductPrice } from '$lib/prisma/order/mapOrder';
 
 export async function isInWishlist(userId: string, productId: string): Promise<boolean> {
 	const item = await prisma.wishlistItem.findUnique({
@@ -51,7 +53,7 @@ export async function listWishlistForUser(userId: string) {
 		include: { product: true },
 		orderBy: { createdAt: 'desc' }
 	});
-	return items.map((item) => item.product);
+	return items.map((item) => mapProductPrice(item.product));
 }
 
 /**
@@ -59,7 +61,7 @@ export async function listWishlistForUser(userId: string) {
  * flash (`$lib/server/jobs/wishlistPriceAlert.ts`), jamais par la vitrine.
  */
 export async function listWishlistItemsForProduct(productId: string) {
-	return prisma.wishlistItem.findMany({
+	const items = await prisma.wishlistItem.findMany({
 		where: { productId },
 		select: {
 			id: true,
@@ -68,6 +70,7 @@ export async function listWishlistItemsForProduct(productId: string) {
 			user: { select: { email: true } }
 		}
 	});
+	return items.map((item) => ({ ...item, lastNotifiedPrice: toNumber(item.lastNotifiedPrice) }));
 }
 
 /** Marque l'alerte envoyée pour cette entrée : nouvelle baseline prix/vente flash. */

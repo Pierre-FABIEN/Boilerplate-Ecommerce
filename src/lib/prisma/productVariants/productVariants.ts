@@ -7,6 +7,7 @@
  */
 import { prisma } from '$lib/server';
 import { bumpCacheVersion } from '$lib/server/cache';
+import { mapVariantPrice } from '$lib/prisma/products/mapProduct';
 
 export class VariantInUseError extends Error {
 	constructor(variantId: string) {
@@ -16,17 +17,19 @@ export class VariantInUseError extends Error {
 }
 
 export async function getVariantsForProduct(productId: string) {
-	return prisma.productVariant.findMany({
+	const variants = await prisma.productVariant.findMany({
 		where: { productId },
 		orderBy: { position: 'asc' }
 	});
+	return variants.map(mapVariantPrice);
 }
 
 export async function getVariantById(id: string) {
-	return prisma.productVariant.findUnique({
+	const variant = await prisma.productVariant.findUnique({
 		where: { id },
 		include: { product: { select: { id: true, name: true, slug: true } } }
 	});
+	return variant ? mapVariantPrice(variant) : null;
 }
 
 export async function createVariant(
@@ -50,7 +53,7 @@ export async function createVariant(
 		}
 	});
 	await bumpCacheVersion('catalog');
-	return variant;
+	return mapVariantPrice(variant);
 }
 
 export async function updateVariant(
@@ -67,7 +70,7 @@ export async function updateVariant(
 		}
 	});
 	await bumpCacheVersion('catalog');
-	return variant;
+	return mapVariantPrice(variant);
 }
 
 export async function deleteVariantById(id: string) {

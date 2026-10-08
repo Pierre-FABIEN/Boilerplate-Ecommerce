@@ -7,6 +7,7 @@ import { withCircuitBreaker } from '$lib/server/circuit-breaker';
 import { recordJobAttempt, resetJobAttempts } from '$lib/server/job-attempts';
 import { withDuration } from '$lib/server/metrics';
 import { persistSendcloudMarker, SendcloudMarkerPersistError } from '$lib/server/sendcloud-marker';
+import { mapTransaction } from '$lib/prisma/transaction/mapTransaction';
 import * as Sentry from '@sentry/sveltekit';
 import { Prisma } from '@prisma/client';
 import { estimatePackage, type PackageEstimate } from '$lib/commerce/packageEstimate';
@@ -108,7 +109,9 @@ export function derivePackageForShipping(shippingOption: string, pkg: PackageEst
 export async function runPostPaymentJob(transactionId: string): Promise<void> {
 	await withDuration('job.post-payment', () =>
 		withLock(`post-payment:${transactionId}`, 60, async () => {
-			let transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
+			let transaction = await prisma.transaction
+				.findUnique({ where: { id: transactionId } })
+				.then((t) => (t ? mapTransaction(t) : t));
 			if (!transaction) {
 				log(
 					'ERROR',
@@ -149,7 +152,7 @@ export async function runPostPaymentJob(transactionId: string): Promise<void> {
 				);
 
 				if (shippingMethodData?.id && shippingMethodData.id !== transaction.shippingMethodId) {
-					transaction = await prisma.transaction.update({
+					const updated = await prisma.transaction.update({
 						where: { id: transaction.id },
 						data: {
 							shippingMethodId: shippingMethodData.id,
@@ -164,17 +167,19 @@ export async function runPostPaymentJob(transactionId: string): Promise<void> {
 							package_volume_unit: shippingMethodData.volumeUnit
 						}
 					});
+					transaction = mapTransaction(updated);
 				}
 
 				if (!transaction.sendcloudOrderCreatedAt) {
 					const transactionForOrder = transaction;
 					await withCircuitBreaker('sendcloud', () => createSendcloudOrder(transactionForOrder));
-					transaction = await persistSendcloudMarker('commande Sendcloud', () =>
+					const updatedMarker = await persistSendcloudMarker('commande Sendcloud', () =>
 						prisma.transaction.update({
 							where: { id: transactionForOrder.id },
 							data: { sendcloudOrderCreatedAt: new Date() }
 						})
 					);
+					transaction = mapTransaction(updatedMarker);
 				} else {
 					log('DEBUG', 'post-payment', 'Commande Sendcloud déjà créée, appel ignoré');
 				}
