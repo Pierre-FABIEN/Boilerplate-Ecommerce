@@ -13,13 +13,19 @@ import {
 /**
  * Moyens de paiement enregistrés : module activable
  * (`StoreSettings.savedPaymentsEnabled`, 404 partout si désactivé), liste,
- * carte par défaut, suppression.
+ * ajout, carte par défaut, suppression.
  *
- * L'ajout de carte (`?/attach`) passe par un `SetupIntent` Stripe réel : non
- * rejouable en e2e sans Stripe Elements. Les cartes sont donc insérées
- * directement en base (`createSavedPaymentMethod`), comme si `attach` avait
- * déjà réussi — seules les routes de lecture/suppression/défaut sont
- * couvertes ici.
+ * L'ajout de carte (`?/attach`) ne fait jamais `stripe.confirmCardSetup`
+ * côté serveur — le `SetupIntent` existe pour que le client confirme la
+ * saisie carte via Stripe Elements, mais `?/attach` se contente ensuite de
+ * `stripe.paymentMethods.retrieve(paymentMethodId)` pour en lire les
+ * métadonnées d'affichage. Un jeton de test Stripe réutilisable
+ * (`pm_card_visa`, voir doc Stripe « Testing ») se résout en un vrai
+ * `PaymentMethod` via cette même API, sans jamais passer par Stripe.js ni
+ * Stripe Elements — ça permet de tester la vraie action serveur (voir
+ * « ajout d'une carte » ci-dessous). La plupart des autres tests insèrent
+ * malgré tout directement en base (`createSavedPaymentMethod`) pour isoler
+ * les routes de lecture/suppression/défaut de l'appel Stripe.
  *
  * `StoreSettings` est une ligne unique partagée par toute la suite : les
  * valeurs d'origine sont restaurées en `finally`.
@@ -102,6 +108,39 @@ test.describe('Moyens de paiement enregistrés', () => {
 					expect(methods.map((m) => m.id)).not.toContain(first.id);
 				}).toPass();
 			});
+		} finally {
+			await setStoreFeatureFlags(originalFlags);
+		}
+	});
+
+	test('ajout d’une carte (?/attach) via un PaymentMethod Stripe réel', async ({
+		page,
+		account
+	}) => {
+		const originalFlags = await getStoreFeatureFlags();
+
+		try {
+			await setStoreFeatureFlags({ savedPaymentsEnabled: true });
+			await signUpAndVerify(page, account);
+			const user = await requireUser(account.email);
+
+			const origin = new URL(page.url()).origin;
+			// `pm_card_visa` : jeton de test Stripe réutilisable, se résout en un
+			// vrai `PaymentMethod` (id concret différent à chaque appel) via
+			// `paymentMethods.retrieve()` — jamais besoin de Stripe Elements/d'un
+			// `SetupIntent` confirmé pour exercer cette action.
+			const response = await page.request.post('/auth/settings/saved-payments?/attach', {
+				form: { paymentMethodId: 'pm_card_visa' },
+				headers: { Origin: origin }
+			});
+			expect(response.ok()).toBe(true);
+
+			const methods = await getSavedPaymentMethodsByUserId(user.id);
+			expect(methods).toHaveLength(1);
+			expect(methods[0]).toMatchObject({ brand: 'visa', last4: '4242', isDefault: true });
+
+			await page.goto('/auth/settings/saved-payments');
+			await expect(page.getByText('visa •••• 4242')).toBeVisible();
 		} finally {
 			await setStoreFeatureFlags(originalFlags);
 		}
