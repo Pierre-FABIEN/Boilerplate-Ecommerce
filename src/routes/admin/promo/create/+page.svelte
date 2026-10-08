@@ -29,11 +29,6 @@
 		message: createPromoMessage
 	} = createPromo;
 
-	// Un nouveau code promo est actif par défaut
-	if ($createPromoData.active === undefined) {
-		$createPromoData.active = true;
-	}
-
 	$effect(() => {
 		if ($createPromoMessage === 'Code promo créé avec succès') {
 			toast.success($createPromoMessage);

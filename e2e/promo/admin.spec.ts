@@ -1,14 +1,18 @@
 import { test, expect } from '../support/fixtures';
-import { waitForPath } from '../support/flows';
+import { fillStable, waitForPath } from '../support/flows';
 import { pageOrigin, signUpAndVerify } from '../support/admin';
 import { promoAdminRow } from '../support/promo';
-import { createPromoCode, deletePromoCode, findPromoCode, promoteToAdmin } from '../support/db';
+import {
+	createPromoCode,
+	deletePromoCode,
+	deletePromoCodeByCode,
+	findPromoCode,
+	findPromoCodeByCode,
+	promoteToAdmin
+} from '../support/db';
 
 /**
- * CRUD admin des codes promo : liste, édition, suppression, CLIENT.
- *
- * La création passe par Prisma : Superforms + champs `number` sont fragiles
- * en e2e, et le contrat métier est déjà dans `validatePromo`.
+ * CRUD admin des codes promo : liste, édition, suppression, création, CLIENT.
  */
 test.describe('Administration — codes promo', () => {
 	test.setTimeout(6 * 60_000);
@@ -62,6 +66,33 @@ test.describe('Administration — codes promo', () => {
 		} finally {
 			await deletePromoCode(editable.id);
 			await deletePromoCode(removable.id);
+		}
+	});
+
+	test('création via le formulaire admin', async ({ page, account }) => {
+		const code = `E2ECR${Date.now().toString(36).toUpperCase()}`;
+
+		try {
+			await signUpAndVerify(page, account);
+			await promoteToAdmin(account.email);
+
+			await page.goto('/admin/promo/create', { waitUntil: 'domcontentloaded' });
+			await expect(page.getByRole('heading', { name: 'Créer un code promo' })).toBeVisible();
+
+			await fillStable(page.locator('input[name="code"]'), code);
+			await page.locator('select[name="type"]').selectOption('PERCENTAGE');
+			await fillStable(page.locator('input[name="value"]'), '15');
+
+			await page.getByRole('button', { name: 'Créer le code promo' }).click();
+			await waitForPath(page, '/admin/promo');
+
+			const created = await findPromoCodeByCode(code);
+			expect(created).not.toBeNull();
+			expect(created?.type).toBe('PERCENTAGE');
+			expect(created?.value).toBeCloseTo(15, 2);
+			expect(created?.active).toBe(true);
+		} finally {
+			await deletePromoCodeByCode(code);
 		}
 	});
 

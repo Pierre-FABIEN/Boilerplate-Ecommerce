@@ -314,6 +314,10 @@ export async function findPromoCode(id: string) {
 	return resilient(() => db.promoCode.findUnique({ where: { id } }));
 }
 
+export async function findPromoCodeByCode(code: string) {
+	return resilient(() => db.promoCode.findUnique({ where: { code } }));
+}
+
 /**
  * Taxonomie « Catégorie » partagée par les tests de catalogue — jamais
  * supprimée (seules les valeurs jetables `e2e-cat-*` qu'elle porte le sont).

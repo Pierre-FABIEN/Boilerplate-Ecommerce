@@ -18,7 +18,13 @@ const basePromoSchema = z.object({
 		.min(0, 'La limite doit être positive')
 		.optional(),
 	expiresAt: z.string().optional(),
-	active: z.boolean(),
+	// `.default(true)` : un nouveau code est actif par défaut (voir
+	// `/admin/promo/create` — le composant tentait de forcer `true` via un
+	// test `=== undefined`, mais superValidate() initialise les booléens
+	// requis sans valeur fournie à `false`, pas `undefined` ; ce test ne se
+	// déclenchait donc jamais et un code créé sans toucher à la case
+	// restait inactif).
+	active: z.boolean().default(true),
 	// PROMO-PLUGIN / fidélité : ce code est accordé automatiquement au compte
 	// qui atteint ce nombre de commandes payées (voir StoreSettings.loyaltyEnabled).
 	loyaltyThreshold: z
