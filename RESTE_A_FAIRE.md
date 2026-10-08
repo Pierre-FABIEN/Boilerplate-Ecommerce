@@ -132,13 +132,90 @@ touché — toujours relancer `npx eslint .` (pas seulement `npm run check`/vite
 
 ### A.2.1 Montants monétaires en `Float`
 
-**Preuve** : `prisma/schema.prisma` (`Product.price`, `Order.total`,
-`Transaction.amount`, `GiftCard.balance`, `PromoCode.value`…).
+Pas de bug activable en l'état (`money2()`, `src/lib/server/invoice/totals.ts`,
+encadre les calculs d'arrondi), mais c'est le type de fragilité qui se paie
+en écarts comptables difficiles à reconstituer (`Float` = IEEE 754, pas de
+garantie de représentation exacte des centimes). Inventaire et
+recommandation ci-dessous — **pas de migration mécanique dans cette
+passe**, chantier isolé qui requiert un accord explicite avant de commencer
+(voir note de fin de section).
 
-Pas de bug activable en l'état (`money2()` encadre les calculs), mais c'est
-le type de fragilité qui se paie en écarts comptables difficiles à
-reconstituer. Migration vers `Decimal` ou des entiers en centimes à
-planifier — **effort élevé**, touche la quasi-totalité du code commerce.
+**Inventaire exhaustif des champs `Float` (`prisma/schema.prisma`, 35
+occurrences, 08/10/2026)** :
+
+Champs monétaires (candidats réels à la migration) :
+
+| Modèle         | Champs                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `Order`        | `subtotal`, `tax`, `total`, `discountAmount`, `giftCardAmount`, `shippingCost`             |
+| `OrderItem`    | `price`                                                                                     |
+| `ProductVariant` | `price`                                                                                   |
+| `Product`      | `price`, `compareAtPrice`                                                                  |
+| `Transaction`  | `amount`, `disputeAmount`, `shippingCost`, `subtotalHt`, `taxAmount`, `discountAmount`     |
+| `PromoCode`    | `value` (⚠️ double sens : `FIXED` = montant €, `PERCENTAGE` = ratio — cf. `PromoType`), `minAmount` |
+| `GiftCard`     | `initialValue`, `balance`                                                                  |
+| `WishlistItem` | `lastNotifiedPrice`                                                                         |
+
+Champs `Float` hors périmètre monétaire (dimensions physiques, taux) —
+**volontairement exclus** de la migration candidate, le risque d'erreur
+d'arrondi y est sans impact comptable :
+
+| Modèle           | Champs                                                              | Nature                              |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------- |
+| `Product`        | `weight`, `length`, `width`, `height`                               | dimensions colis (kg/cm)            |
+| `Transaction`    | `package_length`, `package_width`, `package_height`, `package_weight`, `package_volume` | dimensions colis Sendcloud          |
+| `Taxonomy`       | `numberMin`, `numberMax`                                            | bornes de saisie taxonomie générique |
+| `Transaction`    | `taxRate`                                                            | taux TVA figé à la facture (%)      |
+| `StoreSettings`  | `vatRate`                                                            | taux TVA courant (fraction)         |
+
+**Ampleur mesurée** : recherche des usages directs (`.price`, `.total`,
+`.amount`, `.balance`, `.discountAmount`, `.initialValue`…) → **~320
+occurrences dans 108 fichiers** de `src/` (composants Svelte, actions de
+formulaire, jobs planifiés, webhooks Stripe/Sendcloud, PDF facture/avoir,
+export comptable, store panier côté client). Confirme le constat déjà
+noté : ce n'est pas un changement localisé, ça traverse la quasi-totalité
+du code commerce (checkout, panier, factures, exports, admin ventes,
+cartes cadeaux, promo).
+
+**Recommandation technique** : `Decimal` Prisma (`decimal.js` en JS) plutôt
+que des entiers en centimes.
+
+- Avantage : changement de schéma localisé (type de colonne), pas de
+  renommage de champs ni de facteur ×100/÷100 à injecter partout.
+- Coût : le client Prisma renvoie des objets `Decimal` (pas des `number`)
+  partout où ces champs sont lus — impact en cascade :
+  - **Arithmétique** : `money2()` et tout calcul direct (`cartStore.ts`,
+    `totals.ts`, `checkout.ts`, `prendingOrder.ts`…) doivent utiliser les
+    méthodes `Decimal` (`.plus()`, `.times()`, `.toFixed(2)`) au lieu des
+    opérateurs natifs `+`/`*`.
+  - **Sérialisation** : tout retour JSON (actions SvelteKit, `+page.server.ts`
+    `load()`, API routes) doit convertir explicitement en `number`/`string`
+    (`.toNumber()`) — un `Decimal` non converti casse la sérialisation
+    SvelteKit par défaut.
+  - **Validation Zod** : les schémas (`productSchema.ts`, `promoSchema.ts`,
+    `giftCardSchema.ts`…) utilisent `z.coerce.number()` pour les champs
+    monétaires côté formulaire (texte → number) — ça reste correct en
+    entrée (l'utilisateur saisit toujours un nombre), seule la sortie
+    Prisma change de type.
+  - **Stripe** : les montants envoyés à l'API Stripe sont déjà des entiers
+    en centimes (`Math.round(amount * 100)`, ex. `admin/returns/+page.server.ts`
+    ligne 95) — compatible avec `Decimal`, juste remplacer `amount * 100` par
+    `amount.times(100).toNumber()`.
+  - **Tests** : tous les tests unitaires/e2e qui comparent un montant à un
+    `number` littéral (`expect(order.total).toBe(42.5)`) doivent comparer
+    au résultat `.toNumber()` ou utiliser un helper de comparaison dédié.
+- Alternative entiers-centimes écartée en premier choix : demande de
+  renommer `price` → `priceCents` (ou equivalent) partout — change la
+  signature de beaucoup plus de fonctions/schémas que `Decimal`, pour un
+  gain de simplicité marginal vu que Stripe impose déjà cette conversion
+  localement aux points de sortie.
+
+📌 **Point de validation avant toute mécanique** : ce chantier n'est **pas
+lancé** dans cette passe. Avant de commencer la migration réelle (schéma +
+tous les fichiers consommateurs + suite complète e2e commerce), il faut un
+accord explicite de l'utilisateur — ça touche l'affichage des prix dans
+toute l'application et les écritures comptables (factures, avoirs,
+exports), pas un détail technique isolé.
 
 ### A.2.2 `findPendingOrder` trop lourde
 
