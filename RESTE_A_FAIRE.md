@@ -16,8 +16,8 @@ conformité). Tout l'historique détaillé reste consultable via `git log`/
 avocat/expert-comptable avant toute mise en production réelle.
 
 **État de référence** (vérifié le 08/10/2026) : `npm run check` 0 erreur ·
-`npx vitest run` 84 tests passés / 2 skippés · `npx eslint .` 0 erreur / 12
-avertissements · 62 fichiers e2e Playwright · `npx knip` 2 fichiers
+`npx vitest run` 94 tests passés / 2 skippés · `npx eslint .` 0 erreur / 12
+avertissements · 64 fichiers e2e Playwright · `npx knip` 2 fichiers
 potentiellement inutilisés (voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
 
 ## Priorités — hiérarchie de criticité (code, logique, tests, doc)
