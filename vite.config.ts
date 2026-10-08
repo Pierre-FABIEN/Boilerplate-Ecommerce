@@ -30,7 +30,7 @@ export default defineConfig({
 			include: ['src/**/*.{ts,js}'],
 			exclude: ['src/**/*.{test,spec}.{js,ts}']
 			// Pas de `thresholds` pour l'instant : premier chiffre de référence à
-			// établir avant de faire échouer la CI dessus (voir AUDIT_TECHNIQUE.md).
+			// établir avant de faire échouer la CI dessus (voir RESTE_A_FAIRE.md).
 		}
 	},
 

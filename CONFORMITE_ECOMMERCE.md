@@ -1,6 +1,6 @@
 # Conformité réglementaire e-commerce — pistes à traiter
 
-Document vivant, dans le même esprit que `AUDIT_TECHNIQUE.md` et
+Document vivant, dans le même esprit que `RESTE_A_FAIRE.md` et
 `FEATURE_IDEAS.md` : bilan des obligations légales applicables à une
 boutique en ligne France/UE (vente B2C, bijouterie/joaillerie), comparé à
 l'état réel constaté dans ce dépôt. **Ceci n'est pas un avis juridique** —
@@ -39,7 +39,7 @@ sections correspondantes plus bas, marquées ✅ mise à jour) :
 ✅ Migration Prisma (`prisma/migrations/20260924140000_add_vat_rate_and_return_kind`)
 appliquée à la base.
 
-Pour situer par rapport à `AUDIT_TECHNIQUE.md` : la purge RGPD automatisée
+Pour situer par rapport à `RESTE_A_FAIRE.md` : la purge RGPD automatisée
 déjà en place (`$lib/server/jobs/cleanup.ts` — sessions expirées, tokens,
 paniers abandonnés) couvre le principe de minimisation des données
 (RGPD art. 5.1.e), **distinct** du droit à l'effacement sur demande d'une

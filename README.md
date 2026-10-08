@@ -91,8 +91,8 @@ npm run stripe:listen       # CLI Stripe → POST http://localhost:2000/api/webh
 Sécurité des dépendances : `.github/workflows/osv-scanner.yml` (scan OSV.dev
 à chaque push sur `main` + hebdomadaire, résultats dans Security > Code
 scanning) et `.github/dependabot.yml` (PRs de mise à jour groupées,
-hebdomadaires) — remplacent l'ancien step `npm audit`, dont l'endpoint est
-cassé côté npm (voir AUDIT_TECHNIQUE.md, §3.1.a).
+hebdomadaires) — remplacent l'ancien step `npm audit`, dont l'endpoint était
+cassé côté npm (voir [RESTE_A_FAIRE.md](./RESTE_A_FAIRE.md) §1).
 
-Voir [AUDIT_TECHNIQUE.md](./AUDIT_TECHNIQUE.md) pour l'état détaillé et la
+Voir [RESTE_A_FAIRE.md](./RESTE_A_FAIRE.md) pour l'état détaillé et la
 feuille de route (dette ESLint, sécurité des dépendances, etc.).

@@ -43,7 +43,7 @@ localement.
 ## Conventions
 
 - **TypeScript strict** partout (`tsconfig.json`) — éviter `any` explicite
-  sauf contrainte réelle documentée (voir `AUDIT_TECHNIQUE.md` §3.2/§4 pour
+  sauf contrainte réelle documentée (voir `RESTE_A_FAIRE.md` §2.3 pour
   les cas déjà identifiés et pourquoi ils restent en l'état).
 - **Svelte 5 (runes)** — pas de syntaxe Svelte 4 (`export let`, stores
   `$:`) dans le nouveau code ; voir
@@ -51,7 +51,7 @@ localement.
   pour l'anti-pattern `$state`+`$effect` à éviter au profit d'un `$derived`
   écrivable.
 - **Pas de suppression en masse** de dépendances/fichiers signalés par
-  `knip` sans vérification individuelle (voir `AUDIT_TECHNIQUE.md` §3.4).
+  `knip` sans vérification individuelle (voir `RESTE_A_FAIRE.md` §2.4).
 - Un commit qui touche à un module documenté dans `docs/` (auth, commerce,
   blog, products, promo, contact, admin) doit mettre à jour le
   `README.md`/`retrait.md` correspondant si le comportement change.

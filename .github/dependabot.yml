@@ -1,7 +1,7 @@
 version: 2
 updates:
   # Groupé + hebdomadaire : limite le bruit de PRs sur un projet avec
-  # ~200 dépendances (voir AUDIT_TECHNIQUE.md, §4 P0). Les mises à jour de
+  # ~200 dépendances. Les mises à jour de
   # sécurité passent en dehors de ce planning (Dependabot les ouvre dès
   # qu'une alerte est détectée, indépendamment du `schedule` ci-dessous).
   - package-ecosystem: 'npm'

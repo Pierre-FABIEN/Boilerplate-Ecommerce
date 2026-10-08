@@ -20,13 +20,12 @@ export default ts.config(
 			// du style — le step CI "Lint (eslint)" est désormais bloquant dessus.
 			// Le reste de la dette ESLint ci-dessous est volontairement en 'warn'
 			// (visible dans la sortie CI, mais ne bloque pas) tant qu'elle n'a pas
-			// été résorbée (voir AUDIT_TECHNIQUE.md, roadmap P1/P2).
+			// été résorbée (voir RESTE_A_FAIRE.md §2.3).
 			'@typescript-eslint/no-explicit-any': 'warn',
-			// Résorbé (0 occurrence) — promu en 'error' pour éviter toute régression :
-			// voir AUDIT_TECHNIQUE.md §3.2.
+			// Résorbé (0 occurrence) — promu en 'error' pour éviter toute régression.
 			'svelte/prefer-writable-derived': 'error',
 			// 2 usages revus et acceptés (contenu de confiance interne) — voir
-			// AUDIT_TECHNIQUE.md §1.1.
+			// RESTE_A_FAIRE.md §2.3.
 			'svelte/no-at-html-tags': 'warn'
 		}
 	},

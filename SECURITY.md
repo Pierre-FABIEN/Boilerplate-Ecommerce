@@ -18,7 +18,7 @@ sur la sévérité et le correctif envisagé sous 15 jours ouvrés.
 Ce dépôt est un boilerplate e-commerce (SvelteKit/Prisma/Stripe). Sont
 notamment dans le périmètre : authentification (`src/lib/lucia/`), paiement
 et webhooks (`src/lib/commerce/`, `src/routes/api/webhooks/`), et toute
-route `/admin/**`. Voir [AUDIT_TECHNIQUE.md](./AUDIT_TECHNIQUE.md) pour
+route `/admin/**`. Voir [RESTE_A_FAIRE.md](./RESTE_A_FAIRE.md) pour
 l'état de sécurité connu et les points déjà identifiés.
 
 ## Bonnes pratiques déjà en place
