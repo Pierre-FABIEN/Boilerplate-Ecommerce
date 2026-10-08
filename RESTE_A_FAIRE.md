@@ -43,10 +43,11 @@ Plus aucun item ouvert dans cette catégorie.
 
 | #   | Sujet                                                                                                                                                          | Pourquoi                                                                                                                                                | Détail                                                             |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1   | Arbitrage détection « nouvel appareil » (comparaison `User-Agent` exacte)                                                                                      | Fatigue d'alerte mensuelle ; l'alternative apparente (comparer sur un label) est un piège de sécurité (« Chrome sur Windows » = profil le plus courant) | [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil) |
-| 2   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifi%C3%A9s)    |
+| 1   | e2e manquants : `saved-payments` `attach`/`setup-intent`, blog admin (création/édition), `createProduct` (hors spec `skip` Cloudinary), `marketingEmailsOptIn` | Zones fonctionnelles entières (paiement enregistré, blog, opt-in RGPD) sans aucun filet                                                                 | [A.3 #3, #4, #5, #8](#a3-couverture-e2e--trous-identifi%C3%A9s)    |
 
 ✅ _Fermé_ — `findPendingOrder` : frontière `as` typée correctement (commit `9722f55`), voir [A.2.2](#a22-findpendingorder-trop-lourde).
+
+✅ _Fermé_ — détection « nouvel appareil » normalisée sur OS + navigateur + version majeure (commit `1f45183`), voir [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil).
 
 ### 🟡 Moyen — dette réelle, pas de risque immédiat
 
@@ -180,15 +181,21 @@ compilateur qui vérifiera réellement la frontière.
 **Preuve** : lecture du code, conséquence déduite du cycle de publication
 des navigateurs.
 
-`src/lib/prisma/loginEvent/loginEvent.ts` compare le `User-Agent` **exact**.
-Celui de Chrome contient la version complète, mise à jour toutes les 4
-semaines environ : chaque utilisateur reçoit une alerte de sécurité quasi
-mensuelle pour sa propre machine (fatigue d'alerte). Le correctif apparent
-(comparer sur l'étiquette `describeUserAgent()`) est **un piège** : « Chrome
-sur Windows » est le profil le plus courant, un attaquant passerait pour un
-appareil connu. Décision produit, pas technique — options : statu quo,
-normaliser le numéro de build en gardant la version majeure, ou croiser
-appareil **et** localisation approximative.
+`src/lib/prisma/loginEvent/loginEvent.ts` comparait le `User-Agent`
+**exact**. Celui de Chrome contient la version complète, mise à jour toutes
+les 4 semaines environ : chaque utilisateur recevait une alerte de
+sécurité quasi mensuelle pour sa propre machine (fatigue d'alerte). Le
+correctif apparent (comparer sur l'étiquette `describeUserAgent()`) était
+**un piège** : « Chrome sur Windows » est le profil le plus courant, un
+attaquant passerait pour un appareil connu.
+
+✅ **Tranché par l'utilisateur et implémenté** (commit `1f45183`) :
+normalisation sur OS + navigateur + **version majeure** uniquement
+(`normalizeDeviceFingerprint()`, `src/lib/lucia/deviceLabel.ts`), ni statu
+quo ni croisement de localisation. Un bump de version mineure/build ne
+déclenche plus d'alerte ; un changement d'OS ou de navigateur, si. Tests
+unitaires étendus (`loginEvent.test.ts`) et `e2e/auth/new-device-alert.spec.ts`
+revérifié, toujours vert.
 
 ## A.3 Couverture e2e — trous identifiés
 
@@ -254,13 +261,14 @@ gère un remboursement Stripe impossible sans planter »).
 
 | #   | Décision                                                                                                       | Source                                                                |
 | --- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1   | Arbitrage détection « nouvel appareil » ([A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection--nouvel-appareil-)) | ce document                                                           |
-| 2   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable)                   | [Partie C.4](#c4-facturation-prix--fiscalit%C3%A9)                    |
-| 3   | Identité légale de l'entreprise à saisir dans `/admin/identite`                                                | [Partie C.3](#c3-mentions-l%C3%A9gales--identification-lcen)          |
-| 4   | Désignation d'un médiateur de la consommation réel                                                             | [Partie C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)     |
-| 5   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                                                 | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
-| 6   | Signature du registre RGPD art. 30 par le responsable de traitement réel                                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
-| 7   | Titrage/poinçon métal précieux — saisie de données fournisseur                                                 | [Partie C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
+| 1   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable)                   | [Partie C.4](#c4-facturation-prix--fiscalit%C3%A9)                    |
+| 2   | Identité légale de l'entreprise à saisir dans `/admin/identite`                                                | [Partie C.3](#c3-mentions-l%C3%A9gales--identification-lcen)          |
+| 3   | Désignation d'un médiateur de la consommation réel                                                             | [Partie C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)     |
+| 4   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                                                 | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 5   | Signature du registre RGPD art. 30 par le responsable de traitement réel                                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 6   | Titrage/poinçon métal précieux — saisie de données fournisseur                                                 | [Partie C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
+
+✅ _Tranché_ — Arbitrage détection « nouvel appareil » : voir [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil).
 
 ## A.5 Actions d'infrastructure — accès admin requis
 
