@@ -3,7 +3,10 @@ import { waitForPath } from '../support/flows';
 import { pageOrigin, signUpAndVerify } from '../support/admin';
 import { blogAdminRow } from '../support/blog';
 import {
+	createBlogAuthor,
+	createBlogCategoryValue,
 	createBlogPost,
+	db,
 	deleteBlogPost,
 	getBlogPostById,
 	promoteToAdmin,
@@ -14,7 +17,11 @@ import {
 /**
  * CRUD admin du blog : liste, édition, suppression, brouillon, CLIENT.
  *
- * La création passe par Prisma : l'éditeur TinyMCE n'est pas joué en e2e.
+ * L'édition/suppression passe par Prisma direct dans la plupart des tests
+ * (l'éditeur TinyMCE n'est pas joué en e2e), sauf la création (`?/createPost`,
+ * voir ci-dessous) : postée directement en `page.request.post`, sans piloter
+ * TinyMCE, mais en exerçant la vraie logique serveur (slug unique, parsing
+ * `taxonomyValueIds`, conversion `published`).
  */
 test.describe('Administration — blog', () => {
 	test.setTimeout(6 * 60_000);
@@ -95,6 +102,74 @@ test.describe('Administration — blog', () => {
 			expect(await getBlogPostById(created.post.id)).not.toBeNull();
 		} finally {
 			await deleteBlogPost(created.post.id);
+		}
+	});
+
+	test('création (?/createPost) : slug unique, taxonomies et statut publié', async ({
+		page,
+		account
+	}) => {
+		const author = await createBlogAuthor();
+		const category = await createBlogCategoryValue();
+		const stamp = Date.now();
+		const title = `e2e-createPost-${stamp}`;
+		let firstId: string | undefined;
+		let secondId: string | undefined;
+
+		try {
+			await signUpAndVerify(page, account);
+			await promoteToAdmin(account.email);
+			const origin = pageOrigin(page);
+
+			await test.step('1. Création : slug dérivé du titre, publié, taxonomie liée', async () => {
+				const response = await page.request.post('/admin/blog/post/create?/createPost', {
+					form: {
+						title,
+						content: '<p>Contenu créé directement via ?/createPost (sans TinyMCE).</p>',
+						authorId: author.id,
+						published: 'on',
+						taxonomyValueIds: category.id
+					},
+					headers: { Origin: origin }
+				});
+				expect(response.ok()).toBe(true);
+
+				const created = await db.blogPost.findFirst({ where: { title } });
+				expect(created).not.toBeNull();
+				firstId = created!.id;
+				expect(created!.slug).toBe(created!.slug.toLowerCase());
+				expect(created!.published).toBe(true);
+
+				const link = await db.blogPostTaxonomyValue.findFirst({
+					where: { postId: created!.id, taxonomyValueId: category.id }
+				});
+				expect(link).not.toBeNull();
+			});
+
+			await test.step('2. Même titre : slug désambiguïsé (suffixe numérique), brouillon par défaut', async () => {
+				const response = await page.request.post('/admin/blog/post/create?/createPost', {
+					form: {
+						title,
+						content: '<p>Second article, même titre, doit obtenir un slug différent.</p>',
+						authorId: author.id
+						// `published` omis : le checkbox non coché n'envoie rien en HTML natif.
+					},
+					headers: { Origin: origin }
+				});
+				expect(response.ok()).toBe(true);
+
+				const posts = await db.blogPost.findMany({
+					where: { title },
+					orderBy: { createdAt: 'asc' }
+				});
+				expect(posts).toHaveLength(2);
+				secondId = posts[1].id;
+				expect(posts[1].slug).not.toBe(posts[0].slug);
+				expect(posts[1].published).toBe(false);
+			});
+		} finally {
+			if (firstId) await deleteBlogPost(firstId);
+			if (secondId) await deleteBlogPost(secondId);
 		}
 	});
 });

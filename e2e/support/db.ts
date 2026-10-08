@@ -414,6 +414,25 @@ export async function getProductByName(name: string) {
 	return resilient(() => db.product.findFirst({ where: { name } }));
 }
 
+/** Blog : auteur isolé, pour poster directement vers `?/createPost` sans passer par `createBlogPost()`. */
+export async function createBlogAuthor() {
+	const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	return resilient(() => db.blogAuthor.create({ data: { name: `e2e-blog-author-${stamp}` } }));
+}
+
+/** Blog : valeur de taxonomie « Catégorie » isolée. */
+export async function createBlogCategoryValue(value?: string) {
+	const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const categoryTaxonomy = await resilient(() =>
+		db.blogTaxonomy.findUniqueOrThrow({ where: { slug: 'categorie' } })
+	);
+	return resilient(() =>
+		db.blogTaxonomyValue.create({
+			data: { taxonomyId: categoryTaxonomy.id, value: value ?? `e2e-blog-cat-${stamp}` }
+		})
+	);
+}
+
 /** Blog : article de test isolé (auteur + valeur de taxonomie « Catégorie » dédiés). */
 export async function createBlogPost(overrides?: {
 	title?: string;
