@@ -15,7 +15,7 @@ import {
 /**
  * Taux de TVA configurable (`StoreSettings.vatRate`) — remplace l'ancienne
  * constante figée à 5,5 %, incorrecte pour de la bijouterie (voir
- * CONFORMITE_ECOMMERCE.md). Vérifie le formulaire admin ET la propagation
+ * RESTE_A_FAIRE.md). Vérifie le formulaire admin ET la propagation
  * réelle jusqu'au calcul serveur du panier (`updateOrderItems`,
  * `$lib/prisma/order/prendingOrder.ts`), pas seulement la valeur stockée.
  */

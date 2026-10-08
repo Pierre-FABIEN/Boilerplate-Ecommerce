@@ -5,7 +5,7 @@ import { getStoreFeatureFlags, promoteToAdmin, setStoreFeatureFlags } from '../s
 
 /**
  * Identité de l'entreprise (`StoreSettings.company*`) — voir
- * CONFORMITE_ECOMMERCE.md. `null` par défaut ([À COMPLÉTER] sur les
+ * RESTE_A_FAIRE.md. `null` par défaut ([À COMPLÉTER] sur les
  * mentions légales), vérifie le formulaire admin ET l'affichage réel sur
  * `/mentions-legales` (pas seulement la valeur stockée).
  */

@@ -3,7 +3,7 @@
  * `id = "singleton"`, même ligne que `$lib/server/storeSettings.ts`) —
  * remplace l'ancienne constante `TVA_RATE` figée à 5,5 % (taux réduit,
  * incorrect pour de la bijouterie qui relève du taux normal en France,
- * voir `CONFORMITE_ECOMMERCE.md`). Fichier séparé de `storeSettings.ts`
+ * voir `RESTE_A_FAIRE.md`). Fichier séparé de `storeSettings.ts`
  * car `StoreFeatureFlags` est typé tout-booléen — ce champ est un nombre.
  *
  * Même cache courte durée que `getStoreFeatureFlags` : ce taux est lu sur

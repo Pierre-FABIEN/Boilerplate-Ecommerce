@@ -12,7 +12,7 @@
 		<h1 class="text-2xl font-bold">Conditions générales d'utilisation</h1>
 		<p class="text-sm text-muted-foreground">
 			⚠️ Modèle à faire valider par un avocat avant mise en production — voir
-			<code>CONFORMITE_ECOMMERCE.md</code> à la racine du projet.
+			<code>RESTE_A_FAIRE.md</code> à la racine du projet.
 		</p>
 
 		<section class="space-y-2">

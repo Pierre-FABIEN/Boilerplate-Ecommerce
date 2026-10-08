@@ -158,7 +158,7 @@ model Session {
   /// HTTP (aucune, à ce jour).
   userAgent         String?
   /// IP à l'origine de la connexion — donnée personnelle (voir
-  /// REGISTRE_TRAITEMENTS.md). Sa durée de vie est bornée à celle de la
+  /// RESTE_A_FAIRE.md). Sa durée de vie est bornée à celle de la
   /// session elle-même : purgée avec elle par `$lib/server/jobs/cleanup.ts`,
   /// jamais conservée au-delà.
   ipAddress         String?

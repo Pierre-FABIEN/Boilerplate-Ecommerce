@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		IupdateUserAndAddressSchema,
 		userSelected,
 		// Lecture seule côté admin — la déconnexion à distance reste réservée au
-		// self-service (`/auth/settings/sessions`), voir FEATURE_IDEAS.md.
+		// self-service (`/auth/settings/sessions`), voir RESTE_A_FAIRE.md.
 		sessions: sessionsFetched.map((session) => ({
 			// Jamais `session.id` : c'est le token du cookie (voir `sessionPublicId`).
 			id: sessionPublicId(session.id),

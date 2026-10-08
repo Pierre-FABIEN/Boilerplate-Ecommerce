@@ -62,7 +62,7 @@
 		<p class="text-sm text-muted-foreground">
 			Alimente les mentions légales (<code>/mentions-legales</code>) et les factures/avoirs PDF. Un
 			champ laissé vide reste « [À COMPLÉTER] » sur le site — voir
-			<code>CONFORMITE_ECOMMERCE.md</code>.
+			<code>RESTE_A_FAIRE.md</code>.
 		</p>
 	</div>
 

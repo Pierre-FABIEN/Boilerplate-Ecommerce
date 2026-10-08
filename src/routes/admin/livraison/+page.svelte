@@ -39,7 +39,7 @@
 		<h1 class="text-2xl font-semibold">Délai de livraison annoncé</h1>
 		<p class="text-sm text-muted-foreground">
 			Affiché au client avant validation de commande (Code conso. art. L216-1). Laissez les deux
-			champs vides pour ne rien afficher — voir <code>CONFORMITE_ECOMMERCE.md</code>.
+			champs vides pour ne rien afficher — voir <code>RESTE_A_FAIRE.md</code>.
 		</p>
 	</div>
 

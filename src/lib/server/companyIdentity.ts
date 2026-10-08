@@ -6,7 +6,7 @@
  * (`$lib/server/invoice/company.ts`, PDF inclus pour le logo).
  *
  * Chaque champ est `null` tant que l'admin ne l'a pas saisi — aucune
- * valeur inventée à sa place (voir CONFORMITE_ECOMMERCE.md).
+ * valeur inventée à sa place (voir RESTE_A_FAIRE.md).
  *
  * Même cache courte durée que `getVatRate`/`getDeliveryEstimate`.
  */

@@ -4,7 +4,7 @@
  * 1200×630 — taille standard) via Playwright (déjà une dépendance e2e,
  * pas de package supplémentaire). Simple carte typographique tant
  * qu'aucun visuel de marque réel (photo produit, logo) n'est fourni par
- * l'entreprise — voir CONFORMITE_ECOMMERCE.md, section SEO.
+ * l'entreprise — voir RESTE_A_FAIRE.md, section SEO.
  *
  * Relancer après tout changement d'identité de marque :
  *   node scripts/generate-og-image.mjs

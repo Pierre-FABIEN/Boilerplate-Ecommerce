@@ -16,7 +16,7 @@ import {
 
 /**
  * Rétractation légale (14 jours, sans motif) vs retour SAV — voir
- * CONFORMITE_ECOMMERCE.md. L'option de rétractation n'est proposée que si
+ * RESTE_A_FAIRE.md. L'option de rétractation n'est proposée que si
  * `Transaction.shippingOption !== 'no_shipping'` (commande sur-mesure
  * exclue par la loi, art. L221-28, 3°).
  */

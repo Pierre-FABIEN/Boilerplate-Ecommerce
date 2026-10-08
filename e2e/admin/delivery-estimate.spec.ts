@@ -13,7 +13,7 @@ import {
 
 /**
  * Délai de livraison estimé (`StoreSettings.estimatedDelivery{Min,Max}Days`)
- * — voir CONFORMITE_ECOMMERCE.md. `null` par défaut (rien affiché), vérifie
+ * — voir RESTE_A_FAIRE.md. `null` par défaut (rien affiché), vérifie
  * le formulaire admin ET l'affichage réel au checkout (Code conso. L216-1 :
  * communiqué avant validation de commande, pas seulement stocké en base).
  */

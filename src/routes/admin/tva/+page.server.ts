@@ -8,7 +8,7 @@ import { vatRateSchema } from '$lib/schema/settings/vatSchema';
 import { log } from '$lib/server/log';
 
 /**
- * Taux de TVA (`StoreSettings.vatRate`) — voir `CONFORMITE_ECOMMERCE.md` :
+ * Taux de TVA (`StoreSettings.vatRate`) — voir `RESTE_A_FAIRE.md` :
  * remplace l'ancienne constante figée à 5,5 %, incorrecte pour de la
  * bijouterie (taux normal attendu). Saisi en pourcentage, converti en
  * fraction avant écriture.

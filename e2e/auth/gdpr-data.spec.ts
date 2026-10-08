@@ -100,7 +100,7 @@ test.describe('RGPD — mes données', () => {
 				expect(anonymized).toBeNull(); // e-mail changé : plus trouvable par l'ancien
 
 				// La commande/transaction existent toujours — l'historique
-				// comptable n'est jamais perdu (voir CONFORMITE_ECOMMERCE.md).
+				// comptable n'est jamais perdu (voir RESTE_A_FAIRE.md).
 				const kept = await requireUser(anonymizedEmail!);
 				expect(kept.id).toBe(user.id);
 				expect(kept.passwordHash).toBeNull();

@@ -14,7 +14,7 @@ const LOGO_FOLDER = 'identite';
 
 /**
  * Identité de l'entreprise (`StoreSettings.company*`) — voir
- * CONFORMITE_ECOMMERCE.md : alimente `/mentions-legales`, le JSON-LD
+ * RESTE_A_FAIRE.md : alimente `/mentions-legales`, le JSON-LD
  * `Organization` (`SEO.svelte`) et les factures/avoirs (texte + logo),
  * remplace les `[À COMPLÉTER]` et les variables d'environnement
  * `INVOICE_COMPANY_*`. Un champ vide reste `null` (pas de valeur inventée).

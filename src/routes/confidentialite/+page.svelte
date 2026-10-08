@@ -12,7 +12,7 @@
 		<h1 class="text-2xl font-bold">Politique de confidentialité</h1>
 		<p class="text-sm text-muted-foreground">
 			⚠️ Document à compléter avec les coordonnées réelles de l'éditeur avant mise en production —
-			voir <code>CONFORMITE_ECOMMERCE.md</code> à la racine du projet.
+			voir <code>RESTE_A_FAIRE.md</code> à la racine du projet.
 		</p>
 
 		<section class="space-y-2">

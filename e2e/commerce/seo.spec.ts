@@ -9,7 +9,7 @@ import {
 } from '../support/db';
 
 /**
- * Gestion du SEO — voir CONFORMITE_ECOMMERCE.md. Trois garanties vérifiées
+ * Gestion du SEO — voir RESTE_A_FAIRE.md. Trois garanties vérifiées
  * en conditions réelles, pas seulement en lisant le code : le sitemap liste
  * bien les produits et articles réels (généré dynamiquement, pas une liste
  * figée), les zones privées sont bien en noindex (posé au niveau du layout

@@ -51,7 +51,7 @@ export const load = (async ({ locals, params }) => {
 	const withdrawalEligible = transaction.shippingOption !== 'no_shipping';
 
 	// Estimation informative seulement (aucune date de livraison réelle
-	// tracée aujourd'hui, voir CONFORMITE_ECOMMERCE.md) : dernier statut
+	// tracée aujourd'hui, voir RESTE_A_FAIRE.md) : dernier statut
 	// transporteur connu si disponible, sinon date de paiement — jamais
 	// utilisée pour bloquer une demande. Le délai légal court à partir de la
 	// réception réelle, systématiquement postérieure à cette estimation.

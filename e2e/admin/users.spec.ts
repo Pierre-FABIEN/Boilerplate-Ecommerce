@@ -33,7 +33,7 @@ test.describe('Administration — utilisateurs', () => {
 		const victim = await requireUser(victimEmail);
 		// La suppression admin (étape 5) anonymise désormais au lieu de
 		// supprimer physiquement (voir $lib/prisma/user/anonymizeUser.ts,
-		// CONFORMITE_ECOMMERCE.md) : une commande payée doit survivre à la
+		// RESTE_A_FAIRE.md) : une commande payée doit survivre à la
 		// suppression du compte, obligation comptable.
 		const created = await createCatalogProduct();
 		const { product } = created;

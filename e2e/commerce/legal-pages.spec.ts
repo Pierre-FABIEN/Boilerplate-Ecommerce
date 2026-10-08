@@ -10,7 +10,7 @@ import {
 
 /**
  * Pages légales (mentions légales, CGV, confidentialité) + case CGV
- * obligatoire au checkout — voir CONFORMITE_ECOMMERCE.md.
+ * obligatoire au checkout — voir RESTE_A_FAIRE.md.
  */
 test.describe('Pages légales', () => {
 	test.setTimeout(6 * 60_000);

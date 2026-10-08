@@ -9,7 +9,7 @@ import { log } from '$lib/server/log';
 
 /**
  * Délai de livraison estimé (`StoreSettings.estimatedDelivery{Min,Max}Days`)
- * — voir `CONFORMITE_ECOMMERCE.md` : affiché au client avant commande
+ * — voir `RESTE_A_FAIRE.md` : affiché au client avant commande
  * (Code conso. L216-1), jamais de date inventée par défaut.
  *
  * ADMIN-PLUGIN : page dédiée (déplacée depuis `/admin/settings`) — une
