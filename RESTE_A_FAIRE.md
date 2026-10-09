@@ -57,10 +57,10 @@ Plus aucun item ouvert dans cette catégorie.
 
 ### 🟡 Moyen — dette réelle, pas de risque immédiat
 
-| #   | Sujet                                                                          | Détail                                                                                                                        |
-| --- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Migration des montants `Float` → `Decimal`/centimes                            | Gros chantier, aucun bug actif aujourd'hui (`money2()` encadre les calculs) — [A.2.1](#a21-montants-mon%C3%A9taires-en-float) |
-| 2   | 14 vulnérabilités npm restantes (dev-only/non exploitables en prod)            | À resurveiller périodiquement, pas d'action immédiate — [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)                    |
+| #   | Sujet                                                               | Détail                                                                                                                        |
+| --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Migration des montants `Float` → `Decimal`/centimes                 | Gros chantier, aucun bug actif aujourd'hui (`money2()` encadre les calculs) — [A.2.1](#a21-montants-mon%C3%A9taires-en-float) |
+| 2   | 14 vulnérabilités npm restantes (dev-only/non exploitables en prod) | À resurveiller périodiquement, pas d'action immédiate — [A.1](#a1-s%C3%A9curit%C3%A9-des-d%C3%A9pendances)                    |
 
 ✅ _Fermé_ — `createVariant` (formulaire admin) et `deleteTaxonomyValue` (suppression explicite d'une valeur) testés (commits `6a5c25c`, `ee3a2bc`), voir [A.3 #9](#a3-couverture-e2e--trous-identifi%C3%A9s).
 
@@ -145,28 +145,28 @@ occurrences, 08/10/2026)** :
 
 Champs monétaires (candidats réels à la migration) :
 
-| Modèle         | Champs                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------ |
-| `Order`        | `subtotal`, `tax`, `total`, `discountAmount`, `giftCardAmount`, `shippingCost`             |
-| `OrderItem`    | `price`                                                                                     |
-| `ProductVariant` | `price`                                                                                   |
-| `Product`      | `price`, `compareAtPrice`                                                                  |
-| `Transaction`  | `amount`, `disputeAmount`, `shippingCost`, `subtotalHt`, `taxAmount`, `discountAmount`     |
-| `PromoCode`    | `value` (⚠️ double sens : `FIXED` = montant €, `PERCENTAGE` = ratio — cf. `PromoType`), `minAmount` |
-| `GiftCard`     | `initialValue`, `balance`                                                                  |
-| `WishlistItem` | `lastNotifiedPrice`                                                                         |
+| Modèle           | Champs                                                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `Order`          | `subtotal`, `tax`, `total`, `discountAmount`, `giftCardAmount`, `shippingCost`                      |
+| `OrderItem`      | `price`                                                                                             |
+| `ProductVariant` | `price`                                                                                             |
+| `Product`        | `price`, `compareAtPrice`                                                                           |
+| `Transaction`    | `amount`, `disputeAmount`, `shippingCost`, `subtotalHt`, `taxAmount`, `discountAmount`              |
+| `PromoCode`      | `value` (⚠️ double sens : `FIXED` = montant €, `PERCENTAGE` = ratio — cf. `PromoType`), `minAmount` |
+| `GiftCard`       | `initialValue`, `balance`                                                                           |
+| `WishlistItem`   | `lastNotifiedPrice`                                                                                 |
 
 Champs `Float` hors périmètre monétaire (dimensions physiques, taux) —
 **volontairement exclus** de la migration candidate, le risque d'erreur
 d'arrondi y est sans impact comptable :
 
-| Modèle           | Champs                                                              | Nature                              |
-| ---------------- | --------------------------------------------------------------------- | ------------------------------------- |
-| `Product`        | `weight`, `length`, `width`, `height`                               | dimensions colis (kg/cm)            |
-| `Transaction`    | `package_length`, `package_width`, `package_height`, `package_weight`, `package_volume` | dimensions colis Sendcloud          |
-| `Taxonomy`       | `numberMin`, `numberMax`                                            | bornes de saisie taxonomie générique |
-| `Transaction`    | `taxRate`                                                            | taux TVA figé à la facture (%)      |
-| `StoreSettings`  | `vatRate`                                                            | taux TVA courant (fraction)         |
+| Modèle          | Champs                                                                                  | Nature                               |
+| --------------- | --------------------------------------------------------------------------------------- | ------------------------------------ |
+| `Product`       | `weight`, `length`, `width`, `height`                                                   | dimensions colis (kg/cm)             |
+| `Transaction`   | `package_length`, `package_width`, `package_height`, `package_weight`, `package_volume` | dimensions colis Sendcloud           |
+| `Taxonomy`      | `numberMin`, `numberMax`                                                                | bornes de saisie taxonomie générique |
+| `Transaction`   | `taxRate`                                                                               | taux TVA figé à la facture (%)       |
+| `StoreSettings` | `vatRate`                                                                               | taux TVA courant (fraction)          |
 
 **Ampleur mesurée** : recherche des usages directs (`.price`, `.total`,
 `.amount`, `.balance`, `.discountAmount`, `.initialValue`…) → **~320
@@ -289,14 +289,14 @@ jour le 08/10/2026 (plusieurs items fermés depuis) :
 | #   | Trou                                                                                                                                         | Risque    | Statut                                                                                                                                                                                                                                                                                                                                                                                         |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `auth/reset-password/2fa` (reset de mdp sur compte 2FA actif) jamais testé bout en bout                                                      | 🔴 élevé  | ✅ **Fermé** — `e2e/auth/reset-password-2fa.spec.ts` (commit `d58788f`)                                                                                                                                                                                                                                                                                                                        |
-| 2   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais vérifié                                                 | 🔴 élevé  | 📌 Accepté — limitation technique, voir [A.3.2](#a32-admin-returns--succès-remboursement-stripe--limitation-acceptée-pas-un-chantier)                                                                                                                                                                                                                                                         |
-| 3   | `auth/settings/saved-payments` → `attach`/`setup-intent` (enregistrement carte) jamais exercé                                                | 🟡 moyen  | ✅ **Fermé** — `e2e/commerce/saved-payments.spec.ts`, test « ajout d'une carte (?/attach) via un PaymentMethod Stripe réel » (commit `4277350`) : `pm_card_visa` (jeton de test Stripe réutilisable) se résout en un vrai `PaymentMethod`, sans Stripe Elements ni navigateur Stripe.js (`?/attach` ne fait jamais `confirmCardSetup` côté serveur) |
-| 4   | Module blog admin (création/édition d'article, taxonomies blog) — zéro couverture                                                            | 🟡 moyen  | ✅ **Fermé** — `e2e/blog/admin.spec.ts`, test « création (?/createPost) : slug unique, taxonomies et statut publié » (commit `2f95349`) : POST direct vers l'action, sans piloter TinyMCE — l'édition reste testée via Prisma direct, non couverte par cette fermeture |
-| 5   | `admin/products/(edit)/create` → `createProduct` — testé seulement par un spec `skip` (Cloudinary réel requis), jamais exécuté en CI         | 🟡 moyen  | ✅ **Fermé** — test unitaire Vitest (`src/routes/admin/products/(edit)/create/create-product.test.ts`, commit `17cf87d`) : Cloudinary et Prisma stubés, couvre la garde admin (403), le slug, la liaison des taxonomies, le rejet prix barré ≤ prix et l'échec d'upload (500) — pas un e2e, mais exécuté en CI contrairement au spec `skip`                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2   | `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) jamais vérifié                                                 | 🔴 élevé  | 📌 Accepté — limitation technique, voir [A.3.2](#a32-admin-returns--succès-remboursement-stripe--limitation-acceptée-pas-un-chantier)                                                                                                                                                                                                                                                          |
+| 3   | `auth/settings/saved-payments` → `attach`/`setup-intent` (enregistrement carte) jamais exercé                                                | 🟡 moyen  | ✅ **Fermé** — `e2e/commerce/saved-payments.spec.ts`, test « ajout d'une carte (?/attach) via un PaymentMethod Stripe réel » (commit `4277350`) : `pm_card_visa` (jeton de test Stripe réutilisable) se résout en un vrai `PaymentMethod`, sans Stripe Elements ni navigateur Stripe.js (`?/attach` ne fait jamais `confirmCardSetup` côté serveur)                                            |
+| 4   | Module blog admin (création/édition d'article, taxonomies blog) — zéro couverture                                                            | 🟡 moyen  | ✅ **Fermé** — `e2e/blog/admin.spec.ts`, test « création (?/createPost) : slug unique, taxonomies et statut publié » (commit `2f95349`) : POST direct vers l'action, sans piloter TinyMCE — l'édition reste testée via Prisma direct, non couverte par cette fermeture                                                                                                                         |
+| 5   | `admin/products/(edit)/create` → `createProduct` — testé seulement par un spec `skip` (Cloudinary réel requis), jamais exécuté en CI         | 🟡 moyen  | ✅ **Fermé** — test unitaire Vitest (`src/routes/admin/products/(edit)/create/create-product.test.ts`, commit `17cf87d`) : Cloudinary et Prisma stubés, couvre la garde admin (403), le slug, la liaison des taxonomies, le rejet prix barré ≤ prix et l'échec d'upload (500) — pas un e2e, mais exécuté en CI contrairement au spec `skip`                                                    |
 | 6   | 4 routes cron (`cleanup`, `loyalty-check`, `stock-alerts`, `invoice-email`) — authentification HTTP directe (secret/signature) jamais testée | 🟡 moyen  | ✅ **Fermé** — `cleanup` (`e2e/commerce/cleanup.spec.ts`, commit `b7cbbbb`) ; `loyalty-check`/`stock-alerts`/`invoice-email` (`e2e/commerce/cron-auth.spec.ts`, commit `df7c32e`, garde 401 uniquement — pas de repli `CRON_SECRET` sur ces 3 routes, QStash non configuré en test)                                                                                                            |
 | 7   | `admin/promo/create` → `createPromo` (argent) jamais testée par e2e                                                                          | 🟡 moyen  | ✅ **Fermé** — `e2e/promo/admin.spec.ts` (commit `7662986`). A révélé un vrai bug : `active` restait toujours `false` à la création malgré le commentaire « actif par défaut » (`superValidate()` initialise un booléen requis non fourni à `false`, pas `undefined` — le test de garde du composant ne se déclenchait jamais), corrigé via `active: z.boolean().default(true)` dans le schéma |
-| 8   | `auth/settings` → `marketingEmailsOptIn` (RGPD opt-in) — une inversion de ce champ ne serait détectée par rien                               | 🟡 moyen  | ✅ **Fermé** — `e2e/auth/settings.spec.ts` (commit `9bffbcd`) : anonyme redirigé, valeur par défaut `false`, bascule puis retour, vérifiés en base                                                                                                                                                                                                                                                                                                                                                                                      |
-| 9   | `admin/products` → `createVariant`, `updateTaxonomy`/`deleteTaxonomyValue` — mutations catalogue jamais exercées                             | 🟢 faible | ✅ **Fermé** — `createVariant` via formulaire admin (`e2e/products/variants.spec.ts`, commit `6a5c25c`) ; `deleteTaxonomyValue` isolée de la suppression en cascade (`e2e/products/taxonomies.spec.ts`, commit `ee3a2bc`). `updateTaxonomy` restait déjà couvert (renommage de valeur, étape 5)                                                                                                                                                                                                                                                                                                                                                                                      |
+| 8   | `auth/settings` → `marketingEmailsOptIn` (RGPD opt-in) — une inversion de ce champ ne serait détectée par rien                               | 🟡 moyen  | ✅ **Fermé** — `e2e/auth/settings.spec.ts` (commit `9bffbcd`) : anonyme redirigé, valeur par défaut `false`, bascule puis retour, vérifiés en base                                                                                                                                                                                                                                             |
+| 9   | `admin/products` → `createVariant`, `updateTaxonomy`/`deleteTaxonomyValue` — mutations catalogue jamais exercées                             | 🟢 faible | ✅ **Fermé** — `createVariant` via formulaire admin (`e2e/products/variants.spec.ts`, commit `6a5c25c`) ; `deleteTaxonomyValue` isolée de la suppression en cascade (`e2e/products/taxonomies.spec.ts`, commit `ee3a2bc`). `updateTaxonomy` restait déjà couvert (renommage de valeur, étape 5)                                                                                                |
 
 ### A.3.1 Instabilité e2e résiduelle — surveillance, pas de chantier
 
@@ -343,14 +343,14 @@ gère un remboursement Stripe impossible sans planter »).
 
 ## A.4 Arbitrages produit en attente — pas à moi de trancher
 
-| #   | Décision                                                                                                       | Source                                                                |
-| --- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable)                   | [Partie C.4](#c4-facturation-prix--fiscalit%C3%A9)                    |
-| 2   | Identité légale de l'entreprise à saisir dans `/admin/identite`                                                | [Partie C.3](#c3-mentions-l%C3%A9gales--identification-lcen)          |
-| 3   | Désignation d'un médiateur de la consommation réel                                                             | [Partie C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)     |
-| 4   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                                                 | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
-| 5   | Signature du registre RGPD art. 30 par le responsable de traitement réel                                       | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
-| 6   | Titrage/poinçon métal précieux — saisie de données fournisseur                                                 | [Partie C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
+| #   | Décision                                                                                     | Source                                                                |
+| --- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | Taux de TVA réel à saisir dans `/admin/tva` (20 % attendu, à confirmer par expert-comptable) | [Partie C.4](#c4-facturation-prix--fiscalit%C3%A9)                    |
+| 2   | Identité légale de l'entreprise à saisir dans `/admin/identite`                              | [Partie C.3](#c3-mentions-l%C3%A9gales--identification-lcen)          |
+| 3   | Désignation d'un médiateur de la consommation réel                                           | [Partie C.2](#c2-droit-de-la-consommation--vente-%C3%A0-distance)     |
+| 4   | Durées de conservation `FraudBlock`/`AdminAuditLog` à trancher                               | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 5   | Signature du registre RGPD art. 30 par le responsable de traitement réel                     | [Partie D](#partie-d--registre-des-traitements-rgpd-art-30)           |
+| 6   | Titrage/poinçon métal précieux — saisie de données fournisseur                               | [Partie C.6](#c6-sp%C3%A9cifique-m%C3%A9taux-pr%C3%A9cieux--diamants) |
 
 ✅ _Tranché_ — Arbitrage détection « nouvel appareil » : voir [A.2.5](#a25-arbitrage-en-attente--d%C3%A9tection-nouvel-appareil).
 
