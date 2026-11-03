@@ -23,6 +23,21 @@ export default defineConfig({
 		exclude: ['@node-rs/argon2', '@node-rs/bcrypt']
 	},
 
+	ssr: {
+		// `better-auth@1.7` dépend de Zod 4 (`node_modules/better-auth/node_modules/zod`),
+		// alors que le projet impose Zod 3.25 à la racine (superforms,
+		// `zod-v3-to-json-schema`). Sans cet `external`, le bundle serveur
+		// embarque le code de better-auth mais laisse `import "zod"` non résolu
+		// à la build — il se résout alors, à l'exécution, vers le Zod 3 de la
+		// racine : `TypeError: sessionSchema.loose is not a function` (`.loose`
+		// est une API Zod 4, absente de Zod 3). Externaliser ces paquets laisse
+		// Node résoudre leurs propres imports `zod` normalement, chacun vers sa
+		// version — pas de conflit. Alternative de fond écartée : passer tout
+		// le projet en Zod 4 (superforms 3 a un adaptateur `zod4`) — changement
+		// plus large, hors périmètre de cette réparation.
+		external: ['better-auth', '@better-auth/core', 'better-call']
+	},
+
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		coverage: {
