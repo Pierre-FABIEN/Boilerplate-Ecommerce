@@ -10,7 +10,7 @@
 // joignable même si chaque page vérifiait le rôle dans son `load`.
 // -----------------------------------------------------------------------------
 
-import { type Handle } from '@sveltejs/kit';
+import { type Handle } from '@sveltejs/kit/hooks';
 import { assertAdmin } from './guards';
 
 /** Passe à `true` pour tracer les refus d'accès dans la console. */

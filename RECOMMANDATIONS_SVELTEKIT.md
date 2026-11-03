@@ -24,40 +24,47 @@ conformément à la procédure prévue ; les utilisateurs se reconnectent après
 l'invalidation des anciennes sessions. Cette feuille de route ne confirme pas à
 elle seule l'état d'un déploiement production.
 
-### 2. Mise à niveau majeure de SvelteKit et de l'adapter Vercel
+### 2. Mise à niveau majeure de SvelteKit et de l'adapter Vercel — réalisée
 
-**Statut : migration du code en cours ; validation complète bloquée.** Les
-dépendances ont été mises à niveau vers SvelteKit 3.1, Vite 8, le plugin Svelte
-7, TypeScript 6, Superforms 3 et adapter-vercel 7. Le runtime cible est
-`nodejs22.x` ; Node 22.17 minimum est déclaré dans `package.json` et Node
-22.22.0 est utilisé en CI.
+**Statut : migration du code terminée et validée localement.** Le commit
+`upgrade` (3e011d5, 19/10/2026) avait mis à niveau les dépendances (SvelteKit
+3.1, Vite 8, le plugin Svelte 7, TypeScript 6, Superforms 3, adapter-vercel 7)
+sans finir la migration de code qu'elles imposaient, laissant la CI cassée sur
+`main`. Réparé sur la branche `fix/sveltekit3-migration` (voir
+`RESTE_A_FAIRE.md` pour le détail des 4 causes et leurs commits). Le runtime
+cible est `nodejs22.x` ; Node 22.17 minimum est déclaré dans `package.json` et
+Node 22.22.0 est utilisé en CI.
 
-Les changements de compatibilité déjà appliqués comprennent le déplacement de
-la configuration dans `sveltekit.config.ts` et `vite.config.ts`, l'usage de
-`$app/state` et `afterNavigate` à la place de `$app/stores`, la déclaration
-explicite des variables d'environnement dans `src/env.ts` et la migration des
-anciens alias vers les sous-chemins `#...` de `package.json#imports`.
+Changements de compatibilité appliqués :
 
-**Validation locale :** `npm ci --ignore-scripts` et la compilation Vite des
-modules passent. Le build complet et `npm run check` restent bloqués parce que
-le client Prisma généré est absent ; `prisma generate` ne peut pas télécharger
-son moteur dans cet environnement à cause d'une erreur de chaîne de certificats
-TLS (`self-signed certificate in certificate chain`). Ne pas désactiver la
-vérification TLS pour contourner ce blocage. Le contrôle TypeScript signale
-également des incompatibilités Tailwind préexistantes dans `tailwind.config.ts`.
+- Configuration déplacée dans `sveltekit.config.ts` et `vite.config.ts`.
+- `$app/state`/`afterNavigate` à la place de `$app/stores`.
+- Variables d'environnement déclarées dans `src/env.ts`
+  (`defineEnvVars`/`$app/env/private`/`$app/env/public`), qui remplacent
+  entièrement `$env/static/*` et `$env/dynamic/*` (supprimés en SvelteKit 3).
+- Alias `#...` de `package.json#imports`, avec les `paths` correspondants
+  déclarés explicitement dans `tsconfig.json` (`$app/tsconfig`, généré par
+  SvelteKit 3, ne déclare plus ni `include` ni `paths`).
+- `ssr.external` (`vite.config.ts`) pour que `better-auth` résolve sa propre
+  copie de Zod 4 plutôt que le Zod 3 du dépôt.
+- Initialisation paresseuse des SDK qui ont besoin d'une clé au moment de la
+  construction (Stripe) : SvelteKit 3 importe tout module serveur du graphe de
+  routes pendant l'analyse du build, même pour les routes qui n'en ont pas
+  besoin à la requête.
+- `Handle`/`HandleServerError`/`SubmitFunction` déplacés vers
+  `@sveltejs/kit/hooks`/`$app/forms` ; `event.locals` en lecture seule (muter
+  ses propriétés, ne plus le remplacer en bloc) ; `GotoOptions.keepFocus`/
+  `.noScroll` fusionnés en une seule option `reset`.
 
-Avant de considérer la migration terminée :
+**Validation locale :** `npm run check` (0 erreur), `npx eslint .` (0 erreur),
+`npx vitest run` (94 passed / 2 skipped), `npx vite build` (vert), `npm run
+dev` + `/`, `/auth/login`, `/products`, `/admin` répondent, suite Playwright
+hors `e2e/live/**` (voir `RESTE_A_FAIRE.md` pour le résultat détaillé).
 
-1. Régénérer le client Prisma dans un environnement où la chaîne de certificats
-   est approuvée, puis exécuter `npm run check`, `npm run lint`,
-   `npm run test:unit`, `npm run test:e2e` et `npm run build`.
-2. Vérifier en préproduction le checkout Stripe, les webhooks, les tâches
-   planifiées, les PDF, l'authentification, les cartes MapLibre et la politique
-   CSP. Tester aussi les durées de fonctions sur la plateforme Vercel cible.
-
-**Critères de validation :** contrôle, tests, build et parcours critiques
-réussissent avec le client Prisma généré ; le runtime Node 22 est vérifié sur
-Vercel ; les smoke-tests préproduction sont concluants.
+**Reste à faire avant un déploiement production :** vérifier en préproduction
+le checkout Stripe, les webhooks, les tâches planifiées, les PDF,
+l'authentification, les cartes MapLibre et la politique CSP ; tester les
+durées de fonctions sur la plateforme Vercel cible.
 
 Références : [SvelteKit](https://svelte.dev/docs/kit),
 [adapters SvelteKit](https://svelte.dev/docs/kit/adapters),

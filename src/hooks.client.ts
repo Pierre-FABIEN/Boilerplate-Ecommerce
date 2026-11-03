@@ -1,5 +1,5 @@
 import { dev } from '$app/env';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_SENTRY_DSN } from '$app/env/public';
 import * as Sentry from '@sentry/sveltekit';
 import { isValidSentryDsn } from '#lib/sentryDsn';
 
@@ -11,9 +11,9 @@ import { isValidSentryDsn } from '#lib/sentryDsn';
  * dans la console pour une valeur mal configurée (voir aussi
  * src/hooks.server.ts).
  */
-if (isValidSentryDsn(env.PUBLIC_SENTRY_DSN)) {
+if (isValidSentryDsn(PUBLIC_SENTRY_DSN)) {
 	Sentry.init({
-		dsn: env.PUBLIC_SENTRY_DSN,
+		dsn: PUBLIC_SENTRY_DSN,
 		tracesSampleRate: 0.1
 	});
 }

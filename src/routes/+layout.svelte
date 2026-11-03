@@ -19,7 +19,6 @@
 		setDomLoaded
 	} from '#lib/store/initialLoaderStore';
 	import { afterNavigate } from '$app/navigation';
-	import { page } from '$app/state';
 
 	import { resetCart, setCart, setVatRate } from '#lib/store/Data/cartStore';
 	import { setCartSyncAuthenticated, startSync } from '#lib/store/Data/cartSync';

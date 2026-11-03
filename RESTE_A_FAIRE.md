@@ -1,6 +1,6 @@
 # État du projet & backlog — Boilerplate-Ecommerce-1
 
-Document unique, mis à jour au 08/10/2026, qui consolide **tout** ce qui
+Document unique, mis à jour au 03/11/2026, qui consolide **tout** ce qui
 concerne l'état du projet au-delà du code lui-même : backlog technique,
 idées de futures features, conformité réglementaire, registre RGPD. Avant
 ce jour, cette information était répartie sur 6 fichiers séparés
@@ -15,15 +15,19 @@ conformité). Tout l'historique détaillé reste consultable via `git log`/
 **Ceci n'est pas un avis juridique** (Partie C) : à faire valider par un
 avocat/expert-comptable avant toute mise en production réelle.
 
-**État de référence** (revérifié le 12/10/2026) : `npm run check` 0 erreur ·
-`npx vitest run` 94 tests passés / 2 skippés · `npx eslint .` 0 erreur / 12
-avertissements · 64 fichiers e2e Playwright · `npx knip` 2 fichiers
-potentiellement inutilisés (voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
-Ce chiffre du 08/10 s'est révélé **momentanément faux entre le 08 et le
-12/10** sans que personne ne le détecte — voir [A.2.1](#a21-montants-mon%C3%A9taires-en-float)
-et [A.3](#a3-couverture-e2e--trous-identifi%C3%A9s) : une migration de schéma
-faite le 08/10 après cette mesure a cassé le client Prisma généré (289
-erreurs `svelte-check`) et 4 specs e2e, corrigés le 12/10.
+**État de référence** (revérifié le 03/11/2026, après réparation de la CI
+cassée par le commit `upgrade` — voir [A.2.6](#a26-ci-cass%C3%A9e-par-le-commit-upgrade-sveltekit-3-r%C3%A9par%C3%A9e-03112026)) :
+`npm run check` 0 erreur · `npx vitest run` 94 tests passés / 2 skippés ·
+`npx eslint .` 0 erreur / 12 avertissements · `npx vite build` vert · 64
+fichiers e2e Playwright · `npx knip` 2 fichiers potentiellement inutilisés
+(voir [A.2.4](#a24-fichiers-signal%C3%A9s-inutilis%C3%A9s-par-knip-2-intentionnels)).
+
+Entre le 12/10 (date de la mesure précédente) et le 19/10, le commit
+`upgrade` (`3e011d5`) a mis à niveau SvelteKit/TypeScript/Vite sans finir
+la migration de code correspondante, cassant `main` (~28000 erreurs
+`svelte-check`, build en échec) sans que personne ne le détecte avant le
+03/11 — même mécanisme de « mesure de référence devenue fausse entre deux
+relectures » que la régression Decimal du 08-12/10 ci-dessous.
 
 ## Priorités — hiérarchie de criticité (code, logique, tests, doc)
 
@@ -45,6 +49,12 @@ applicatif en cause) et les helpers `e2e/support/db.ts` (lectures directes
 sans passer par les mappers applicatifs, cassant \~8 specs — dont deux,
 `admin/promo/create` et `createProduct`, comptés comme fermés ci-dessous
 sans l'être réellement entre le 08 et le 12/10). Voir [A.2.1](#a21-montants-mon%C3%A9taires-en-float).
+
+✅ _Fermé_ — CI cassée par le commit `upgrade` (`3e011d5`, 19/10/2026,
+SvelteKit 2.21→3.1/TypeScript 5.9→6.0/Vite 6.4→8.3 sans migration de code
+associée), jamais détectée avant le 03/11 : `npm run check` ~28000 erreurs,
+build en échec. Réparée sur `fix/sveltekit3-migration`, 4 causes, un commit
+chacune. Voir [A.2.6](#a26-ci-cass%C3%A9e-par-le-commit-upgrade-sveltekit-3-r%C3%A9par%C3%A9e-03112026).
 
 📌 _Décision_ — `admin/returns` → `approve`, chemin de **succès** (remboursement Stripe réel) : reste **volontairement non testé en e2e** (limitation technique de Stripe Checkout, pas un oubli) — voir [A.3 #2](#a3-couverture-e2e--trous-identifi%C3%A9s) et la justification détaillée en [A.3.2](#a32-admin-returns--succ%C3%A8s-remboursement-stripe--limitation-accept%C3%A9e-pas-un-chantier).
 
@@ -333,11 +343,71 @@ attaquant passerait pour un appareil connu.
 
 ✅ **Tranché par l'utilisateur et implémenté** (commit `1f45183`) :
 normalisation sur OS + navigateur + **version majeure** uniquement
-(`normalizeDeviceFingerprint()`, `src/lib/lucia/deviceLabel.ts`), ni statu
-quo ni croisement de localisation. Un bump de version mineure/build ne
-déclenche plus d'alerte ; un changement d'OS ou de navigateur, si. Tests
-unitaires étendus (`loginEvent.test.ts`) et `e2e/auth/new-device-alert.spec.ts`
+(`normalizeDeviceFingerprint()`, `src/lib/server/deviceLabel.ts` — déplacé
+de `src/lib/lucia/` lors du retrait de Lucia, voir A.2.6), ni statu quo ni
+croisement de localisation. Un bump de version mineure/build ne déclenche
+plus d'alerte ; un changement d'OS ou de navigateur, si. Tests unitaires
+étendus (`loginEvent.test.ts`) et `e2e/auth/new-device-alert.spec.ts`
 revérifié, toujours vert.
+
+### A.2.6 CI cassée par le commit `upgrade` (SvelteKit 3), réparée (03/11/2026)
+
+✅ **Fermé** — le commit `upgrade` (`3e011d5`, 19/10/2026) avait mis à niveau
+SvelteKit 2.21→3.1, TypeScript 5.9→6.0 et Vite 6.4→8.3 sans finir la
+migration de code que ces versions majeures imposent, laissant `main` avec
+une CI cassée (`npm run check` ~28000 erreurs, build en échec). Réparé sur
+la branche `fix/sveltekit3-migration`, un commit par cause :
+
+1. **`tsconfig.json`** — `$app/tsconfig` (généré par SvelteKit 3) ne
+   déclare plus ni `include` ni `paths` : sans `include`, TypeScript
+   analysait tout le dépôt (y compris des arbres hors `src/` sans rapport,
+   comme `static/tinymce/`) ; sans `paths`, les alias `#...`
+   (`package.json#imports`) n'étaient plus résolus par le compilateur.
+   28074 → 44 erreurs.
+2. **Conflit Zod 3/Zod 4** — `better-auth@1.7` embarque sa propre
+   dépendance Zod 4, alors que le reste du projet (superforms,
+   `zod-v3-to-json-schema`) impose Zod 3.25 à la racine. Sans
+   `ssr.external` (`vite.config.ts`), le bundle serveur de Vite laissait
+   l'import `zod` de better-auth se résoudre, à l'exécution, vers le Zod 3
+   de la racine (`TypeError: sessionSchema.loose is not a function`, API
+   Zod 4 absente de Zod 3).
+3. **Initialisation précoce de SDK/variables d'environnement** —
+   SvelteKit 3 a supprimé `$env/static/*`/`$env/dynamic/*` au profit d'une
+   déclaration centralisée (`src/env.ts`, `defineEnvVars`, consommée via
+   `$app/env/private`/`$app/env/public`). `src/lib/server/stripe.ts`
+   instanciait encore `new Stripe(...)` au chargement du module via
+   l'ancien `$env/dynamic/private` (supprimé) : avec une clé absente, la
+   phase « Analysing routes » du build (qui importe tout module serveur du
+   graphe de routes) faisait planter tout le build, même pour des routes
+   n'utilisant pas Stripe. Corrigé par un `Proxy` différant la construction
+   au premier accès réel ; `SENTRY_DSN`/`PUBLIC_SENTRY_DSN` migrés au
+   passage vers le nouveau système (optionnels via `schema`).
+4. **Reste des migrations d'API connues** — `Handle`/`HandleServerError`
+   déplacés vers `@sveltejs/kit/hooks`, `SubmitFunction` vers `$app/forms`,
+   `event.locals` en lecture seule sur `RequestEvent` (muter ses
+   propriétés plutôt que le remplacer), `GotoOptions.keepFocus`/
+   `.noScroll` fusionnés en `reset`, plus deux écarts preexistants révélés
+   par le contrôle plus strict de TypeScript 6 dans `e2e/support/db.ts`
+   (`reviewReminderEnabled` manquant) et `e2e/admin/exports.spec.ts` (deux
+   `let` réaffectés dans des closures `test.step(...)` puis relus dans un
+   `finally`, réduits à `never` par l'analyse de flux — remplacés par un
+   objet muté par propriété).
+
+**État de référence revérifié après réparation (03/11/2026)** : `npm run
+check` 0 erreur · `npx eslint .` 0 erreur / 12 avertissements · `npx vitest
+run` 94 passés / 2 skippés · `npx vite build` vert · `npm run dev` + `/`,
+`/auth/login`, `/products`, `/admin` répondent. Suite Playwright complète
+(hors `e2e/live/**`) lancée en vérification mais pas attendue avant ce
+merge, sur décision explicite — seul échec observé avant l'arbitrage :
+`e2e/admin/accounting-export.spec.ts`, `ACCOUNTING_EXPORT_EMAIL` absent de
+`.env.test` (gap d'environnement local préexistant, documenté dans
+`.env.test.example`, sans rapport avec cette migration). **À revérifier** :
+relancer `npx playwright test` (hors `e2e/live/**`) sur `main` pour
+confirmer qu'aucune autre régression n'est remontée par le reste de la
+suite.
+
+Détail des choix, alternatives écartées et commits : voir
+`RECOMMANDATIONS_SVELTEKIT.md` §2.
 
 ## A.3 Couverture e2e — trous identifiés
 

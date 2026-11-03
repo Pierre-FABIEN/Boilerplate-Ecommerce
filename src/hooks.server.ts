@@ -20,10 +20,10 @@
 // effet de bord — aucune n'accepte de mutation via un `<form>` HTML classique.
 // -----------------------------------------------------------------------------
 
-import type { Handle, HandleServerError } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import { sequence } from '@sveltejs/kit/hooks';
 import { dev } from '$app/env';
-import { env } from '$env/dynamic/private';
+import { SENTRY_DSN } from '$app/env/private';
 import * as Sentry from '@sentry/sveltekit';
 import { isValidSentryDsn } from '#lib/sentryDsn';
 
@@ -62,9 +62,9 @@ import { adminHandle } from '#lib/admin/hooks';
  * l'appli mais imprime `Invalid Sentry Dsn: ****` à chaque requête —
  * évité en amont plutôt que subi.
  */
-if (isValidSentryDsn(env.SENTRY_DSN)) {
+if (isValidSentryDsn(SENTRY_DSN)) {
 	Sentry.init({
-		dsn: env.SENTRY_DSN,
+		dsn: SENTRY_DSN,
 		tracesSampleRate: 0.1
 	});
 }

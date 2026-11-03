@@ -64,7 +64,7 @@
 		}
 		if (!('page' in patch)) params.delete('page');
 		const query = params.toString();
-		goto(query ? `/products?${query}` : '/products', { keepFocus: true, noScroll: true });
+		goto(query ? `/products?${query}` : '/products', { reset: false });
 	}
 
 	function toggleTaxonomyValue(slug: string, value: string) {

@@ -13,7 +13,8 @@
 // de raison d'être.
 // -----------------------------------------------------------------------------
 
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import { auth } from '#lib/auth';
 import { toLocalsUser, type User } from '#lib/auth/user';
 import { toLocalsSession, sessionIdentityCacheKey, type Session } from '#lib/auth/session';
@@ -76,14 +77,15 @@ async function resolveIdentity(event: Parameters<Handle>[0]['event']): Promise<R
 export const authHandle: Handle = async ({ event, resolve }) => {
 	const { session, user } = await resolveIdentity(event);
 
-	event.locals = {
-		...event.locals,
+	// `event.locals` est en lecture seule depuis SvelteKit 3 (RequestEvent) :
+	// on ne peut plus le remplacer en bloc, seulement muter ses propriétés.
+	Object.assign(event.locals, {
 		session,
 		user,
 		role: user?.role ?? null,
 		isMfaEnabled: user?.isMfaEnabled ?? false,
 		registered2FA: user?.registered2FA ?? false
-	};
+	});
 
 	// Un compte qui exige la 2FA mais ne l'a pas encore configurée reste
 	// confiné à la page de configuration. Une fois configurée, le second

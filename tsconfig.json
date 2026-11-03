@@ -1,5 +1,21 @@
 {
 	"extends": "$app/tsconfig",
+	// `$app/tsconfig` (généré par SvelteKit 3 dans node_modules, voir
+	// node_modules/$app/tsconfig.json) ne déclare ni `include` ni `paths` :
+	// sans l'un, TypeScript analyse tout le dépôt (y compris `static/tinymce/`
+	// copié par le postinstall, et `k6/`) ; sans l'autre, les imports
+	// `#lib/*`/`#components/*`/`#server/*`/`#shadcn/*`/`#store/*`
+	// (package.json "imports", cibles sans extension) ne sont pas résolus par
+	// le compilateur — qui n'a pas la même résolution que Vite/Node pour ce
+	// champ, contrairement à `svelte-check`/l'extension d'avant la migration.
+	"include": [
+		"src",
+		"e2e",
+		"vite.config.ts",
+		"sveltekit.config.ts",
+		"playwright.config.ts",
+		"vite-plugin-drop-stale-pwa.ts"
+	],
 	"compilerOptions": {
 		"allowJs": true,
 		"checkJs": true,
@@ -9,6 +25,13 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"moduleResolution": "bundler"
+		"moduleResolution": "bundler",
+		"paths": {
+			"#components/*": ["./src/lib/components/*"],
+			"#lib/*": ["./src/lib/*"],
+			"#server/*": ["./src/lib/server/*"],
+			"#shadcn/*": ["./src/lib/components/shadcn/ui/*"],
+			"#store/*": ["./src/lib/store/*"]
+		}
 	}
 }

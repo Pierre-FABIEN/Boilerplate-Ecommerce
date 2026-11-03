@@ -162,12 +162,14 @@
 	 * changement de page/taille de page).
 	 */
 	function updateServerUrl(patch: Record<string, string | number | null | undefined>) {
-		const url = new URL(appPage.url);
+		const url = new URL(appPage.url.href);
 		for (const [key, value] of Object.entries(patch)) {
 			if (value === null || value === undefined || value === '') url.searchParams.delete(key);
 			else url.searchParams.set(key, String(value));
 		}
-		goto(`${url.pathname}${url.search}`, { keepFocus: true, noScroll: true, invalidateAll: true });
+		// `reset: false` = ancien `keepFocus: true` + `noScroll: true` combinés
+		// (SvelteKit 3 a fusionné les deux options en une seule).
+		goto(`${url.pathname}${url.search}`, { reset: false, invalidateAll: true });
 	}
 
 	// Recherche : debounce avant de recharger depuis le serveur. Le garde

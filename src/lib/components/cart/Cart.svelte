@@ -22,7 +22,7 @@
 	import { Trash, ShoppingCart } from 'lucide-svelte';
 	import QuantityInput from '../QuantityInput.svelte';
 	import { enhance } from '$app/forms';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { SubmitFunction } from '$app/forms';
 
 	/*  👉 le store 'mode'  */
 	import { mode as modeStore } from 'mode-watcher';
