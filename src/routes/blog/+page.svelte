@@ -47,7 +47,7 @@
 
 	function submitSearch(event: SubmitEvent) {
 		event.preventDefault();
-		goto(filterHref({ q: searchInput.trim() || null }), { keepFocus: true, noScroll: true });
+		goto(filterHref({ q: searchInput.trim() || null }), { reset: false });
 	}
 </script>
 

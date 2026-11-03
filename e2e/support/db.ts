@@ -1378,6 +1378,7 @@ export async function getStoreFeatureFlags() {
 				fraudDetectionEnabled: true,
 				fraudBlockingEnabled: true,
 				recentlyViewedReminderEnabled: true,
+				reviewReminderEnabled: true,
 				vatRate: true,
 				estimatedDeliveryMinDays: true,
 				estimatedDeliveryMaxDays: true,
@@ -1415,6 +1416,7 @@ export async function setStoreFeatureFlags(patch: {
 	fraudDetectionEnabled?: boolean;
 	fraudBlockingEnabled?: boolean;
 	recentlyViewedReminderEnabled?: boolean;
+	reviewReminderEnabled?: boolean;
 	vatRate?: number;
 	estimatedDeliveryMinDays?: number | null;
 	estimatedDeliveryMaxDays?: number | null;

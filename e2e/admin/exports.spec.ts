@@ -26,8 +26,16 @@ test.describe('Administration — exports, purge, import', () => {
 
 	test('export, purge et réimport du jeu de données produits', async ({ page, account }) => {
 		const recent = await createCatalogProduct();
-		let old: Awaited<ReturnType<typeof createOldCatalogProduct>> | null = null;
-		let lockedOld: Awaited<ReturnType<typeof createOldCatalogProduct>> | null = null;
+		// Objet plutôt que deux `let` : muter une propriété (plutôt que
+		// réaffecter la variable) évite un faux positif de TypeScript 6 — son
+		// analyse de flux de contrôle, à travers les closures passées à
+		// `test.step(...)`, réduit le type d'un `let` réaffecté dans une
+		// closure à `null` au point du `finally` (une variable normale n'a pas
+		// ce problème).
+		const created: {
+			old: Awaited<ReturnType<typeof createOldCatalogProduct>> | null;
+			lockedOld: Awaited<ReturnType<typeof createOldCatalogProduct>> | null;
+		} = { old: null, lockedOld: null };
 		const ownerEmail = `e2e-exports-owner-${Date.now()}@example.test`;
 
 		try {
@@ -60,11 +68,11 @@ test.describe('Administration — exports, purge, import', () => {
 			).json();
 
 			await test.step('2. Aperçu de purge : compte les lignes de plus de 365 jours', async () => {
-				old = await createOldCatalogProduct(400);
+				created.old = await createOldCatalogProduct(400);
 				await occupyEmail(ownerEmail);
 				const owner = await requireUser(ownerEmail);
-				lockedOld = await createOldCatalogProduct(400);
-				await linkProductToOrder(owner.id, lockedOld.product.id);
+				created.lockedOld = await createOldCatalogProduct(400);
+				await linkProductToOrder(owner.id, created.lockedOld.product.id);
 
 				await page.reload();
 				await productsBlock.locator('input[type="number"]').fill('365');
@@ -81,10 +89,10 @@ test.describe('Administration — exports, purge, import', () => {
 					productsBlock.getByText('1 ligne(s) supprimée(s), 1 ignorée(s) (liées à des commandes)')
 				).toBeVisible();
 
-				expect(await getProductById(old!.product.id)).toBeNull();
-				expect(await getProductById(lockedOld!.product.id)).not.toBeNull();
+				expect(await getProductById(created.old!.product.id)).toBeNull();
+				expect(await getProductById(created.lockedOld!.product.id)).not.toBeNull();
 				expect(await getProductById(recent.product.id)).not.toBeNull();
-				old = null;
+				created.old = null;
 			});
 
 			await test.step('4. Réimport : une ligne modifiée met à jour le prix', async () => {
@@ -116,8 +124,8 @@ test.describe('Administration — exports, purge, import', () => {
 			});
 		} finally {
 			await deleteCatalogProduct(recent.product.id);
-			if (old) await deleteCatalogProduct(old.product.id);
-			if (lockedOld) await deleteCatalogProduct(lockedOld.product.id);
+			if (created.old) await deleteCatalogProduct(created.old.product.id);
+			if (created.lockedOld) await deleteCatalogProduct(created.lockedOld.product.id);
 			await deleteUser(ownerEmail);
 		}
 	});
